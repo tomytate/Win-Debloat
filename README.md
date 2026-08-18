@@ -497,17 +497,6 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\Run-AllTests.ps1
 
 ---
 
-## 🌟 Acknowledgements & Open-Source Credits
-
-Win-Debloat is built upon the collective knowledge, research, and contributions of the open-source Windows optimization community. Special thanks and attribution to:
-- **Chris Titus Tech ([`winutil`](https://github.com/ChrisTitusTech/winutil))** — Asynchronous PowerShell Runspace UI threading architecture, multi-provider software installer hub, and native Windows 11 DNS-over-HTTPS (DoH) configuration.
-- **Raphire ([`Win11Debloat`](https://github.com/Raphire/Win11Debloat))** — Windows 11 24H2/25H2 Copilot+ AI disablement keys, live system state pre-flight inspection, and safe Explorer restart loops.
-- **farag2 ([`Sophia-Script-for-Windows`](https://github.com/farag2/Sophia-Script-for-Windows))** — Granular Task Scheduler whitelist architecture, Windows Defender Exploit Guard policies, and Pester testing techniques.
-- **AtlasOS / ReviOS Team** — MMCSS multimedia network scheduling latency research and hardware-aware CPU topology profiling.
-- **Massgravel ([`MAS`](https://github.com/massgravel/Microsoft-Activation-Scripts))** & **LeDragoX** — Windows activation helpers and debloat optimization benchmarks.
-
----
-
 ## 📈 Star History
 
 <div align="center">
