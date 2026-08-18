@@ -1,20 +1,19 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Performance optimization module for Win-Debloat7
+    Performance optimization module for Win-Debloat
     
 .DESCRIPTION
     Manages power plans, visual effects, and system responsiveness settings.
-    Uses PowerShell 7.5 best practices with named constants and proper error handling.
+    Uses PowerShell best practices with named constants and proper error handling.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Performance
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Performance
+    Version: 2.0.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
-
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
 
 using namespace System.Management.Automation
 
@@ -45,9 +44,9 @@ $Script:PowerPlanGUIDs = @{
     [void]
     
 .EXAMPLE
-    Set-WinDebloat7Performance -Config $config
+    Optimize-WinDebloatPerformance -Config $config
 #>
-function Set-WinDebloat7Performance {
+function Optimize-WinDebloatPerformance {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     [OutputType([void])]
     param(
@@ -90,50 +89,87 @@ function Set-WinDebloat7Performance {
                 }
             }
             "Ultimate" {
-                $guid = $Script:PowerPlanGUIDs.Ultimate
-                if ($PSCmdlet.ShouldProcess("Power Plan", "Set to Ultimate Performance")) {
-                    # The hidden Ultimate Performance scheme cannot be activated directly on
-                    # most systems - it must be duplicated first, then the COPY's new GUID
-                    # is activated. Reuse an existing copy if one is already installed.
-                    $existingPlans = powercfg -list 2>&1
-                    $activeGuid = $null
-
-                    if ($existingPlans -match $guid) {
-                        $activeGuid = $guid
+                # Check for laptop / battery presence (AtlasOS / CTT best practice)
+                $battery = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue
+                if ($battery) {
+                    Write-Log -Message "Laptop detected: Ultimate Performance power plan causes severe battery drain and thermal throttling. Using High Performance scheme." -Level Warning
+                    $guid = $Script:PowerPlanGUIDs.HighPerformance
+                    if ($PSCmdlet.ShouldProcess("Power Plan", "Set to High Performance (Laptop Safe)")) {
+                        $proc = Start-Process -FilePath "powercfg.exe" -ArgumentList "-SetActive", "$guid" -Wait -NoNewWindow -PassThru
+                        if ($proc.ExitCode -eq 0) {
+                            Write-Log -Message "Power Plan set to High Performance" -Level Success
+                            $successCount++
+                        }
                     }
-                    else {
-                        $duplicateOutput = powercfg /duplicatescheme $guid 2>&1
-                        foreach ($line in $duplicateOutput) {
-                            if ($line -match '\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b') {
-                                $activeGuid = $matches[0]
+                }
+                else {
+                    $guid = $Script:PowerPlanGUIDs.Ultimate
+                    if ($PSCmdlet.ShouldProcess("Power Plan", "Set to Ultimate Performance")) {
+                        # Check if Ultimate scheme or a copy is already present
+                        $existingPlans = powercfg -list 2>&1
+                        $activeGuid = $null
+
+                        foreach ($line in $existingPlans) {
+                            if ($line -match 'Ultimate Performance' -and $line -match '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})') {
+                                $activeGuid = $matches[1]
                                 break
                             }
                         }
-                    }
 
-                    if ($activeGuid) {
-                        $proc = Start-Process -FilePath "powercfg.exe" -ArgumentList "-SetActive", "$activeGuid" -Wait -NoNewWindow -PassThru
-                        if ($proc.ExitCode -eq 0) {
-                            Write-Log -Message "Power Plan set to Ultimate Performance" -Level Success
-                            $successCount++
+                        if (-not $activeGuid) {
+                            $duplicateOutput = powercfg /duplicatescheme $guid 2>&1
+                            foreach ($line in $duplicateOutput) {
+                                if ($line -match '\b([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\b') {
+                                    $activeGuid = $matches[1]
+                                    break
+                                }
+                            }
+                        }
+
+                        if ($activeGuid) {
+                            $proc = Start-Process -FilePath "powercfg.exe" -ArgumentList "-SetActive", "$activeGuid" -Wait -NoNewWindow -PassThru
+                            if ($proc.ExitCode -eq 0) {
+                                Write-Log -Message "Power Plan set to Ultimate Performance" -Level Success
+                                $successCount++
+                            }
+                            else {
+                                Write-Log -Message "Failed to set power plan: $($proc.ExitCode)" -Level Error
+                                $failCount++
+                            }
                         }
                         else {
-                            Write-Log -Message "Failed to set power plan: $($proc.ExitCode)" -Level Error
+                            Write-Log -Message "Could not duplicate Ultimate Performance scheme (unsupported on this system?)" -Level Error
                             $failCount++
                         }
-                    }
-                    else {
-                        Write-Log -Message "Could not duplicate Ultimate Performance scheme (unsupported on this system?)" -Level Error
-                        $failCount++
                     }
                 }
             }
             "Balanced" {
                 $guid = $Script:PowerPlanGUIDs.Balanced
                 if ($PSCmdlet.ShouldProcess("Power Plan", "Set to Balanced")) {
-                    Start-Process -FilePath "powercfg.exe" -ArgumentList "-SetActive", "$guid" -Wait -NoNewWindow
-                    Write-Log -Message "Power Plan set to Balanced" -Level Success
-                    $successCount++
+                    $proc = Start-Process -FilePath "powercfg.exe" -ArgumentList "-SetActive", "$guid" -Wait -NoNewWindow -PassThru
+                    if ($proc.ExitCode -eq 0) {
+                        Write-Log -Message "Power Plan set to Balanced" -Level Success
+                        $successCount++
+                    }
+                    else {
+                        Write-Log -Message "Failed to set power plan: $($proc.ExitCode)" -Level Error
+                        $failCount++
+                    }
+                }
+            }
+            { $_ -in "PowerSaver", "Power Saver" } {
+                $guid = $Script:PowerPlanGUIDs.PowerSaver
+                if ($PSCmdlet.ShouldProcess("Power Plan", "Set to Power Saver")) {
+                    $proc = Start-Process -FilePath "powercfg.exe" -ArgumentList "-SetActive", "$guid" -Wait -NoNewWindow -PassThru
+                    if ($proc.ExitCode -eq 0) {
+                        Write-Log -Message "Power Plan set to Power Saver" -Level Success
+                        $successCount++
+                    }
+                    else {
+                        Write-Log -Message "Failed to set power plan: $($proc.ExitCode)" -Level Error
+                        $failCount++
+                    }
                 }
             }
             default {
@@ -146,22 +182,23 @@ function Set-WinDebloat7Performance {
         $failCount++
     }
     
-    # 2. Visual Effects (Registry) & Responsiveness
+    # 2. Visual Effects & Responsiveness
     if ($Config.performance.visual_effects -eq "Performance") {
         $currentStep++
         Write-Progress -Activity "Applying Performance Settings" -Status "Optimizing Visual Effects & Responsiveness" -PercentComplete (($currentStep / $totalSteps) * 100)
         Write-Log -Message "Optimizing Visual Effects for Performance" -Level Info
         
         $results = @(
-            # Reduce Menu Delay
+            # Reduce Menu Delay (Safe & Responsive)
             (Set-RegistryKey -Path "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Value "0" -Type String),
-            # Disable Animation
+            # Disable Window Minimize/Maximize Animation
             (Set-RegistryKey -Path "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -Value "0" -Type String),
             # Reduce Mouse Hover Time
             (Set-RegistryKey -Path "HKCU:\Control Panel\Mouse" -Name "MouseHoverTime" -Value "10" -Type String),
-            # Kill Hung Apps Faster
-            (Set-RegistryKey -Path "HKCU:\Control Panel\Desktop" -Name "HungAppTimeout" -Value "1000" -Type String),
-            (Set-RegistryKey -Path "HKCU:\Control Panel\Desktop" -Name "WaitToKillAppTimeout" -Value "2000" -Type String)
+            # Safe shutdown timeout (5000ms prevents data corruption while avoiding long hangs)
+            (Set-RegistryKey -Path "HKCU:\Control Panel\Desktop" -Name "WaitToKillAppTimeout" -Value "5000" -Type String),
+            # System Responsiveness (0 for foreground multimedia priority)
+            (Set-RegistryKey -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "SystemResponsiveness" -Value 0 -Type DWord)
         )
         
         $successCount += ($results | Where-Object { $_ }).Count
@@ -171,13 +208,16 @@ function Set-WinDebloat7Performance {
     # 3. RAM Optimization (Service Host Split)
     $currentStep++
     Write-Progress -Activity "Applying Performance Settings" -Status "Optimizing Service Host Split" -PercentComplete (($currentStep / $totalSteps) * 100)
-    $ramGB = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB
-    if ($ramGB -gt 4) {
-        # Set Split Threshold to RAM size to reduce process overhead on modern systems
-        $ramKB = (Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum / 1KB
-        if (Set-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control" -Name "SvcHostSplitThresholdInKB" -Value $ramKB -Type DWord) {
-            $successCount++
-            Write-Log -Message "Optimized Service Host Split Threshold" -Level Success
+    $compSys = Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue
+    if ($compSys -and $compSys.TotalPhysicalMemory) {
+        $ramGB = $compSys.TotalPhysicalMemory / 1GB
+        if ($ramGB -gt 4) {
+            # Set Split Threshold to RAM size to reduce process overhead on modern systems
+            $ramKB = [int32][math]::Round($compSys.TotalPhysicalMemory / 1KB)
+            if (Set-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control" -Name "SvcHostSplitThresholdInKB" -Value $ramKB -Type DWord) {
+                $successCount++
+                Write-Log -Message "Optimized Service Host Split Threshold ($ramKB KB)" -Level Success
+            }
         }
     }
     
@@ -215,7 +255,7 @@ function Set-WinDebloat7Performance {
     $currentStep++
     Write-Progress -Activity "Applying Performance Settings" -Status "Disabling Network Throttling" -PercentComplete (($currentStep / $totalSteps) * 100)
     Write-Log -Message "Disabling Network Throttling" -Level Info
-    if (Set-RegistryKey -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -Value 0xffffffff) {
+    if (Set-RegistryKey -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -Value 0xffffffff -Type DWord) {
         $successCount++
     }
     else {
@@ -228,4 +268,15 @@ function Set-WinDebloat7Performance {
     Write-Log -Message "Performance settings applied: $successCount succeeded, $failCount failed" -Level $(if ($failCount -eq 0) { "Success" } else { "Warning" })
 }
 
-Export-ModuleMember -Function Set-WinDebloat7Performance
+# Aliases for backward compatibility
+Set-Alias -Name 'Set-WinDebloatPerformance' -Value 'Optimize-WinDebloatPerformance'
+Set-Alias -Name 'Set-WinDebloat7Performance' -Value 'Optimize-WinDebloatPerformance'
+Set-Alias -Name 'Optimize-WinDebloat7Performance' -Value 'Optimize-WinDebloatPerformance'
+
+Export-ModuleMember -Function @(
+    'Optimize-WinDebloatPerformance'
+) -Alias @(
+    'Set-WinDebloatPerformance',
+    'Set-WinDebloat7Performance',
+    'Optimize-WinDebloat7Performance'
+)

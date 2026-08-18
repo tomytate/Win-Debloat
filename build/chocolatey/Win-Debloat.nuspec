@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
-    <id>win-debloat7</id>
-    <version>1.4.0</version>
-    <packageSourceUrl>https://github.com/tomytate/Win-Debloat7</packageSourceUrl>
+    <id>win-debloat</id>
+    <version>1.5.0</version>
+    <packageSourceUrl>https://github.com/tomytate/Win-Debloat</packageSourceUrl>
     <owners>tomytate</owners>
-    <title>Win-Debloat7 (Premium)</title>
+    <title>Win-Debloat (Premium)</title>
     <authors>Tomy Tolledo</authors>
-    <projectUrl>https://github.com/tomytate/Win-Debloat7</projectUrl>
-    <iconUrl>https://raw.githubusercontent.com/tomytate/Win-Debloat7/main/assets/logo.png</iconUrl>
+    <projectUrl>https://github.com/tomytate/Win-Debloat</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/tomytate/Win-Debloat/main/assets/logo.png</iconUrl>
     <copyright>2026 Tomy Tolledo</copyright>
-    <licenseUrl>https://github.com/tomytate/Win-Debloat7/blob/main/LICENSE</licenseUrl>
+    <licenseUrl>https://github.com/tomytate/Win-Debloat/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <projectSourceUrl>https://github.com/tomytate/Win-Debloat7</projectSourceUrl>
-    <docsUrl>https://github.com/tomytate/Win-Debloat7/wiki</docsUrl>
-    <bugTrackerUrl>https://github.com/tomytate/Win-Debloat7/issues</bugTrackerUrl>
-    <tags>win-debloat7 debloat windows11 optimize privacy powershell</tags>
+    <projectSourceUrl>https://github.com/tomytate/Win-Debloat</projectSourceUrl>
+    <docsUrl>https://github.com/tomytate/Win-Debloat/wiki</docsUrl>
+    <bugTrackerUrl>https://github.com/tomytate/Win-Debloat/issues</bugTrackerUrl>
+    <tags>win-debloat debloat windows11 optimize privacy powershell</tags>
     <summary>The Power User's Windows Optimization Platform</summary>
     <description>
-Win-Debloat7 is a modern, modular, and safe Windows debloating and optimization framework designed for PowerShell 7.6+.
+Win-Debloat is a modern, modular, and safe Windows debloating and optimization framework designed for PowerShell 7.6+.
 
 ### Features
 * **Debloat**: Remove pre-installed bloatware safely.
@@ -30,7 +30,7 @@ Win-Debloat7 is a modern, modular, and safe Windows debloating and optimization 
 
 **Note**: This package installs the "Standard" edition.
     </description>
-    <releaseNotes>https://github.com/tomytate/Win-Debloat7/releases/tag/v1.3.0</releaseNotes>
+    <releaseNotes>https://github.com/tomytate/Win-Debloat/releases</releaseNotes>
     <dependencies>
       <dependency id="powershell-core" version="7.6.0" />
     </dependencies>

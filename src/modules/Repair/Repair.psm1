@@ -1,18 +1,17 @@
-﻿<#
+#Requires -Version 7.6
+
+<#
 .SYNOPSIS
-    System Repair module for Win-Debloat7
+    System Repair module for Win-Debloat
     
 .DESCRIPTION
     Provides on-demand tools to repair Windows components.
     Includes SFC, DISM, Network Reset, and Update Reset.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Repair
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Repair
+    Version: 2.0.0
 #>
-
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
 
 using namespace System.Management.Automation
 
@@ -25,11 +24,12 @@ Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force
     Runs comprehensive system repair (enhanced 4-step sequence).
     
 .DESCRIPTION
-    Source: Win-Debloat7 Internal.
+    Source: Win-Debloat Internal.
     Sequence: ChkDsk (performance mode) → SFC → DISM RestoreHealth → SFC (using repaired image).
 #>
-function Repair-WinDebloat7System {
+function Repair-WinDebloatSystem {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+    [OutputType([void])]
     param()
 
     Write-Log -Message "Starting Enhanced System Repair (4-Step Sequence)..." -Level Info
@@ -39,7 +39,8 @@ function Repair-WinDebloat7System {
         # Step 1: ChkDsk (Performance Mode)
         Write-Log -Message "[1/4] Running ChkDsk (scan mode)..." -Level Info
         try {
-            $chkdsk = Start-Process -FilePath "chkdsk.exe" -ArgumentList "C:", "/scan", "/perf" -Wait -PassThru -NoNewWindow
+            $drive = if ($env:SystemDrive) { "$($env:SystemDrive)" } else { "C:" }
+            $chkdsk = Start-Process -FilePath "chkdsk.exe" -ArgumentList $drive, "/scan", "/perf" -Wait -PassThru -NoNewWindow
             if ($chkdsk.ExitCode -eq 0) {
                 Write-Log -Message "ChkDsk completed successfully." -Level Success
             }
@@ -65,7 +66,7 @@ function Repair-WinDebloat7System {
         Write-Log -Message "[3/4] Running DISM RestoreHealth (this may take 10-30 minutes)..." -Level Info
         try {
             $dism = Start-Process -FilePath "dism.exe" -ArgumentList "/Online", "/Cleanup-Image", "/RestoreHealth" -Wait -PassThru -NoNewWindow
-            if ($dism.ExitCode -eq 0) {
+            if ($dism.ExitCode -eq 0 -or $dism.ExitCode -eq 3010) {
                 Write-Log -Message "DISM RestoreHealth completed successfully." -Level Success
             }
             else {
@@ -98,8 +99,9 @@ function Repair-WinDebloat7System {
 .SYNOPSIS
     Resets Network Stack (IP, DNS, Winsock).
 #>
-function Reset-WinDebloat7Network {
+function Reset-WinDebloatNetwork {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+    [OutputType([void])]
     param()
 
     Write-Log -Message "Starting Network Reset..." -Level Info
@@ -110,12 +112,11 @@ function Reset-WinDebloat7Network {
             "ipconfig /flushdns",
             "ipconfig /renew",
             "netsh winsock reset",
-            "netsh int ip reset"
+            "netsh int ip reset `"$env:TEMP\netsh_reset.log`""
         )
         
         foreach ($cmd in $commands) {
             Write-Log -Message "Executing: $cmd" -Level Info
-            # SEC-003 Fix: Replaced Invoke-Expression with Start-Process
             $parts = $cmd -split ' ', 2
             $exe = $parts[0]
             $procArgs = if ($parts.Count -gt 1) { $parts[1] } else { "" }
@@ -133,25 +134,31 @@ function Reset-WinDebloat7Network {
 .SYNOPSIS
     Resets Windows Update components.
 #>
-function Reset-WinDebloat7Update {
+function Reset-WinDebloatUpdate {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+    [OutputType([void])]
     param()
 
     Write-Log -Message "Starting Windows Update Reset..." -Level Info
     
     if ($PSCmdlet.ShouldProcess("Windows Update", "Reset Components")) {
-        $services = @("wuauserv", "cryptSvc", "bits", "msiserver")
+        $services = @("wuauserv", "cryptSvc", "bits", "dosvc", "msiserver")
         
         # Stop Services
         foreach ($svc in $services) {
             Stop-Service -Name $svc -Force -ErrorAction SilentlyContinue
         }
         
-        # Rename Folders
+        # Wait a moment for file locks to release
+        Start-Sleep -Seconds 2
+        
+        # Rename Folders with leaf name to prevent path exception
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $folders = @("$env:systemroot\SoftwareDistribution", "$env:systemroot\System32\catroot2")
         foreach ($folder in $folders) {
             if (Test-Path $folder) {
-                Rename-Item -Path $folder -NewName "$($folder).old" -Force -ErrorAction SilentlyContinue
+                $leaf = Split-Path $folder -Leaf
+                Rename-Item -Path $folder -NewName "$leaf.bak_$timestamp" -Force -ErrorAction SilentlyContinue
             }
         }
         
@@ -166,8 +173,21 @@ function Reset-WinDebloat7Update {
 
 #endregion
 
+# Aliases for backward compatibility
+Set-Alias -Name 'Repair-WinDebloat7System' -Value 'Repair-WinDebloatSystem'
+Set-Alias -Name 'Reset-WinDebloat7Network' -Value 'Reset-WinDebloatNetwork'
+Set-Alias -Name 'Reset-WinDebloat7Update' -Value 'Reset-WinDebloatUpdate'
+Set-Alias -Name 'Reset-WinDebloatWindowsUpdate' -Value 'Reset-WinDebloatUpdate'
+Set-Alias -Name 'Reset-WinDebloat7WindowsUpdate' -Value 'Reset-WinDebloatUpdate'
+
 Export-ModuleMember -Function @(
-    "Repair-WinDebloat7System",
-    "Reset-WinDebloat7Network",
-    "Reset-WinDebloat7Update"
+    'Repair-WinDebloatSystem',
+    'Reset-WinDebloatNetwork',
+    'Reset-WinDebloatUpdate'
+) -Alias @(
+    'Repair-WinDebloat7System',
+    'Reset-WinDebloat7Network',
+    'Reset-WinDebloat7Update',
+    'Reset-WinDebloatWindowsUpdate',
+    'Reset-WinDebloat7WindowsUpdate'
 )

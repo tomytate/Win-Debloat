@@ -101,11 +101,11 @@
         },
         "WbioSrvc": {
             "DisplayName": "Windows Biometric Service",
-            "StartupType": "Manual",
+            "StartupType": "Automatic",
             "Category": "Performance",
             "StorageType": "Any",
-            "RiskLevel": "Low",
-            "Description": "Only needed if using fingerprint/face login"
+            "RiskLevel": "High",
+            "Description": "Required for Windows Hello fingerprint and facial recognition logon"
         },
         "PhoneSvc": {
             "DisplayName": "Phone Service",
@@ -245,11 +245,11 @@
         },
         "SharedAccess": {
             "DisplayName": "Internet Connection Sharing (ICS)",
-            "StartupType": "Disabled",
+            "StartupType": "Manual",
             "Category": "Security",
             "StorageType": "Any",
-            "RiskLevel": "Medium",
-            "Description": "Security risk if unused"
+            "RiskLevel": "High",
+            "Description": "Required for WSL2, Windows Sandbox, Docker Desktop, and Mobile Hotspot"
         },
         "NetTcpPortSharing": {
             "DisplayName": "Net.Tcp Port Sharing Service",

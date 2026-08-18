@@ -1,20 +1,19 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Privacy optimization module for Win-Debloat7
+    Privacy optimization module for Win-Debloat
     
 .DESCRIPTION
     Manages Windows privacy settings, telemetry, and data collection.
-    Uses PowerShell 7.5 best practices with proper error handling.
+    Uses PowerShell 7.6 best practices with proper error handling.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Privacy
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Privacy
+    Version: 2.0.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
-
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
 
 using namespace System.Management.Automation
 
@@ -37,9 +36,9 @@ Import-Module "$PSScriptRoot\Tasks.psm1" -Force
     [void]
     
 .EXAMPLE
-    Set-WinDebloat7Privacy -Config $config
+    Set-WinDebloatPrivacy -Config $config
 #>
-function Set-WinDebloat7Privacy {
+function Set-WinDebloatPrivacy {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     [OutputType([void])]
     param(
@@ -140,10 +139,10 @@ function Set-WinDebloat7Privacy {
             $failCount++
         }
         
-        # Disable Telemetry Tasks (Added in v1.1.0)
+        # Disable Telemetry Tasks
         try {
             Write-Log -Message "Disabling Telemetry Scheduled Tasks (Safe Mode)" -Level Info
-            Disable-WinDebloat7TelemetryTasks -Mode Safe
+            Disable-WinDebloatTelemetryTasks -Mode Safe
             $successCount++
         }
         catch {
@@ -216,17 +215,17 @@ function Set-WinDebloat7Privacy {
     Disables Windows 11 AI features (Copilot, Recall) and Ads.
     (Moved from Bloatware module for cohesion)
 #>
-function Disable-WinDebloat7AIandAds {
+function Disable-WinDebloatAI {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     Write-Log -Message "Disabling Windows 11 AI & Ads..." -Level Info
     
     if ($PSCmdlet.ShouldProcess("Windows AI", "Disable Copilot, Recall, Ads")) {
         
-        # We leverage the logic we just centralized, or repeat specific keys?
         # Repeating specific keys for standalone execution is safer to avoid Config dependency.
-        
         $keys = @(
             # Copilot
             @{ Path = "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot"; Name = "TurnOffWindowsCopilot"; Value = 1; Type = "DWord" }
@@ -251,16 +250,15 @@ function Disable-WinDebloat7AIandAds {
             Set-RegistryKey -Path $k.Path -Name $k.Name -Value $k.Value -Type $k.Type
         }
         
-        
-        # 5. Disable AI Services (25H2+)
-        if (Get-Service "AIFabric*" -ErrorAction SilentlyContinue) {
+        # Disable AI Services (24H2/25H2+)
+        Get-Service -Name "AIFabric*" -ErrorAction SilentlyContinue | ForEach-Object {
             try {
-                Stop-Service -Name "AIFabric*" -Force -ErrorAction Stop
-                Set-Service -Name "AIFabric*" -StartupType Disabled -ErrorAction Stop
-                Write-Log -Message "AI Fabric Service disabled." -Level Success
+                Stop-Service -Name $_.Name -Force -ErrorAction SilentlyContinue
+                Set-ItemProperty -LiteralPath "HKLM:\SYSTEM\CurrentControlSet\Services\$($_.Name)" -Name "Start" -Value 4 -Type DWord -ErrorAction SilentlyContinue
+                Write-Log -Message "AI service $($_.Name) disabled." -Level Success
             }
             catch {
-                Write-Log -Message "Could not disable AI Fabric: $($_.Exception.Message)" -Level Warning
+                Write-Log -Message "Could not disable $($_.Name): $($_.Exception.Message)" -Level Warning
             }
         }
 
@@ -268,4 +266,109 @@ function Disable-WinDebloat7AIandAds {
     }
 }
 
-Export-ModuleMember -Function Set-WinDebloat7Privacy, Disable-WinDebloat7AIandAds
+<#
+.SYNOPSIS
+    Reverts Windows privacy settings to Windows defaults.
+#>
+function Enable-WinDebloatPrivacy {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Reverting Privacy Settings to Windows Defaults..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Windows Privacy", "Restore Defaults")) {
+        # 1. Advertising ID
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo" -Name "DisabledByGroupPolicy"
+        Remove-RegistryKey -Path "HKCU:\Control Panel\International\User Profile" -Name "HttpAcceptLanguageOptOut"
+        Set-RegistryKey -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Value 1
+
+        # 2. Activity History
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "PublishUserActivities"
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "UploadUserActivities"
+
+        # 3. Telemetry Policy Overrides
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry"
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry"
+        Remove-RegistryKey -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy" -Name "TailoredExperiencesWithDiagnosticDataEnabled"
+        Remove-RegistryKey -Path "HKCU:\SOFTWARE\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy" -Name "HasAccepted"
+        Remove-RegistryKey -Path "HKCU:\SOFTWARE\Microsoft\Input\TIPC" -Name "Enabled"
+        Remove-RegistryKey -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitInkCollection"
+        Remove-RegistryKey -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitTextCollection"
+        Remove-RegistryKey -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore" -Name "HarvestContacts"
+        Remove-RegistryKey -Path "HKCU:\SOFTWARE\Microsoft\Personalization\Settings" -Name "AcceptedPrivacyPolicy"
+        Remove-RegistryKey -Path "HKCU:\SOFTWARE\Microsoft\Siuf\Rules" -Name "NumberOfSIUFInPeriod"
+        Remove-RegistryKey -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_TrackProgs"
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name "PersonalizationReportingEnabled"
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name "DiagnosticData"
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name "HubsSidebarEnabled"
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name "CopilotCDPPageContext"
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name "ComposeInlineEnabled"
+
+        # 4. Location Tracking
+        Set-RegistryKey -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" -Name "Value" -Value "Allow" -Type String
+
+        # Restore DiagTrack service
+        try {
+            Set-Service -Name "DiagTrack" -StartupType Automatic -ErrorAction SilentlyContinue
+            Start-Service -Name "DiagTrack" -ErrorAction SilentlyContinue
+            Write-Log -Message "DiagTrack service restored." -Level Success
+        }
+        catch {
+            Write-Log -Message "Notice: DiagTrack restore: $($_.Exception.Message)" -Level Debug
+        }
+
+        # Restore AI / Copilot policies
+        Remove-RegistryKey -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot"
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot"
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "DisableAIDataAnalysis"
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "AllowRecallEnablement"
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "TurnOffSavingSnapshots"
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures"
+        Set-RegistryKey -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowCopilotButton" -Value 1 -Type DWord
+
+        # Restore AI Services (24H2/25H2+)
+        Get-Service -Name "AIFabric*" -ErrorAction SilentlyContinue | ForEach-Object {
+            try {
+                Set-ItemProperty -LiteralPath "HKLM:\SYSTEM\CurrentControlSet\Services\$($_.Name)" -Name "Start" -Value 3 -Type DWord -ErrorAction SilentlyContinue
+                Write-Log -Message "AI service $($_.Name) startup restored." -Level Success
+            }
+            catch {
+                Write-Log -Message "Notice: Could not restore $($_.Name): $($_.Exception.Message)" -Level Debug
+            }
+        }
+
+        # Re-enable safe telemetry scheduled tasks
+        try {
+            Enable-WinDebloatTelemetryTasks -Mode All -ErrorAction SilentlyContinue
+        }
+        catch {
+            Write-Log -Message "Telemetry tasks re-enable notice: $($_.Exception.Message)" -Level Debug
+        }
+
+        Write-Log -Message "Privacy defaults successfully restored." -Level Success
+    }
+}
+
+# Aliases for backward compatibility
+Set-Alias -Name 'Set-WinDebloat7Privacy' -Value 'Set-WinDebloatPrivacy'
+Set-Alias -Name 'Disable-WinDebloatPrivacy' -Value 'Set-WinDebloatPrivacy'
+Set-Alias -Name 'Disable-WinDebloat7Privacy' -Value 'Set-WinDebloatPrivacy'
+Set-Alias -Name 'Disable-WinDebloatAIandAds' -Value 'Disable-WinDebloatAI'
+Set-Alias -Name 'Disable-WinDebloat7AIandAds' -Value 'Disable-WinDebloatAI'
+Set-Alias -Name 'Disable-WinDebloat7AI' -Value 'Disable-WinDebloatAI'
+Set-Alias -Name 'Enable-WinDebloat7Privacy' -Value 'Enable-WinDebloatPrivacy'
+
+Export-ModuleMember -Function @(
+    'Set-WinDebloatPrivacy',
+    'Disable-WinDebloatAI',
+    'Enable-WinDebloatPrivacy'
+) -Alias @(
+    'Set-WinDebloat7Privacy',
+    'Disable-WinDebloatPrivacy',
+    'Disable-WinDebloat7Privacy',
+    'Disable-WinDebloatAIandAds',
+    'Disable-WinDebloat7AIandAds',
+    'Disable-WinDebloat7AI',
+    'Enable-WinDebloat7Privacy'
+)

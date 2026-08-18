@@ -1,0 +1,51 @@
+# Win-Debloat7 "Performance" Profile
+# Best for: Low-RAM systems (< 8GB), budget laptops, VMs, and lightweight installs.
+# Goal: Reclaim memory and maximize responsiveness.
+
+metadata:
+  name: "Performance"
+  author: "Win-Debloat7 Team"
+  description: "Optimized for low-RAM systems, VMs, and maximum responsiveness."
+  version: "1.5.0"
+  target_os:
+    - "Windows 10"
+    - "Windows 11"
+  min_build: 19041
+
+bloatware:
+  removal_mode: "Moderate"
+  exclude_list:
+    - "Microsoft.WindowsStore"
+    - "Microsoft.DesktopAppInstaller"
+    - "Microsoft.WindowsCalculator"
+
+privacy:
+  telemetry_level: "Basic"
+  disable_advertising_id: true
+  disable_activity_history: true
+  disable_location_tracking: true
+  disable_copilot: true
+  disable_recall: true
+
+performance:
+  power_plan: "Balanced"
+  visual_effects: "Performance"
+  disable_game_bar: true
+  disable_background_apps: true
+
+network:
+  dns_servers:
+    - "1.1.1.1"
+    - "1.0.0.1"
+  disable_ipv6: false
+
+system:
+  disable_suggestions: true
+  no_auto_reboot_updates: true
+  disable_widgets: true
+  disable_transparency: true
+  debloat_search: true
+
+software:
+  package_manager: "Winget"
+  install_list: []

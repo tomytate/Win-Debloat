@@ -1,17 +1,21 @@
-﻿#Requires -Version 7.6
+#Requires -Version 7.6
 
 $ErrorActionPreference = "Stop"
 
 $Root = Resolve-Path "$PSScriptRoot\.."
 $ChocoBuildDir = Join-Path $PSScriptRoot "chocolatey"
-$NuspecPath = Join-Path $ChocoBuildDir "Win-Debloat7.nuspec"
+$NuspecPath = Join-Path $ChocoBuildDir "Win-Debloat.nuspec"
+if (-not (Test-Path -LiteralPath $NuspecPath)) {
+    $oldNuspec = Join-Path $ChocoBuildDir "Win-Debloat7.nuspec"
+    if (Test-Path -LiteralPath $oldNuspec) { $NuspecPath = $oldNuspec }
+}
 $DistDir = Join-Path $Root "dist"
 
 if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
     Write-Error "Chocolatey (choco.exe) is not found in PATH. Please install it first: https://chocolatey.org/install"
 }
 
-Write-Host "📦 Packaging Win-Debloat7 for Chocolatey..." -ForegroundColor Cyan
+Write-Host "📦 Packaging Win-Debloat for Chocolatey..." -ForegroundColor Cyan
 
 # Ensure dist exists
 if (-not (Test-Path $DistDir)) { New-Item -Path $DistDir -ItemType Directory | Out-Null }
@@ -20,7 +24,7 @@ if (-not (Test-Path $DistDir)) { New-Item -Path $DistDir -ItemType Directory | O
 # We change location to the nuspec dir so relative paths in nuspec work correctly
 Push-Location $ChocoBuildDir
 try {
-    choco pack "Win-Debloat7.nuspec" --output-directory "$DistDir"
+    choco pack $NuspecPath --output-directory "$DistDir"
     if ($LASTEXITCODE -ne 0) {
         throw "Chocolatey pack failed with exit code $LASTEXITCODE"
     }

@@ -39,10 +39,10 @@ jobs:
       run: |
         $pwsh76 = Join-Path $env:USERPROFILE '.dotnet\tools\pwsh.exe'
         & $pwsh76 -NoProfile -File ./build/Build-DualRelease.ps1 -Version "0.0.0-CI" -OutputDir dist
-        if (-not (Test-Path "dist/Win-Debloat7.exe")) {
+        if (-not (Test-Path "dist/Win-Debloat.exe")) {
             Write-Error "Build verification failed: Standard executable missing."
         }
-        if (-not (Test-Path "dist/Win-Debloat7-Extras.exe")) {
+        if (-not (Test-Path "dist/Win-Debloat-Extras.exe")) {
             Write-Error "Build verification failed: Extras executable missing."
         }
 

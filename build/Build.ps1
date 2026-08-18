@@ -6,10 +6,10 @@ param(
 )
 
 $Root = Resolve-Path "$PSScriptRoot\.."
-$DistPath = "$OutputDir\Win-Debloat7-v$Version"
-$ZipPath = "$OutputDir\Win-Debloat7-v$Version.zip"
+$DistPath = "$OutputDir\Win-Debloat-v$Version"
+$ZipPath = "$OutputDir\Win-Debloat-v$Version.zip"
 
-Write-Host "Starting Build for Win-Debloat7 v$Version..." -ForegroundColor Cyan
+Write-Host "Starting Build for Win-Debloat v$Version..." -ForegroundColor Cyan
 
 # 1. Clean Output Directory
 if (Test-Path $OutputDir) {

@@ -1,10 +1,10 @@
-# Welcome to the Win-Debloat7 Wiki!
+# Welcome to the Win-Debloat Wiki!
 
-**Win-Debloat7** is a professional-grade Windows 10/11 optimization framework tailored for power users, gamers, and system administrators. Built on **PowerShell 7.6+**, it prioritizes safety, reversibility, and modular configuration.
+**Win-Debloat** is a professional-grade Windows 10/11 optimization framework tailored for power users, gamers, and system administrators. Built on **PowerShell 7.6+**, it prioritizes safety, reversibility, and modular configuration.
 
 ## 🚀 Key Differences
 
-Unlike other debloaters, Win-Debloat7 focuses on:
+Unlike other debloaters, Win-Debloat focuses on:
 
 1.  **Infrastructure as Code**: All settings are defined in YAML profiles (`profiles/`).
 2.  **Safety First**: Uses DPAPI-encrypted snapshots for instant rollback.
@@ -14,17 +14,17 @@ Unlike other debloaters, Win-Debloat7 focuses on:
 
 ## 📚 Topics
 
-*   **[Installation Guide](Installation)** — Getting started (4 methods: Script, Chocolatey, EXE, Source).
-*   **[Features & Capabilities](Features)** — Deep dive into all 9 feature areas.
-*   **[Modules Reference](Modules)** — Complete reference for all 29 modules and 115 functions.
-*   **[Profiles Explained](Profiles)** — How to customize, create, and share `.yaml` configurations.
-*   **[About](About)** — Philosophy, tech stack, and team.
-*   **[Troubleshooting](Troubleshooting)** — Restore points, logs, common fixes.
+*   **[Installation Guide](Installation.md)** — Getting started (4 methods: Script, Chocolatey, EXE, Source).
+*   **[Features & Capabilities](Features.md)** — Deep dive into all 9 feature areas.
+*   **[Modules Reference](Modules.md)** — Complete reference for all 30 modules and 138 functions.
+*   **[Profiles Explained](Profiles.md)** — How to customize, create, and share `.yaml` configurations.
+*   **[About](About.md)** — Philosophy, tech stack, and team.
+*   **[Troubleshooting](Troubleshooting.md)** — Restore points, logs, common fixes.
 
 ## 🤝 Community
 
-*   [GitHub Repository](https://github.com/tomytate/Win-Debloat7)
-*   [Discussions](https://github.com/tomytate/Win-Debloat7/discussions)
-*   [Report a Bug](https://github.com/tomytate/Win-Debloat7/issues)
+*   [GitHub Repository](https://github.com/tomytate/Win-Debloat)
+*   [Discussions](https://github.com/tomytate/Win-Debloat/discussions)
+*   [Report a Bug](https://github.com/tomytate/Win-Debloat/issues)
 *   [Contributing Guide](../CONTRIBUTING.md)
 *   [Security Policy](../SECURITY.md)

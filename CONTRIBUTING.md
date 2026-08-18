@@ -1,6 +1,6 @@
-# Contributing to Win-Debloat7
+# Contributing to Win-Debloat
 
-Thank you for your interest in contributing to **Win-Debloat7**! We welcome improvements, bug fixes, and new features.
+Thank you for your interest in contributing to **Win-Debloat**! We welcome improvements, bug fixes, and new features.
 
 ## 🤝 Code of Conduct
 Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
@@ -14,17 +14,17 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 
 2. **Clone the repo**:
    ```powershell
-   git clone https://github.com/tomytate/Win-Debloat7.git
-   cd Win-Debloat7
+   git clone https://github.com/tomytate/Win-Debloat.git
+   cd Win-Debloat
    ```
 
 3. **Run Locally**:
    ```powershell
    # TUI Mode (default)
-   ./Win-Debloat7.ps1
+   ./Win-Debloat.ps1
 
    # GUI Mode
-   ./Win-Debloat7.ps1 -Gui
+   ./Win-Debloat.ps1 -Gui
    ```
 
 ## 🧪 Testing
@@ -57,7 +57,7 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 
 ## 📦 Project Structure
 ```
-Win-Debloat7/
+Win-Debloat/
 ├── src/
 │   ├── core/           # Logger, Config (YAML), Registry, State, Sysprep
 │   ├── modules/
@@ -89,7 +89,7 @@ Win-Debloat7/
 3. **Verify Safety**: Ensure no critical system components (like Bootloader) are touched.
 4. **Update Documentation**: If you change functionality, update relevant docs.
 5. **Run Tests**: All Pester tests must pass before merging.
-6. **Follow Naming**: Functions must use the `Verb-WinDebloat7Noun` naming convention.
+6. **Follow Naming**: Functions must use the `Verb-WinDebloatNoun` naming convention (with `Verb-WinDebloat7Noun` aliases for backward compatibility).
 
 ## ⚠️ "Extras" Build Variant
 - Code related to **Defender Remover** or **MAS** is located in `src/modules/Extras`.

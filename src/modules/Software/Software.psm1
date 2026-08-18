@@ -1,3 +1,5 @@
+﻿#Requires -Version 7.6
+
 <#
 .SYNOPSIS
     Software and package management module for Win-Debloat7
@@ -8,12 +10,10 @@
     
 .NOTES
     Module: Win-Debloat7.Modules.Software
-    Version: 1.4.0
+    Version: 1.5.0
 .LINK
     https://learn.microsoft.com/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
-
-#Requires -Version 7.6
 
 using namespace System.Management.Automation
 using namespace System.Collections.Generic
@@ -544,6 +544,7 @@ function Invoke-WD7PackageInstall {
     [psobject] Installation results summary.
 #>
 function Install-WinDebloat7Software {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console output')]
     [CmdletBinding(DefaultParameterSetName = "ById", SupportsShouldProcess, ConfirmImpact = 'Medium')]
     [OutputType([psobject])]
     param(
@@ -744,6 +745,9 @@ function Install-WinDebloat7Software {
     Install-WinDebloat7Essentials -InstallAll
 #>
 function Install-WinDebloat7Essentials {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console output')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -938,6 +942,7 @@ function Install-WinDebloat7ProfileSoftware {
     Runs 'winget upgrade --all' to update all software packages.
 #>
 function Update-WinDebloat7Software {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console output')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param()
@@ -982,7 +987,12 @@ function Update-WinDebloat7Software {
     Write-Log -Message "Software update process finished." -Level Success
 }
 
-#endregion
+# Aliases for backward compatibility and rebranding
+Set-Alias -Name 'Get-WinDebloatEssentialsList' -Value 'Get-WinDebloat7EssentialsList'
+Set-Alias -Name 'Install-WinDebloatSoftware' -Value 'Install-WinDebloat7Software'
+Set-Alias -Name 'Update-WinDebloatSoftware' -Value 'Update-WinDebloat7Software'
+Set-Alias -Name 'Install-WinDebloatEssentials' -Value 'Install-WinDebloat7Essentials'
+Set-Alias -Name 'Install-WinDebloatProfileSoftware' -Value 'Install-WinDebloat7ProfileSoftware'
 
 Export-ModuleMember -Function @(
     'Test-PackageManager',
@@ -992,4 +1002,10 @@ Export-ModuleMember -Function @(
     'Update-WinDebloat7Software',
     'Install-WinDebloat7Essentials',
     'Install-WinDebloat7ProfileSoftware'
+) -Alias @(
+    'Get-WinDebloatEssentialsList',
+    'Install-WinDebloatSoftware',
+    'Update-WinDebloatSoftware',
+    'Install-WinDebloatEssentials',
+    'Install-WinDebloatProfileSoftware'
 )

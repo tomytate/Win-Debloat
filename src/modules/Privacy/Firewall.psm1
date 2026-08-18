@@ -1,18 +1,17 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Firewall management module for Win-Debloat7
+    Firewall management module for Win-Debloat
     
 .DESCRIPTION
     Manages Windows Defender Firewall to block telemetry endpoints.
     Replaces the legacy, ineffective hosts file blocking method.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Privacy.Firewall
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Privacy.Firewall
+    Version: 2.0.0
 #>
-
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
 
 using namespace System.Management.Automation
 
@@ -20,9 +19,12 @@ Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force
 
 #region Blocked Domains
 $Script:HostsFilePath = "$env:SystemRoot\System32\drivers\etc\hosts"
-$Script:BlockMarkerStart = "# >>> Win-Debloat7 Telemetry Block Start <<<"
-$Script:BlockMarkerEnd = "# >>> Win-Debloat7 Telemetry Block End <<<"
-$Script:FirewallRuleName = "WinDebloat7-Telemetry-Block"
+$Script:BlockMarkerStart = "# >>> Win-Debloat Telemetry Block Start <<<"
+$Script:BlockMarkerEnd = "# >>> Win-Debloat Telemetry Block End <<<"
+$Script:LegacyBlockMarkerStart = "# >>> Win-Debloat7 Telemetry Block Start <<<"
+$Script:LegacyBlockMarkerEnd = "# >>> Win-Debloat7 Telemetry Block End <<<"
+$Script:FirewallRuleName = "WinDebloat-Telemetry-Block"
+$Script:LegacyFirewallRuleName = "WinDebloat7-Telemetry-Block"
 
 # Curated list of telemetry domains to block
 $Script:TelemetryDomains = @(
@@ -48,7 +50,6 @@ $Script:TelemetryDomains = @(
     "watson.ppe.telemetry.microsoft.com",
     "telemetry.appex.bing.net",
     "telemetry.urs.microsoft.com",
-    "telemetry.appex.bing.net:443",
     "settings-sandbox.data.microsoft.com",
     "settings-win.data.microsoft.com",
     "statsfe2.ws.microsoft.com",
@@ -70,7 +71,10 @@ $Script:TelemetryDomains = @(
     "location-inference-westus.cloudapp.net",
     "feedback.windows.com",
     "feedback.microsoft-hohm.com",
-    "feedback.search.microsoft.com"
+    "feedback.search.microsoft.com",
+    "activity.windows.com",
+    "edge.activity.windows.com",
+    "diagnostics.support.microsoft.com"
 )
 #endregion
 
@@ -80,18 +84,22 @@ $Script:TelemetryDomains = @(
 .SYNOPSIS
     Cleans up the deprecated hosts file block if it exists.
 #>
-function Remove-LegacyWinDebloat7HostsBlock {
+function Remove-LegacyWinDebloatHostsBlock {
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     try {
         if (-not (Test-Path $Script:HostsFilePath)) { return }
         if (-not $PSCmdlet.ShouldProcess($Script:HostsFilePath, "Remove legacy telemetry block")) { return }
         $content = Get-Content $Script:HostsFilePath -Raw -ErrorAction SilentlyContinue
-        if ($content -match [regex]::Escape($Script:BlockMarkerStart)) {
+        $hasBlock = ($content -match [regex]::Escape($Script:BlockMarkerStart)) -or ($content -match [regex]::Escape($Script:LegacyBlockMarkerStart))
+        if ($hasBlock) {
             Write-Log -Message "Found legacy hosts file telemetry block. Cleaning up..." -Level Info
-            $pattern = "$([regex]::Escape($Script:BlockMarkerStart))[\s\S]*?$([regex]::Escape($Script:BlockMarkerEnd))"
-            $newContent = $content -replace $pattern, ""
+            $pattern1 = "$([regex]::Escape($Script:BlockMarkerStart))[\s\S]*?$([regex]::Escape($Script:BlockMarkerEnd))"
+            $pattern2 = "$([regex]::Escape($Script:LegacyBlockMarkerStart))[\s\S]*?$([regex]::Escape($Script:LegacyBlockMarkerEnd))"
+            $newContent = $content -replace $pattern1, ""
+            $newContent = $newContent -replace $pattern2, ""
             $newContent = $newContent -replace "(\r?\n){3,}", "`n`n"
             Set-Content -Path $Script:HostsFilePath -Value $newContent.Trim() -Encoding UTF8
             Clear-DnsClientCache
@@ -107,12 +115,12 @@ function Remove-LegacyWinDebloat7HostsBlock {
 .SYNOPSIS
     Adds telemetry blocking entries via Windows Defender Firewall.
 #>
-function Add-WinDebloat7FirewallBlock {
+function Add-WinDebloatFirewallBlock {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     [OutputType([void])]
     param()
     
-    Remove-LegacyWinDebloat7HostsBlock
+    Remove-LegacyWinDebloatHostsBlock
     
     Write-Log -Message "Adding telemetry blocks via Windows Firewall..." -Level Info
     
@@ -122,36 +130,50 @@ function Add-WinDebloat7FirewallBlock {
             if ($existingRules) {
                 Remove-NetFirewallRule -DisplayName $Script:FirewallRuleName -ErrorAction SilentlyContinue
             }
+            $legacyRules = Get-NetFirewallRule -DisplayName $Script:LegacyFirewallRuleName -ErrorAction SilentlyContinue
+            if ($legacyRules) {
+                Remove-NetFirewallRule -DisplayName $Script:LegacyFirewallRuleName -ErrorAction SilentlyContinue
+            }
             
-            # Note: New-NetFirewallRule -RemoteAddress does not take FQDNs directly unless IPsec is used,
-            # but Windows 11 allows FQDNs in WDAC/Firewall via specific configurations.
-            # To be universally compatible, we resolve the domains to IPs first.
+            # Resolve the domains to IPs concurrently for maximum responsiveness.
+            $ipsToBlock = [System.Collections.Generic.List[string]]::new()
+            Write-Log -Message "Resolving telemetry domains to IPs..." -Level Info
             
-            $ipsToBlock = @()
-            Write-Log -Message "Resolving telemetry domains to IPs (this may take a moment)..." -Level Info
-            
-            foreach ($domain in $Script:TelemetryDomains) {
-                # Some entries might have ports like :443, strip them
+            $tasks = foreach ($domain in $Script:TelemetryDomains) {
                 $cleanDomain = $domain -replace ':\d+$', ''
-                try {
-                    $ips = [System.Net.Dns]::GetHostAddresses($cleanDomain)
-                    $ipsToBlock += $ips.IPAddressToString
-                }
-                catch {
-                    Write-Verbose "Domain not resolvable (or already blocked): $cleanDomain"
+                [pscustomobject]@{
+                    Domain = $cleanDomain
+                    Task   = [System.Net.Dns]::GetHostAddressesAsync($cleanDomain)
                 }
             }
             
-            $ipsToBlock = $ipsToBlock | Select-Object -Unique
+            # Wait up to 3 seconds max for all DNS queries to complete in parallel
+            $allTasks = @($tasks | ForEach-Object { $_.Task })
+            if ($allTasks.Count -gt 0) {
+                [System.Threading.Tasks.Task]::WaitAll($allTasks, 3000) | Out-Null
+            }
             
-            if ($ipsToBlock.Count -gt 0) {
+            foreach ($t in $tasks) {
+                if ($t.Task.IsCompletedSuccessfully) {
+                    foreach ($ip in $t.Task.Result) {
+                        $ipsToBlock.Add($ip.IPAddressToString)
+                    }
+                }
+                else {
+                    Write-Verbose "Domain not resolvable (or blocked): $($t.Domain)"
+                }
+            }
+            
+            $uniqueIps = @($ipsToBlock | Select-Object -Unique)
+            
+            if ($uniqueIps.Count -gt 0) {
                 # Split into chunks of 1000 IPs to avoid WMI command length limits
-                $chunks = [Math]::Ceiling($ipsToBlock.Count / 1000)
+                $chunks = [Math]::Ceiling($uniqueIps.Count / 1000)
                 for ($i = 0; $i -lt $chunks; $i++) {
-                    $chunkIps = $ipsToBlock | Select-Object -Skip ($i * 1000) -First 1000
+                    $chunkIps = $uniqueIps | Select-Object -Skip ($i * 1000) -First 1000
                     New-NetFirewallRule -DisplayName $Script:FirewallRuleName -Direction Outbound -Action Block -RemoteAddress $chunkIps -ErrorAction Stop | Out-Null
                 }
-                Write-Log -Message "Added firewall rules blocking $($ipsToBlock.Count) telemetry IP addresses." -Level Success
+                Write-Log -Message "Added firewall rules blocking $($uniqueIps.Count) telemetry IP addresses." -Level Success
             } else {
                 Write-Log -Message "Could not resolve any telemetry domains. They may already be blocked at the DNS level." -Level Warning
             }
@@ -164,9 +186,9 @@ function Add-WinDebloat7FirewallBlock {
 
 <#
 .SYNOPSIS
-    Removes Win-Debloat7 telemetry blocks from Windows Firewall.
+    Removes Win-Debloat telemetry blocks from Windows Firewall.
 #>
-function Remove-WinDebloat7FirewallBlock {
+function Remove-WinDebloatFirewallBlock {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param()
@@ -182,7 +204,14 @@ function Remove-WinDebloat7FirewallBlock {
             } else {
                 Write-Log -Message "No telemetry firewall blocks found." -Level Info
             }
-            Remove-LegacyWinDebloat7HostsBlock
+            
+            $legacyRules = Get-NetFirewallRule -DisplayName $Script:LegacyFirewallRuleName -ErrorAction SilentlyContinue
+            if ($legacyRules) {
+                Remove-NetFirewallRule -DisplayName $Script:LegacyFirewallRuleName -ErrorAction Stop
+                Write-Log -Message "Legacy telemetry firewall blocks removed successfully." -Level Success
+            }
+            
+            Remove-LegacyWinDebloatHostsBlock
         }
         catch {
             Write-Log -Message "Failed to remove firewall rules: $($_.Exception.Message)" -Level Error
@@ -197,17 +226,19 @@ function Remove-WinDebloat7FirewallBlock {
 .OUTPUTS
     [psobject] Status object.
 #>
-function Get-WinDebloat7FirewallStatus {
+function Get-WinDebloatFirewallStatus {
     [CmdletBinding()]
     [OutputType([psobject])]
     param()
     
-    $existingRules = Get-NetFirewallRule -DisplayName $Script:FirewallRuleName -ErrorAction SilentlyContinue
-    $isBlocked = [bool]$existingRules
+    $existingRules = @(Get-NetFirewallRule -DisplayName $Script:FirewallRuleName -ErrorAction SilentlyContinue)
+    $legacyRules = @(Get-NetFirewallRule -DisplayName $Script:LegacyFirewallRuleName -ErrorAction SilentlyContinue)
+    $allRules = @($existingRules + $legacyRules | Where-Object { $_ })
+    $isBlocked = ($allRules.Count -gt 0)
     
     $blockedCount = 0
     if ($isBlocked) {
-        $blockedCount = $existingRules.Count # Represents rule chunks, not raw IPs
+        $blockedCount = $allRules.Count # Represents rule chunks, not raw IPs
     }
     
     return [pscustomobject]@{
@@ -222,7 +253,8 @@ function Get-WinDebloat7FirewallStatus {
 .SYNOPSIS
     Gets the list of domains that will be blocked.
 #>
-function Get-WinDebloat7TelemetryDomains {
+function Get-WinDebloatTelemetryDomains {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding()]
     [OutputType([string[]])]
     param()
@@ -232,7 +264,21 @@ function Get-WinDebloat7TelemetryDomains {
 
 #endregion
 
+# Aliases for backward compatibility
+Set-Alias -Name 'Remove-LegacyWinDebloat7HostsBlock' -Value 'Remove-LegacyWinDebloatHostsBlock'
+Set-Alias -Name 'Add-WinDebloat7FirewallBlock' -Value 'Add-WinDebloatFirewallBlock'
+Set-Alias -Name 'Remove-WinDebloat7FirewallBlock' -Value 'Remove-WinDebloatFirewallBlock'
+Set-Alias -Name 'Get-WinDebloat7FirewallStatus' -Value 'Get-WinDebloatFirewallStatus'
+Set-Alias -Name 'Get-WinDebloat7TelemetryDomains' -Value 'Get-WinDebloatTelemetryDomains'
+
 Export-ModuleMember -Function @(
+    'Remove-LegacyWinDebloatHostsBlock',
+    'Add-WinDebloatFirewallBlock',
+    'Remove-WinDebloatFirewallBlock',
+    'Get-WinDebloatFirewallStatus',
+    'Get-WinDebloatTelemetryDomains'
+) -Alias @(
+    'Remove-LegacyWinDebloat7HostsBlock',
     'Add-WinDebloat7FirewallBlock',
     'Remove-WinDebloat7FirewallBlock',
     'Get-WinDebloat7FirewallStatus',

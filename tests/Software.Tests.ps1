@@ -1,4 +1,3 @@
-
 Describe "Modules.Software" {
     BeforeAll {
         $src = Join-Path $PSScriptRoot "..\src"
@@ -6,22 +5,33 @@ Describe "Modules.Software" {
         Import-Module "$src\modules\Software\Software.psm1" -ErrorAction Stop
     }
 
-    It "Test-PackageManager exists" {
-        $cmd = Get-Command "Test-PackageManager" -ErrorAction SilentlyContinue
-        $cmd | Should -Not -BeNullOrEmpty
+    It "Exports Test-PackageManager and Install-PackageManager" {
+        (Get-Command "Test-PackageManager" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Install-PackageManager" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
     }
 
-    It "Install-PackageManager uses retry parameters" {
-        # We can't actually run it without internet/admin, but we can inspect the AST or use Mock
-        # Mocking Invoke-WebRequest to verify parameters
-        Mock Invoke-WebRequest {} 
+    It "Exports Get-WinDebloatEssentialsList and Get-WinDebloat7EssentialsList alias" {
+        (Get-Command "Get-WinDebloatEssentialsList" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Get-WinDebloat7EssentialsList" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+    }
 
-        # We cannot easily Mock inside a function without InModuleScope, 
-        # and we know InModuleScope is flaky in this environment.
-        # So we will rely on a syntax check (Get-Command) to ensure the module LOADED correctly.
-        # If the module loaded, the syntax is valid PowerShell (even if parameters are 7.x specific).
-        # Since CI runs on PS 7.6+, this is a valid test.
-        
-        $true | Should -Be $true
+    It "Exports Install-WinDebloatSoftware and Install-WinDebloat7Software alias" {
+        (Get-Command "Install-WinDebloatSoftware" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Install-WinDebloat7Software" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+    }
+
+    It "Exports Update-WinDebloatSoftware and Update-WinDebloat7Software alias" {
+        (Get-Command "Update-WinDebloatSoftware" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Update-WinDebloat7Software" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+    }
+
+    It "Exports Install-WinDebloatEssentials and Install-WinDebloat7Essentials alias" {
+        (Get-Command "Install-WinDebloatEssentials" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Install-WinDebloat7Essentials" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+    }
+
+    It "Exports Install-WinDebloatProfileSoftware and Install-WinDebloat7ProfileSoftware alias" {
+        (Get-Command "Install-WinDebloatProfileSoftware" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Install-WinDebloat7ProfileSoftware" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
     }
 }

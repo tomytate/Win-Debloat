@@ -1,18 +1,17 @@
+﻿#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    UI Customization module for Win-Debloat7
+    UI Customization module for Win-Debloat
     
 .DESCRIPTION
     Manages Visual UI tweaks for Windows 11/10.
     Includes Taskbar alignment, Context Menu style, and Explorer visibility options.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Tweaks.UI
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Tweaks.UI
+    Version: 1.5.0
 #>
-
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
 
 using namespace System.Management.Automation
 
@@ -28,7 +27,7 @@ Import-Module "$PSScriptRoot\..\..\core\Registry.psm1" -Force
 .PARAMETER Alignment
     Left or Center.
 #>
-function Set-WinDebloat7TaskbarAlignment {
+function Set-WinDebloatTaskbarAlignment {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -62,7 +61,7 @@ function Set-WinDebloat7TaskbarAlignment {
 .PARAMETER Style
     Classic (Windows 10 style) or Modern (Windows 11 style).
 #>
-function Set-WinDebloat7ContextMenu {
+function Set-WinDebloatContextMenu {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -153,7 +152,7 @@ function Set-WinDebloat7ContextMenu {
 .PARAMETER ShowMusic
     Reverts HideMusic: recreates the "This PC" folder entry.
 #>
-function Set-WinDebloat7Explorer {
+function Set-WinDebloatExplorer {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -352,11 +351,12 @@ function Set-WinDebloat7Explorer {
 
 .NOTES
     These handler keys are deleted outright, so there is no toggle-back switch.
-    All of them are in the snapshot catalog (Get-WinDebloat7RegistryTargets) and
+    All of them are in the snapshot catalog (Get-WinDebloatRegistryTargets / Get-WinDebloat7RegistryTargets) and
     snapshots capture their default-value CLSIDs - restoring a snapshot taken
     before this tweak recreates the handlers exactly.
 #>
-function Set-WinDebloat7ContextMenuItems {
+function Set-WinDebloatContextMenuItems {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -430,7 +430,7 @@ function Set-WinDebloat7ContextMenuItems {
 .PARAMETER EnableSearchHistory
     Reverts DisableSearchHistory.
 #>
-function Set-WinDebloat7Search {
+function Set-WinDebloatSearch {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -512,7 +512,8 @@ function Set-WinDebloat7Search {
     Clicking a running app's taskbar icon focuses its last active window
     instead of showing thumbnail previews.
 #>
-function Set-WinDebloat7TaskbarTweaks {
+function Set-WinDebloatTaskbarTweaks {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -602,7 +603,7 @@ function Set-WinDebloat7TaskbarTweaks {
     Restarts the Windows Explorer shell so pending UI tweaks take effect
     without a full sign-out.
 #>
-function Restart-WinDebloat7Explorer {
+function Restart-WinDebloatExplorer {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param()
@@ -640,7 +641,7 @@ function Restart-WinDebloat7Explorer {
     Reverts DisableRecommended: removes the policy override so the
     Recommended section reappears.
 #>
-function Set-WinDebloat7StartMenu {
+function Set-WinDebloatStartMenu {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -671,13 +672,34 @@ function Set-WinDebloat7StartMenu {
 
 #endregion
 
+# Backward-compatibility aliases
+Set-Alias -Name 'Set-WinDebloat7TaskbarAlignment' -Value 'Set-WinDebloatTaskbarAlignment' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Set-WinDebloat7ContextMenu' -Value 'Set-WinDebloatContextMenu' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Set-WinDebloatClassicContextMenu' -Value 'Set-WinDebloatContextMenu' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Set-WinDebloat7Explorer' -Value 'Set-WinDebloatExplorer' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Set-WinDebloat7StartMenu' -Value 'Set-WinDebloatStartMenu' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Set-WinDebloat7Search' -Value 'Set-WinDebloatSearch' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Set-WinDebloat7TaskbarTweaks' -Value 'Set-WinDebloatTaskbarTweaks' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Set-WinDebloat7ContextMenuItems' -Value 'Set-WinDebloatContextMenuItems' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Restart-WinDebloat7Explorer' -Value 'Restart-WinDebloatExplorer' -Description 'Backward-compatibility alias'
+
 Export-ModuleMember -Function @(
-    "Set-WinDebloat7TaskbarAlignment",
-    "Set-WinDebloat7ContextMenu",
-    "Set-WinDebloat7Explorer",
-    "Set-WinDebloat7StartMenu",
-    "Set-WinDebloat7Search",
-    "Set-WinDebloat7TaskbarTweaks",
-    "Set-WinDebloat7ContextMenuItems",
-    "Restart-WinDebloat7Explorer"
+    'Set-WinDebloatTaskbarAlignment',
+    'Set-WinDebloatContextMenu',
+    'Set-WinDebloatExplorer',
+    'Set-WinDebloatStartMenu',
+    'Set-WinDebloatSearch',
+    'Set-WinDebloatTaskbarTweaks',
+    'Set-WinDebloatContextMenuItems',
+    'Restart-WinDebloatExplorer'
+) -Alias @(
+    'Set-WinDebloat7TaskbarAlignment',
+    'Set-WinDebloat7ContextMenu',
+    'Set-WinDebloatClassicContextMenu',
+    'Set-WinDebloat7Explorer',
+    'Set-WinDebloat7StartMenu',
+    'Set-WinDebloat7Search',
+    'Set-WinDebloat7TaskbarTweaks',
+    'Set-WinDebloat7ContextMenuItems',
+    'Restart-WinDebloat7Explorer'
 )

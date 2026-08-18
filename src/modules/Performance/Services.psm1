@@ -1,18 +1,17 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Service optimization module for Win-Debloat7.
+    Service optimization module for Win-Debloat.
     
 .DESCRIPTION
     Manages Windows service startup types for privacy, performance, and security.
     Uses presets from config/services.json.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Services
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Services
+    Version: 2.0.0
 #>
-
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
 
 using namespace System.Management.Automation
 
@@ -20,7 +19,8 @@ Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force
 
 #region Service Optimization
 
-function Set-WinDebloat7Services {
+function Set-WinDebloatServices {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Optimizes Windows service startup types based on a preset.
@@ -32,9 +32,10 @@ function Set-WinDebloat7Services {
         Optional path to services.json configuration file.
     
     .EXAMPLE
-        Set-WinDebloat7Services -Preset Privacy
+        Set-WinDebloatServices -Preset Privacy
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+    [OutputType([void])]
     param(
         [Parameter(Mandatory)]
         [ValidateSet("Privacy", "Performance", "Security", "Minimal", "Gaming")]
@@ -50,7 +51,7 @@ function Set-WinDebloat7Services {
     }
 
     try {
-        # PS 7.5: Test-Json with -IgnoreComments available but we use standard parsing
+        # PS 7.5+: ConvertFrom-Json with standard parsing
         $config = Get-Content $ConfigPath -Raw | ConvertFrom-Json
     }
     catch {
@@ -65,7 +66,7 @@ function Set-WinDebloat7Services {
 
     $servicesToOptimize = $config.presets.$Preset
     Write-Log -Message "Applying '$Preset' preset ($($servicesToOptimize.Count) services)..." -Level Info
-
+    
     $successCount = 0
     $failCount = 0
 
@@ -129,11 +130,11 @@ function Set-WinDebloat7Services {
         }
     }
 
-
     Write-Log -Message "Service optimization complete: $successCount succeeded, $failCount failed." -Level Info
 }
 
-function Get-WinDebloat7ServicePresets {
+function Get-WinDebloatServicePresets {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Gets available service optimization presets.
@@ -148,7 +149,7 @@ function Get-WinDebloat7ServicePresets {
     return @("Privacy", "Performance", "Security", "Minimal", "Gaming")
 }
 
-function Get-WinDebloat7ServiceStatus {
+function Get-WinDebloatServiceStatus {
     <#
     .SYNOPSIS
         Gets the current status of optimizable services.
@@ -163,32 +164,43 @@ function Get-WinDebloat7ServiceStatus {
     )
 
     if (-not (Test-Path $ConfigPath)) {
-        Write-Log -Message "Services configuration not found." -Level Error
+        Write-Log -Message "Services configuration not found: $ConfigPath" -Level Error
         return @()
     }
 
     $config = Get-Content $ConfigPath -Raw | ConvertFrom-Json
     $results = [System.Collections.Generic.List[psobject]]::new()
+    $serviceNames = @($config.services.PSObject.Properties.Name)
 
-    foreach ($serviceName in $config.services.PSObject.Properties.Name) {
+    # Batch query all target services in one call (O(1) lookup vs N sequential queries)
+    $serviceMap = @{}
+    try {
+        Get-Service -Name $serviceNames -ErrorAction SilentlyContinue | ForEach-Object {
+            $serviceMap[$_.Name] = $_
+        }
+    }
+    catch {
+        Write-Log -Message "Error batch querying services: $($_.Exception.Message)" -Level Debug
+    }
+
+    foreach ($serviceName in $serviceNames) {
         $serviceConfig = $config.services.$serviceName
 
-        try {
-            $service = Get-Service -Name $serviceName -ErrorAction Stop
-            $wmiService = Get-CimInstance -ClassName Win32_Service -Filter "Name = '$serviceName'" -ErrorAction SilentlyContinue
+        if ($serviceMap.ContainsKey($serviceName)) {
+            $service = $serviceMap[$serviceName]
+            $currentStartup = if ($service.StartType) { $service.StartType.ToString() } else { "Unknown" }
 
             $results.Add([pscustomobject]@{
                     Name               = $serviceName
                     DisplayName        = $serviceConfig.DisplayName
                     Status             = $service.Status
-                    CurrentStartup     = $wmiService.StartMode
+                    CurrentStartup     = $currentStartup
                     RecommendedStartup = $serviceConfig.StartupType
                     Category           = $serviceConfig.Category
                     Description        = $serviceConfig.Description
                 })
         }
-        catch {
-            # Service doesn't exist on this system - skip silently (expected for optional services)
+        else {
             Write-Verbose "Service $serviceName not found on this system."
         }
     }
@@ -198,8 +210,21 @@ function Get-WinDebloat7ServiceStatus {
 
 #endregion
 
+# Aliases for backward compatibility
+Set-Alias -Name 'Set-WinDebloat7Services' -Value 'Set-WinDebloatServices'
+Set-Alias -Name 'Optimize-WinDebloatServices' -Value 'Set-WinDebloatServices'
+Set-Alias -Name 'Optimize-WinDebloat7Services' -Value 'Set-WinDebloatServices'
+Set-Alias -Name 'Get-WinDebloat7ServicePresets' -Value 'Get-WinDebloatServicePresets'
+Set-Alias -Name 'Get-WinDebloat7ServiceStatus' -Value 'Get-WinDebloatServiceStatus'
+
 Export-ModuleMember -Function @(
+    'Set-WinDebloatServices',
+    'Get-WinDebloatServicePresets',
+    'Get-WinDebloatServiceStatus'
+) -Alias @(
     'Set-WinDebloat7Services',
+    'Optimize-WinDebloatServices',
+    'Optimize-WinDebloat7Services',
     'Get-WinDebloat7ServicePresets',
     'Get-WinDebloat7ServiceStatus'
 )

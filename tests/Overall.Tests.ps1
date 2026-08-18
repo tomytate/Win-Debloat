@@ -1,29 +1,27 @@
 $here = $PSScriptRoot
 $root = Split-Path -Parent $here
 
-Describe "Win-Debloat7 Compliance" {
+Describe "Win-Debloat Compliance" {
     BeforeAll {
         $here = $PSScriptRoot
         $root = Split-Path -Parent $here
+        Import-Module "$root\src\core\Logger.psm1" -Force
+        Import-Module "$root\src\core\Registry.psm1" -Force
     }
     
     Context "1. Manifest Integrity" {
-        It "Win-Debloat7.psd1 should show valid module manifest" {
-            $manifest = Sort-Object -Unique -InputObject (Test-ModuleManifest -Path "$root\Win-Debloat7.psd1" -ErrorAction Stop)
-            $manifest.Name | Should -Be "Win-Debloat7"
+        It "Win-Debloat.psd1 should show valid module manifest" {
+            $manifest = Sort-Object -Unique -InputObject (Test-ModuleManifest -Path "$root\Win-Debloat.psd1" -ErrorAction Stop)
+            $manifest.Name | Should -Be "Win-Debloat"
         }
 
         It "Should not have duplicate NestedModules" {
-            $content = Get-Content "$root\Win-Debloat7.psd1" -Raw -ErrorAction Stop
-            # Simple regex check for duplicates
-            # (We already fixed it, just verifying)
+            $content = Get-Content "$root\Win-Debloat.psd1" -Raw -ErrorAction Stop
             $content | Should -Not -Match "State.psm1.*State.psm1"
         }
     }
 
     Context "2. Core Hardening" {
-        Import-Module "$root\src\core\Registry.psm1" -Force
-
         It "Set-RegistryKey should reject invalid hives" {
             { Set-RegistryKey -Path "INVALID:\Foo" -Name "Bar" -Value 1 } | Should -Throw
         }
@@ -40,15 +38,16 @@ Describe "Win-Debloat7 Compliance" {
     }
     
     Context "3. Syntax Validation" {
-        $files = Get-ChildItem -Path "$root\src" -Recurse -Filter "*.psm1" | ForEach-Object {
-            @{ Name = $_.Name; FullName = $_.FullName }
+        BeforeDiscovery {
+            $filesToTest = Get-ChildItem -Path "$PSScriptRoot\..\src" -Recurse -Filter "*.psm1" | ForEach-Object {
+                @{ Name = $_.Name; FullName = $_.FullName }
+            }
         }
         
-        It "<Name> should pass syntax check" -TestCases $files {
-            param($FullName, $Name)
-            $content = Get-Content $FullName -Raw
+        It "<Name> should pass syntax check" -ForEach $filesToTest {
+            $content = Get-Content -LiteralPath $FullName -Raw
             $errs = $null
-            $tokens = [System.Management.Automation.PSParser]::Tokenize($content, [ref]$errs)
+            $null = [System.Management.Automation.PSParser]::Tokenize($content, [ref]$errs)
             $errs.Count | Should -Be 0
         }
     }

@@ -1,4 +1,4 @@
-# Win-Debloat7 Profile Schema
+# Win-Debloat Profile Schema
 # Defines the structure and valid values for configuration profiles
 
 metadata:
@@ -10,7 +10,7 @@ metadata:
   min_build: integer
 
 bloatware:
-  removal_mode: [ "Conservative", "Moderate", "Aggressive", "Custom" ]
+  removal_mode: [ "None", "Conservative", "Moderate", "Aggressive", "Custom" ]
   custom_list: list<string>
   exclude_list: list<string>
 
@@ -56,6 +56,6 @@ system:
   debloat_search: boolean
 
 software:
-  package_manager: [ "Winget", "Chocolatey" ]
+  package_manager: [ "Winget", "Chocolatey", "Auto" ]
   install_list: list<string>
   uninstall_list: list<string>

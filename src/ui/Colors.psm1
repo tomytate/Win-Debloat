@@ -1,16 +1,16 @@
-﻿<#
+﻿#Requires -Version 7.6
+
+<#
 .SYNOPSIS
-    Premium color scheme and branding for Win-Debloat7 TUI (Cyber-Minimalist Edition)
+    Premium color scheme and branding for Win-Debloat TUI (Cyber-Minimalist Edition)
     
 .DESCRIPTION
     Defines the "Neon Cyber" color palette with TrueColor (RGB) support for PowerShell 7+.
     
 .NOTES
-    Module: Win-Debloat7.UI.Colors
-    Version: 1.4.0
+    Module: Win-Debloat.UI.Colors
+    Version: 1.5.0
 #>
-
-#Requires -Version 7.6
 
 # Premium Color Scheme - Neon Cyber Palette
 $Script:WD7Theme = @{
@@ -43,26 +43,35 @@ $Script:WD7Theme = @{
 $Script:WD7Header = @"
 ╔═════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                                                                                 ║
-║  ██╗    ██╗██╗███╗   ██╗      ██████╗ ███████╗██████╗ ██╗      ██████╗  █████╗ ████████╗███████╗║
-║  ██║    ██║██║████╗  ██║      ██╔══██╗██╔════╝██╔══██╗██║     ██╔═══██╗██╔══██╗╚══██╔══╝╚════██║║
-║  ██║ █╗ ██║██║██╔██╗ ██║█████╗██║  ██║█████╗  ██████╔╝██║     ██║   ██║███████║   ██║       ██╔╝║
-║  ██║███╗██║██║██║╚██╗██║╚════╝██║  ██║██╔══╝  ██╔══██╗██║     ██║   ██║██╔══██║   ██║      ██╔╝ ║
-║  ╚███╔███╔╝██║██║ ╚████║      ██████╔╝███████╗██████╔╝███████╗╚██████╔╝██║  ██║   ██║      ██║  ║
-║   ╚══╝╚══╝ ╚═╝╚═╝  ╚═══╝      ╚═════╝ ╚══════╝╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝      ╚═╝  ║
-║                                                                                                 ║
-║                          Ultimate System Optimizer v1.4.0                                       ║
-║                       PowerShell 7.6+ | Windows 11 25H2 Ready                                   ║
+║     ██╗    ██╗██╗███╗   ██╗      ██████╗ ███████╗██████╗ ██╗      ██████╗  █████╗ ████████╗     ║
+║     ██║    ██║██║████╗  ██║      ██╔══██╗██╔════╝██╔══██╗██║     ██╔═══██╗██╔══██╗╚══██╔══╝     ║
+║     ██║ █╗ ██║██║██╔██╗ ██║█████╗██║  ██║█████╗  ██████╔╝██║     ██║   ██║███████║   ██║        ║
+║     ██║███╗██║██║██║╚██╗██║╚════╝██║  ██║██╔══╝  ██╔══██╗██║     ██║   ██║██╔══██║   ██║        ║
+║     ╚███╔███╔╝██║██║ ╚████║      ██████╔╝███████╗██████╔╝███████╗╚██████╔╝██║  ██║   ██║        ║
+║      ╚══╝╚══╝ ╚═╝╚═╝  ╚═══╝      ╚═════╝ ╚══════╝╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝        ║
+║                        Ultimate System Optimizer & Toolbox v1.5.0 "Top G"                       ║
+║                             PowerShell 7.6+ | Windows 11 25H2 Ready                             ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
 "@
 
 $Script:WD7HeaderCompact = @"
 ╔══════════════════════════════════════════════════════════════╗
-║            ▄▀▀▀▀▄ Win-Debloat7 ▄▀▀▀▀▄                        ║
-║              Ultimate System Optimizer                       ║
+║                  ▄▀▀▀▀▄ Win-Debloat ▄▀▀▀▀▄                   ║
+║                  Ultimate System Optimizer                   ║
 ╚══════════════════════════════════════════════════════════════╝
 "@
 
+<#
+.SYNOPSIS
+    Converts a HEX color code into ANSI TrueColor escape sequence.
+.PARAMETER Hex
+    Hexadecimal color code string (e.g. #00D4FF).
+.OUTPUTS
+    [string] ANSI 24-bit color sequence.
+#>
 function Get-WD7AnsiColor {
+    [CmdletBinding()]
+    [OutputType([string])]
     param([string]$Hex)
     
     if ($Hex -notmatch "^#([0-9a-fA-F]{6})$") { return "" }
@@ -75,8 +84,24 @@ function Get-WD7AnsiColor {
     return "$([char]27)[38;2;$r;$g;${b}m"
 }
 
+<#
+.SYNOPSIS
+    Outputs styled message to the host with theme color.
+.PARAMETER Message
+    The message text to output.
+.PARAMETER Color
+    Theme color identifier.
+.PARAMETER NoNewline
+    Whether to omit the trailing newline.
+.PARAMETER Bold
+    Whether to apply bold formatting.
+.OUTPUTS
+    [void]
+#>
 function Write-WD7Host {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Terminal TUI styling')]
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [Parameter(Mandatory, Position = 0)]
         [string]$Message,
@@ -123,8 +148,18 @@ function Write-WD7Host {
     }
 }
 
+<#
+.SYNOPSIS
+    Renders the Win-Debloat ASCII header banner.
+.PARAMETER Compact
+    Whether to render the compact single-box header.
+.OUTPUTS
+    [void]
+#>
 function Show-WD7Header {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Terminal TUI styling')]
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [switch]$Compact
     )
@@ -158,10 +193,22 @@ function Show-WD7Header {
     Write-Host ""
 }
 
+<#
+.SYNOPSIS
+    Renders a styled divider or section title separator.
+.PARAMETER Title
+    Optional centered title string.
+.PARAMETER Color
+    Theme color identifier.
+.OUTPUTS
+    [void]
+#>
 function Show-WD7Separator {
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [string]$Title = "",
+        [ValidateSet("Primary", "Secondary", "Success", "Warning", "Error", "Info", "Dark", "White")]
         [string]$Color = "Info"
     )
     
@@ -179,8 +226,22 @@ function Show-WD7Separator {
     }
 }
 
+<#
+.SYNOPSIS
+    Renders an inline graphical progress bar.
+.PARAMETER Percent
+    Percentage completed (0-100).
+.PARAMETER Width
+    Width of the bar characters in the console.
+.PARAMETER Label
+    Optional progress label text.
+.OUTPUTS
+    [void]
+#>
 function Show-WD7Progress {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Terminal TUI styling')]
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [int]$Percent,
         [int]$Width = 40,
@@ -198,8 +259,19 @@ function Show-WD7Progress {
     Write-Host "`r$display" -NoNewline -ForegroundColor Cyan
 }
 
+<#
+.SYNOPSIS
+    Renders a status badge with an icon and label.
+.PARAMETER Label
+    Status label text.
+.PARAMETER Status
+    Status level (Success, Warning, Error, Info).
+.OUTPUTS
+    [void]
+#>
 function Show-WD7StatusBadge {
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [string]$Label,
         [ValidateSet("Success", "Warning", "Error", "Info")]

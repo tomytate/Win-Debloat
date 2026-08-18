@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Validates every package ID in the Win-Debloat7 software catalog against
+    Validates every package ID in the Win-Debloat software catalog against
     live package sources.
 
 .DESCRIPTION

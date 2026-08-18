@@ -1,19 +1,19 @@
+﻿#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Registry management utilities for Win-Debloat7
+    Registry management utilities for Win-Debloat
     
 .DESCRIPTION
     Provides shared registry manipulation functions with proper error handling,
     ACL validation, and PowerShell 7.5 best practices.
     
 .NOTES
-    Module: Win-Debloat7.Core.Registry
-    Version: 1.4.0
+    Module: Win-Debloat.Core.Registry
+    Version: 1.5.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
-
-#Requires -Version 7.6
 
 using namespace System.Management.Automation
 using namespace System.Security.AccessControl
@@ -60,68 +60,44 @@ function Set-RegistryKey {
             })]
         [string]$Path,
         
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$Name,
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [AllowNull()]
+        [string]$Name = "",
         
         [Parameter(Mandatory)]
         [AllowNull()]
         $Value,
         
-        [ValidateSet("DWord", "String", "QWord", "Binary", "MultiString", "ExpandString")]
+        [ValidateSet("DWord", "String", "QWord", "Binary", "MultiString", "ExpandString", "None", "Unknown")]
         [string]$Type = "DWord"
     )
     
     try {
         # Validate and create path if needed
-        if (-not (Test-Path $Path)) {
+        if (-not (Test-Path -LiteralPath $Path)) {
             if ($PSCmdlet.ShouldProcess($Path, "Create Registry Key")) {
                 New-Item -Path $Path -Force -ErrorAction Stop | Out-Null
                 Write-Log -Message "Created registry path: $Path" -Level Debug
             }
         }
         
-        # Validate we have write access (SEC-002 fix)
-        $principal = [System.Security.Principal.WindowsPrincipal]::new([System.Security.Principal.WindowsIdentity]::GetCurrent())
-        $hasWriteAccess = $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
-        
-        if (-not $hasWriteAccess) {
-            Write-Log -Message "Insufficient permissions to modify: $Path" -Level Warning
-            # Continue anyway as admin - the write will fail if truly blocked
-        }
-        
-        # Set the value
-        if ($PSCmdlet.ShouldProcess("$Path\$Name", "Set Value to $Value ($Type)")) {
-            Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force -ErrorAction Stop
-            Write-Log -Message "Set registry: $Path\$Name = $Value" -Level Debug
+        # Set the value (using (Default) if Name is empty)
+        $valName = if ([string]::IsNullOrEmpty($Name)) { "(Default)" } else { $Name }
+        if ($PSCmdlet.ShouldProcess("$Path\$valName", "Set Value to $Value ($Type)")) {
+            Set-ItemProperty -LiteralPath $Path -Name $valName -Value $Value -Type $Type -Force -ErrorAction Stop
+            Write-Log -Message "Set registry: $Path\$valName = $Value" -Level Debug
             return $true
         }
         
         return $false
     }
     catch {
-        # SEC-003 fix: Proper error logging instead of silent suppression
         Write-Log -Message "Failed to set registry '$Path\$Name': $($_.Exception.Message)" -Level Error
         return $false
     }
 }
 
-<#
-.SYNOPSIS
-    Gets a registry key value with error handling.
-    
-.PARAMETER Path
-    The full registry path
-    
-.PARAMETER Name
-    The registry value name
-    
-.PARAMETER DefaultValue
-    Value to return if the key doesn't exist
-    
-.OUTPUTS
-    The registry value or default value
-#>
 function Get-RegistryKey {
     [CmdletBinding()]
     [OutputType([object])]
@@ -130,16 +106,18 @@ function Get-RegistryKey {
         [ValidateNotNullOrEmpty()]
         [string]$Path,
         
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$Name,
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [AllowNull()]
+        [string]$Name = "",
         
         $DefaultValue = $null
     )
     
     try {
-        if (Test-Path $Path) {
-            $value = Get-ItemPropertyValue -Path $Path -Name $Name -ErrorAction Stop
+        if (Test-Path -LiteralPath $Path) {
+            $valName = if ([string]::IsNullOrEmpty($Name)) { "(Default)" } else { $Name }
+            $value = Get-ItemPropertyValue -LiteralPath $Path -Name $valName -ErrorAction Stop
             return $value
         }
         return $DefaultValue
@@ -149,19 +127,6 @@ function Get-RegistryKey {
     }
 }
 
-<#
-.SYNOPSIS
-    Tests if a registry key/value exists.
-    
-.PARAMETER Path
-    The full registry path
-    
-.PARAMETER Name
-    Optional: The registry value name. If omitted, tests only the path.
-    
-.OUTPUTS
-    [bool] True if exists, false otherwise
-#>
 function Test-RegistryKey {
     [CmdletBinding()]
     [OutputType([bool])]
@@ -170,41 +135,31 @@ function Test-RegistryKey {
         [ValidateNotNullOrEmpty()]
         [string]$Path,
         
-        [string]$Name
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [AllowNull()]
+        [string]$Name = ""
     )
     
-    if (-not (Test-Path $Path)) {
-        return $false
-    }
-    
-    if ([string]::IsNullOrEmpty($Name)) {
-        return $true
-    }
-    
     try {
-        $null = Get-ItemPropertyValue -Path $Path -Name $Name -ErrorAction Stop
-        return $true
+        if (-not (Test-Path -LiteralPath $Path)) {
+            return $false
+        }
+        
+        if ([string]::IsNullOrEmpty($Name)) {
+            return $true
+        }
+        
+        $val = Get-ItemPropertyValue -LiteralPath $Path -Name $Name -ErrorAction Stop
+        return ($null -ne $val)
     }
     catch {
         return $false
     }
 }
 
-<#
-.SYNOPSIS
-    Exports registry keys for backup purposes.
-    
-.PARAMETER Path
-    The registry path to export
-    
-.PARAMETER OutputPath
-    File path to save the export
-    
-.OUTPUTS
-    [bool] True if successful
-#>
 function Export-RegistryKey {
-    [CmdletBinding(SupportsShouldProcess)]
+    [CmdletBinding()]
     [OutputType([bool])]
     param(
         [Parameter(Mandatory)]
@@ -217,23 +172,29 @@ function Export-RegistryKey {
     )
     
     try {
-        if (-not (Test-Path $Path)) {
-            Write-Log -Message "Registry path does not exist: $Path" -Level Warning
-            return $false
-        }
-        
-        if ($PSCmdlet.ShouldProcess($Path, "Export Registry")) {
-            # Use reg.exe for reliable export
-            # Handle standard PowerShell drive mappings
-            $hive = $null
-            $subKey = $null
+        if (Test-Path -LiteralPath $Path) {
+            $parentDir = Split-Path -Path $OutputPath -Parent
+            if ($parentDir -and -not (Test-Path -LiteralPath $parentDir)) {
+                New-Item -ItemType Directory -Path $parentDir -Force -ErrorAction SilentlyContinue | Out-Null
+            }
+
+            $hive = ""
+            $subKey = ""
             
             if ($Path -match "^HKLM:\\?(.*)") {
-                $hive = "HKEY_LOCAL_MACHINE"
+                $hive = "HKLM"
                 $subKey = $matches[1]
             }
             elseif ($Path -match "^HKCU:\\?(.*)") {
-                $hive = "HKEY_CURRENT_USER"
+                $hive = "HKCU"
+                $subKey = $matches[1]
+            }
+            elseif ($Path -match "^HKCR:\\?(.*)") {
+                $hive = "HKCR"
+                $subKey = $matches[1]
+            }
+            elseif ($Path -match "^HKU:\\?(.*)") {
+                $hive = "HKU"
                 $subKey = $matches[1]
             }
             elseif ($Path -match "^Registry::HKEY_LOCAL_MACHINE\\?(.*)") {
@@ -246,14 +207,12 @@ function Export-RegistryKey {
             }
             
             if (-not $hive) {
-                Write-Log -Message "Unsupported registry hive for export: $Path. Only HKLM and HKCU are supported." -Level Error
+                Write-Log -Message "Unsupported registry hive for export: $Path." -Level Error
                 return $false
             }
             
-            $regPath = "$hive\$subKey"
-            
-            # Quotes are critical for paths with spaces
-            $processArgs = @("export", "`"$regPath`"", "`"$OutputPath`"", "/y")
+            $regPath = if ($subKey) { "$hive\$subKey" } else { $hive }
+            $processArgs = @("export", $regPath, $OutputPath, "/y")
             
             $p = Start-Process -FilePath "reg.exe" -ArgumentList $processArgs -NoNewWindow -Wait -PassThru
             
@@ -275,36 +234,6 @@ function Export-RegistryKey {
     }
 }
 
-<#
-.SYNOPSIS
-    Removes a registry value, or an entire registry key, with proper error
-    handling.
-
-.DESCRIPTION
-    Used by "Enable-*" / revert functions to undo policy overrides where the
-    Windows default is "value absent" rather than a specific opposite value
-    (e.g. removing a Group Policy override lets the OS's own built-in default
-    behavior apply again, which is usually more correct than guessing a
-    hardcoded "default" value that can vary by SKU/build).
-
-.PARAMETER Path
-    The full registry path (e.g. HKLM:\SOFTWARE\MyApp)
-
-.PARAMETER Name
-    The registry value name to remove. Omit with -WholeKey to remove the key itself.
-
-.PARAMETER WholeKey
-    Removes the entire key (and its subkeys) instead of a single value.
-
-.OUTPUTS
-    [bool] Returns $true if the value/key was removed or already absent, $false on error.
-
-.EXAMPLE
-    Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\FindMyDevice" -Name "AllowFindMyDevice"
-
-.EXAMPLE
-    Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Power\PowerSettings\{guid}" -WholeKey
-#>
 function Remove-RegistryKey {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([bool])]
@@ -325,18 +254,38 @@ function Remove-RegistryKey {
     )
 
     if (-not $WholeKey -and [string]::IsNullOrEmpty($Name)) {
-        throw "Remove-RegistryKey requires either -Name or -WholeKey."
+        Write-Log -Message "Remove-RegistryKey requires either -Name or -WholeKey." -Level Error
+        return $false
     }
 
     try {
-        if (-not (Test-Path $Path)) {
-            # Nothing to remove - already in the desired (absent) state
+        if (-not (Test-Path -LiteralPath $Path)) {
             return $true
         }
 
         if ($WholeKey) {
+            # Guard against accidental root / shallow key deletion
+            $norm = $Path.TrimEnd('\') -replace '^HK(LM|CU|CR|U|CC):\\?', ''
+            $segments = $norm.Split('\') | Where-Object { $_ }
+            
+            # Protected root blacklist
+            $protectedSubtrees = @(
+                'SOFTWARE\Microsoft',
+                'SOFTWARE\Policies',
+                'SOFTWARE\Classes',
+                'SYSTEM\CurrentControlSet',
+                'SYSTEM\Setup',
+                'SAM',
+                'SECURITY'
+            )
+
+            if ($segments.Count -lt 2 -or ($norm -in $protectedSubtrees)) {
+                Write-Log -Message "Refusing to delete protected system registry path: $Path" -Level Error
+                return $false
+            }
+
             if ($PSCmdlet.ShouldProcess($Path, "Remove Registry Key")) {
-                Remove-Item -Path $Path -Recurse -Force -ErrorAction Stop
+                Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
                 Write-Log -Message "Removed registry key: $Path" -Level Debug
             }
             return $true
@@ -347,7 +296,7 @@ function Remove-RegistryKey {
         }
 
         if ($PSCmdlet.ShouldProcess("$Path\$Name", "Remove Registry Value")) {
-            Remove-ItemProperty -Path $Path -Name $Name -Force -ErrorAction Stop
+            Remove-ItemProperty -LiteralPath $Path -Name $Name -Force -ErrorAction Stop
             Write-Log -Message "Removed registry value: $Path\$Name" -Level Debug
         }
         return $true
@@ -359,4 +308,18 @@ function Remove-RegistryKey {
     }
 }
 
-Export-ModuleMember -Function Set-RegistryKey, Get-RegistryKey, Test-RegistryKey, Export-RegistryKey, Remove-RegistryKey
+Set-Alias -Name Set-WinDebloatRegistryKey -Value Set-RegistryKey
+Set-Alias -Name Get-WinDebloatRegistryKey -Value Get-RegistryKey
+Set-Alias -Name Test-WinDebloatRegistryKey -Value Test-RegistryKey
+Set-Alias -Name Export-WinDebloatRegistryKey -Value Export-RegistryKey
+Set-Alias -Name Remove-WinDebloatRegistryKey -Value Remove-RegistryKey
+
+Set-Alias -Name Set-WinDebloat7RegistryKey -Value Set-RegistryKey
+Set-Alias -Name Get-WinDebloat7RegistryKey -Value Get-RegistryKey
+Set-Alias -Name Test-WinDebloat7RegistryKey -Value Test-RegistryKey
+Set-Alias -Name Export-WinDebloat7RegistryKey -Value Export-RegistryKey
+Set-Alias -Name Remove-WinDebloat7RegistryKey -Value Remove-RegistryKey
+
+Export-ModuleMember -Function Set-RegistryKey, Get-RegistryKey, Test-RegistryKey, Export-RegistryKey, Remove-RegistryKey `
+                    -Alias Set-WinDebloatRegistryKey, Get-WinDebloatRegistryKey, Test-WinDebloatRegistryKey, Export-WinDebloatRegistryKey, Remove-WinDebloatRegistryKey, `
+                           Set-WinDebloat7RegistryKey, Get-WinDebloat7RegistryKey, Test-WinDebloat7RegistryKey, Export-WinDebloat7RegistryKey, Remove-WinDebloat7RegistryKey

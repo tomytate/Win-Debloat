@@ -4,9 +4,11 @@
 
 metadata:
   name: "Conservative"
-  author: "tomytate"
+  author: "Win-Debloat7 Team"
   description: "Minimal changes for maximum stability."
   version: "1.0.0"
+  target_os: [ "Windows 10", "Windows 11" ]
+  min_build: 19041
 
 bloatware:
   removal_mode: "Custom"
@@ -23,12 +25,10 @@ privacy:
   disable_copilot: false
   disable_recall: false
   disable_advertising_id: true
-  block_telemetry_domains: false
 
 performance:
   power_plan: "Balanced"
   disable_background_apps: false
-  gaming_mode: false
 
 # System QoL (v1.4): only zero-risk annoyance fixes for work PCs
 system:

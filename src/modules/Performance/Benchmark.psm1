@@ -1,28 +1,40 @@
-<#
-.SYNOPSIS
-    Captures current system performance metrics.
-    
-.NOTES
-    Module: Win-Debloat7.Modules.Performance.Benchmark
-    Version: 1.4.0
-#>
 #Requires -Version 7.6
 
-function Measure-WinDebloat7System {
+<#
+.SYNOPSIS
+    Captures and compares system performance metrics.
+    
+.NOTES
+    Module: Win-Debloat.Modules.Performance.Benchmark
+    Version: 2.0.0
+#>
+
+Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force -ErrorAction SilentlyContinue
+
+function Measure-WinDebloatSystem {
     <#
+    .SYNOPSIS
+        Captures current system performance metrics.
+        
     .OUTPUTS
         [pscustomobject] Containing RAM, Process count, etc.
     #>
     [CmdletBinding()]
+    [OutputType([pscustomobject])]
     param()
 
-    $os = Get-CimInstance Win32_OperatingSystem
-    $freeRamMB = [math]::Round($os.FreePhysicalMemory / 1KB, 0)
-    $totalRamMB = [math]::Round($os.TotalVisibleMemorySize / 1KB, 0)
-    $usedRamMB = $totalRamMB - $freeRamMB
+    $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
+    $freeRamMB = if ($os -and $os.FreePhysicalMemory) { [math]::Round($os.FreePhysicalMemory / 1KB, 0) } else { 0 }
+    $totalRamMB = if ($os -and $os.TotalVisibleMemorySize) { [math]::Round($os.TotalVisibleMemorySize / 1KB, 0) } else { 0 }
+    $usedRamMB = [math]::Max(0, ($totalRamMB - $freeRamMB))
     
-    $procs = (Get-Process).Count
+    $procs = (Get-Process -ErrorAction SilentlyContinue).Count
     $services = (Get-Service -ErrorAction SilentlyContinue | Where-Object Status -eq 'Running').Count
+    
+    $driveName = if ($env:SystemDrive) { $env:SystemDrive.TrimEnd(':') } else { "C" }
+    $driveObj = Get-PSDrive -Name $driveName -ErrorAction SilentlyContinue
+    $diskFreeGB = if ($driveObj -and $driveObj.Free) { [math]::Round($driveObj.Free / 1GB, 2) } else { 0 }
+    $lastBoot = if ($os) { $os.LastBootUpTime } else { $null }
     
     return [pscustomobject]@{
         Timestamp   = Get-Date
@@ -30,12 +42,13 @@ function Measure-WinDebloat7System {
         FreeRAM_MB  = $freeRamMB
         Processes   = $procs
         Services    = $services
-        DiskFree_GB = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
-        LastBoot    = $os.LastBootUpTime
+        DiskFree_GB = $diskFreeGB
+        LastBoot    = $lastBoot
     }
 }
 
-function Compare-WinDebloat7Benchmarks {
+function Compare-WinDebloatBenchmarks {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Compares two benchmark objects and generates a report.
@@ -45,7 +58,7 @@ function Compare-WinDebloat7Benchmarks {
     param(
         [Parameter(Mandatory)] $Reference,
         [Parameter(Mandatory)] $Difference,
-        [string]$ReportPath = "$env:USERPROFILE\Desktop\Win-Debloat7_Benchmark_Report.md"
+        [string]$ReportPath = "$env:USERPROFILE\Desktop\Win-Debloat_Benchmark_Report.md"
     )
 
     $ramDiff = $Reference.UsedRAM_MB - $Difference.UsedRAM_MB
@@ -55,7 +68,7 @@ function Compare-WinDebloat7Benchmarks {
 
     # Generate Report
     $sb = [System.Text.StringBuilder]::new()
-    $sb.AppendLine("# Win-Debloat7 Optimization Report") | Out-Null
+    $sb.AppendLine("# Win-Debloat Optimization Report") | Out-Null
     $sb.AppendLine("Generated on $(Get-Date)") | Out-Null
     $sb.AppendLine("") | Out-Null
     
@@ -79,4 +92,18 @@ function Compare-WinDebloat7Benchmarks {
     return $report
 }
 
-Export-ModuleMember -Function Measure-WinDebloat7System, Compare-WinDebloat7Benchmarks
+# Aliases for backward compatibility
+Set-Alias -Name 'Measure-WinDebloat7System' -Value 'Measure-WinDebloatSystem'
+Set-Alias -Name 'Compare-WinDebloat7Benchmarks' -Value 'Compare-WinDebloatBenchmarks'
+Set-Alias -Name 'Compare-WinDebloatBenchmark' -Value 'Compare-WinDebloatBenchmarks'
+Set-Alias -Name 'Compare-WinDebloat7Benchmark' -Value 'Compare-WinDebloatBenchmarks'
+
+Export-ModuleMember -Function @(
+    'Measure-WinDebloatSystem',
+    'Compare-WinDebloatBenchmarks'
+) -Alias @(
+    'Measure-WinDebloat7System',
+    'Compare-WinDebloat7Benchmarks',
+    'Compare-WinDebloatBenchmark',
+    'Compare-WinDebloat7Benchmark'
+)

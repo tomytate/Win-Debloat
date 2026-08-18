@@ -1,7 +1,7 @@
 # Unit Test Plan
 
 ## Goal
-Establish a Pester 5.x test suite to automatically verify the stability of the `Win-Debloat7` framework.
+Establish a Pester 5.x test suite to automatically verify the stability of the `Win-Debloat` framework.
 
 ## Scope
 1.  **Core Tests** (`tests/Core.Tests.ps1`)

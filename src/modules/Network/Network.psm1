@@ -1,24 +1,25 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Network configuration module for Win-Debloat7
+    Network configuration module for Win-Debloat
     
 .DESCRIPTION
     Handles DNS configuration, IPv6 management, and network privacy settings.
     Supports multiple DNS providers with easy switching.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Network
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Network
+    Version: 2.0.0
 .LINK
     https://learn.microsoft.com/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
 
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
-
 using namespace System.Management.Automation
 
+# Import Core Modules
 Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force
+Import-Module "$PSScriptRoot\..\..\core\Registry.psm1" -Force
 
 #region DNS Providers
 
@@ -29,6 +30,7 @@ $Script:DNSProviders = @{
         IPv4Secondary = "1.0.0.1"
         IPv6Primary   = "2606:4700:4700::1111"
         IPv6Secondary = "2606:4700:4700::1001"
+        DoHTemplate   = "https://cloudflare-dns.com/dns-query"
     }
     Cloudflare_Malware     = @{
         Name          = "Cloudflare (Malware Blocking)"
@@ -36,6 +38,7 @@ $Script:DNSProviders = @{
         IPv4Secondary = "1.0.0.2"
         IPv6Primary   = "2606:4700:4700::1112"
         IPv6Secondary = "2606:4700:4700::1002"
+        DoHTemplate   = "https://security.cloudflare-dns.com/dns-query"
     }
     Cloudflare_Family      = @{
         Name          = "Cloudflare (Family Safe)"
@@ -43,6 +46,7 @@ $Script:DNSProviders = @{
         IPv4Secondary = "1.0.0.3"
         IPv6Primary   = "2606:4700:4700::1113"
         IPv6Secondary = "2606:4700:4700::1003"
+        DoHTemplate   = "https://family.cloudflare-dns.com/dns-query"
     }
     Google                 = @{
         Name          = "Google Public DNS"
@@ -50,6 +54,7 @@ $Script:DNSProviders = @{
         IPv4Secondary = "8.8.4.4"
         IPv6Primary   = "2001:4860:4860::8888"
         IPv6Secondary = "2001:4860:4860::8844"
+        DoHTemplate   = "https://dns.google/dns-query"
     }
     Quad9                  = @{
         Name          = "Quad9 (Security-Focused)"
@@ -57,6 +62,7 @@ $Script:DNSProviders = @{
         IPv4Secondary = "149.112.112.112"
         IPv6Primary   = "2620:fe::fe"
         IPv6Secondary = "2620:fe::9"
+        DoHTemplate   = "https://dns.quad9.net/dns-query"
     }
     AdGuard                = @{
         Name          = "AdGuard DNS (Ad-Blocking)"
@@ -64,6 +70,7 @@ $Script:DNSProviders = @{
         IPv4Secondary = "94.140.15.15"
         IPv6Primary   = "2a10:50c0::ad1:ff"
         IPv6Secondary = "2a10:50c0::ad2:ff"
+        DoHTemplate   = "https://dns.adguard-dns.com/dns-query"
     }
     AdGuard_Family         = @{
         Name          = "AdGuard DNS (Family Safe)"
@@ -71,6 +78,7 @@ $Script:DNSProviders = @{
         IPv4Secondary = "94.140.15.16"
         IPv6Primary   = "2a10:50c0::bad1:ff"
         IPv6Secondary = "2a10:50c0::bad2:ff"
+        DoHTemplate   = "https://dns-family.adguard-dns.com/dns-query"
     }
     OpenDNS                = @{
         Name          = "OpenDNS (Cisco)"
@@ -78,6 +86,7 @@ $Script:DNSProviders = @{
         IPv4Secondary = "208.67.220.220"
         IPv6Primary   = "2620:119:35::35"
         IPv6Secondary = "2620:119:53::53"
+        DoHTemplate   = "https://doh.opendns.com/dns-query"
     }
     CleanBrowsing_Security = @{
         Name          = "CleanBrowsing (Security)"
@@ -85,13 +94,15 @@ $Script:DNSProviders = @{
         IPv4Secondary = "185.228.169.9"
         IPv6Primary   = "2a0d:2a00:1::2"
         IPv6Secondary = "2a0d:2a00:2::2"
+        DoHTemplate   = "https://doh.cleanbrowsing.org/doh/security-filter/"
     }
     CleanBrowsing_Family   = @{
         Name          = "CleanBrowsing (Family)"
         IPv4Primary   = "185.228.168.168"
         IPv4Secondary = "185.228.169.168"
-        IPv6Primary   = "2a0d:2a00:1::"
-        IPv6Secondary = "2a0d:2a00:2::"
+        IPv6Primary   = "2a0d:2a00:1::1"
+        IPv6Secondary = "2a0d:2a00:2::1"
+        DoHTemplate   = "https://doh.cleanbrowsing.org/doh/family-filter/"
     }
     NextDNS                = @{
         Name          = "NextDNS (Customizable)"
@@ -99,6 +110,39 @@ $Script:DNSProviders = @{
         IPv4Secondary = "45.90.30.0"
         IPv6Primary   = "2a07:a8c0::"
         IPv6Secondary = "2a07:a8c1::"
+        DoHTemplate   = "https://dns.nextdns.io"
+    }
+}
+
+# Dynamically merge with config/dns.json if available
+$jsonPath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "config\dns.json"
+if (Test-Path -LiteralPath $jsonPath) {
+    try {
+        $jsonContent = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
+        $providerEntries = if ($jsonContent.providers) { $jsonContent.providers.PSObject.Properties } else { $jsonContent.PSObject.Properties }
+        foreach ($prop in $providerEntries) {
+            if (-not $Script:DNSProviders.ContainsKey($prop.Name)) {
+                $val = $prop.Value
+                $primary4 = if ($val.Primary) { $val.Primary } elseif ($val.primary) { $val.primary } else { $val.IPv4Primary }
+                $secondary4 = if ($val.Secondary) { $val.Secondary } elseif ($val.secondary) { $val.secondary } else { $val.IPv4Secondary }
+                $primary6 = if ($val.Primary6) { $val.Primary6 } elseif ($val.ipv6_primary) { $val.ipv6_primary } else { $val.IPv6Primary }
+                $secondary6 = if ($val.Secondary6) { $val.Secondary6 } elseif ($val.ipv6_secondary) { $val.ipv6_secondary } else { $val.IPv6Secondary }
+                $desc = if ($val.Description) { $val.Description } elseif ($val.name) { $val.name } else { $prop.Name }
+                $doh = if ($val.DoHTemplate) { $val.DoHTemplate } elseif ($val.doh_template) { $val.doh_template } else { $null }
+
+                $Script:DNSProviders[$prop.Name] = @{
+                    Name          = $desc
+                    IPv4Primary   = $primary4
+                    IPv4Secondary = $secondary4
+                    IPv6Primary   = $primary6
+                    IPv6Secondary = $secondary6
+                    DoHTemplate   = $doh
+                }
+            }
+        }
+    }
+    catch {
+        Write-Log -Message "Could not parse config/dns.json: $($_.Exception.Message)" -Level Debug
     }
 }
 
@@ -108,85 +152,104 @@ $Script:DNSProviders = @{
 
 <#
 .SYNOPSIS
-    Sets DNS servers on all network adapters.
+    Sets custom DNS servers for all active network adapters.
     
-.PARAMETER Provider
-    DNS provider preset: Cloudflare, Google, Quad9, AdGuard, OpenDNS, NextDNS.
-    
-.PARAMETER CustomPrimary
-    Custom primary DNS server (use with -Provider Custom).
-    
-.PARAMETER CustomSecondary
-    Custom secondary DNS server (use with -Provider Custom).
-    
-.PARAMETER IncludeIPv6
-    Also set IPv6 DNS servers.
-    
-.EXAMPLE
-    Set-WinDebloat7DNS -Provider Cloudflare
-    
-.EXAMPLE
-    Set-WinDebloat7DNS -Provider Custom -CustomPrimary "1.2.5.4" -CustomSecondary "5.6.7.8"
+.DESCRIPTION
+    Configures DNS servers on all enabled and connected network adapters.
+    Supports popular secure DNS providers (Cloudflare, Google, Quad9, AdGuard)
+    with native Windows 11 DNS-over-HTTPS (DoH) auto-upgrade where supported.
 #>
-function Set-WinDebloat7DNS {
-    [CmdletBinding(SupportsShouldProcess)]
+function Set-WinDebloatDNS {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     [OutputType([void])]
     param(
-        [Parameter(Mandatory)]
-        [ValidateSet("Cloudflare", "Cloudflare_Malware", "Cloudflare_Family", "Google", "Quad9", "AdGuard", "AdGuard_Family", "OpenDNS", "CleanBrowsing_Security", "CleanBrowsing_Family", "NextDNS", "Custom", "Reset")]
+        [Parameter(Mandatory, Position = 0)]
+        [ValidateSet(
+            "Cloudflare", "Cloudflare_Malware", "Cloudflare_Family",
+            "Google", "Quad9", "AdGuard", "AdGuard_Default", "AdGuard_Family",
+            "OpenDNS", "CleanBrowsing_Security", "CleanBrowsing_Family",
+            "NextDNS", "Custom", "Reset", "DHCP", "Default"
+        )]
         [string]$Provider,
         
         [string]$CustomPrimary,
         [string]$CustomSecondary,
-        
-        [switch]$IncludeIPv6
+        [switch]$IncludeIPv6,
+        [switch]$EnableDoH
     )
-    
-    # Get active network adapters
-    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
-    
-    if ($adapters.Count -eq 0) {
+
+    $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Up" }
+    if (-not $adapters) {
         Write-Log -Message "No active network adapters found." -Level Warning
         return
     }
-    
-    Write-Log -Message "Configuring DNS on $($adapters.Count) adapter(s)..." -Level Info
-    
-    # Determine DNS servers
-    if ($Provider -eq "Reset") {
-        # Reset to DHCP
+
+    if ($Provider -in @("Reset", "DHCP", "Default")) {
         foreach ($adapter in $adapters) {
-            if ($PSCmdlet.ShouldProcess($adapter.Name, "Reset DNS to DHCP")) {
+            if ($PSCmdlet.ShouldProcess($adapter.Name, "Reset DNS to DHCP (Automatic)")) {
                 try {
-                    Set-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -ResetServerAddresses
-                    Write-Log -Message "Reset DNS on $($adapter.Name) to DHCP" -Level Success
+                    Set-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -ResetServerAddresses -ErrorAction Stop
+                    Write-Log -Message "Reset DNS on $($adapter.Name) to DHCP (Automatic)" -Level Success
                 }
                 catch {
                     Write-Log -Message "Failed to reset DNS on $($adapter.Name): $($_.Exception.Message)" -Level Error
                 }
             }
         }
+        Clear-DnsClientCache -ErrorAction SilentlyContinue
+        Write-Log -Message "DNS reset to DHCP complete." -Level Success
         return
     }
-    elseif ($Provider -eq "Custom") {
+
+    $primary = $null
+    $secondary = $null
+    $providerName = $Provider
+    $dohTemplate = $null
+
+    if ($Provider -eq "Custom") {
         if (-not $CustomPrimary) {
-            Write-Log -Message "Custom provider requires -CustomPrimary parameter." -Level Error
+            Write-Log -Message "Custom DNS requires at least -CustomPrimary." -Level Error
             return
         }
         $primary = $CustomPrimary
         $secondary = $CustomSecondary
-        $providerName = "Custom"
     }
     else {
         $dns = $Script:DNSProviders[$Provider]
+        if (-not $dns) {
+            Write-Log -Message "Unknown DNS provider: $Provider" -Level Error
+            return
+        }
         $primary = $dns.IPv4Primary
         $secondary = $dns.IPv4Secondary
         $providerName = $dns.Name
+        $dohTemplate = $dns.DoHTemplate
     }
     
     $dnsServers = @($primary)
     if ($secondary) { $dnsServers += $secondary }
     
+    # Configure native Windows 11 DoH if available (CTT WinUtil pattern)
+    $hasDoHCmdlet = Get-Command "Add-DnsClientDohServerAddress" -ErrorAction SilentlyContinue
+    if ($hasDoHCmdlet -and $dohTemplate -and ($EnableDoH.IsPresent -or -not $PSBoundParameters.ContainsKey("EnableDoH"))) {
+        try {
+            $allDohTargets = @($dnsServers)
+            if ($IncludeIPv6 -and $Provider -ne "Custom") {
+                $dns = $Script:DNSProviders[$Provider]
+                $ipv6Targets = @($dns.IPv6Primary, $dns.IPv6Secondary) | Where-Object { $_ }
+                $allDohTargets += $ipv6Targets
+            }
+
+            foreach ($ip in $allDohTargets) {
+                Add-DnsClientDohServerAddress -ServerAddress $ip -DnsOverHttpsTemplate $dohTemplate -AllowFallbackToUdp $true -AutoUpgrade $true -ErrorAction SilentlyContinue | Out-Null
+            }
+            Write-Log -Message "Registered native DNS-over-HTTPS template for $providerName" -Level Info
+        }
+        catch {
+            Write-Log -Message "DoH registration notice: $($_.Exception.Message)" -Level Debug
+        }
+    }
+
     foreach ($adapter in $adapters) {
         if ($PSCmdlet.ShouldProcess($adapter.Name, "Set DNS to $providerName")) {
             try {
@@ -196,13 +259,15 @@ function Set-WinDebloat7DNS {
                 # IPv6 if requested
                 if ($IncludeIPv6 -and $Provider -ne "Custom") {
                     $dns = $Script:DNSProviders[$Provider]
-                    $ipv6Servers = @($dns.IPv6Primary, $dns.IPv6Secondary)
-                    try {
-                        Set-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -ServerAddresses ($dnsServers + $ipv6Servers)
-                        Write-Log -Message "Added IPv6 DNS servers" -Level Debug
-                    }
-                    catch {
-                        Write-Log -Message "Failed to set IPv6 DNS: $($_.Exception.Message)" -Level Warning
+                    $ipv6Servers = @($dns.IPv6Primary, $dns.IPv6Secondary) | Where-Object { $_ }
+                    if ($ipv6Servers.Count -gt 0) {
+                        try {
+                            Set-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -ServerAddresses ($dnsServers + $ipv6Servers)
+                            Write-Log -Message "Added IPv6 DNS servers ($($ipv6Servers -join ', '))" -Level Debug
+                        }
+                        catch {
+                            Write-Log -Message "Failed to set IPv6 DNS: $($_.Exception.Message)" -Level Warning
+                        }
                     }
                 }
             }
@@ -221,11 +286,9 @@ function Set-WinDebloat7DNS {
 <#
 .SYNOPSIS
     Gets the list of available DNS providers.
-    
-.OUTPUTS
-    [hashtable] DNS provider configurations.
 #>
-function Get-WinDebloat7DNSProviders {
+function Get-WinDebloatDNSProviders {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding()]
     [OutputType([hashtable])]
     param()
@@ -239,61 +302,144 @@ function Get-WinDebloat7DNSProviders {
 
 <#
 .SYNOPSIS
-    Disables IPv6 on all network adapters.
-    
-.DESCRIPTION
-    Disables IPv6 binding on all adapters. Some privacy tools recommend this
-    to prevent IPv6 leaks, though it may break some network features.
+    Safely prefers IPv4 over IPv6 via prefix policy without breaking loopback or UWP apps.
 #>
-function Disable-WinDebloat7IPv6 {
+function Disable-WinDebloatIPv6 {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     [OutputType([void])]
     param()
     
-    Write-Log -Message "Disabling IPv6 on all adapters..." -Level Info
+    Write-Log -Message "Configuring system to prefer IPv4 over IPv6 (Microsoft standard 0x20)..." -Level Info
     
-    $adapters = Get-NetAdapter
-    $successCount = 0
-    
-    foreach ($adapter in $adapters) {
-        if ($PSCmdlet.ShouldProcess($adapter.Name, "Disable IPv6")) {
-            try {
-                Disable-NetAdapterBinding -Name $adapter.Name -ComponentID ms_tcpip6 -ErrorAction Stop
-                Write-Log -Message "Disabled IPv6 on $($adapter.Name)" -Level Success
-                $successCount++
-            }
-            catch {
-                Write-Log -Message "Failed to disable IPv6 on $($adapter.Name): $($_.Exception.Message)" -Level Warning
-            }
-        }
+    if ($PSCmdlet.ShouldProcess("TCP/IP Stack", "Prefer IPv4 over IPv6")) {
+        # Value 0x20 (decimal 32) configures IPv4 as preferred over IPv6 in RFC 3484 prefix policies
+        # without unbinding adapter components (which breaks WSL2, UWP localhost, and VPNs)
+        Set-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters" -Name "DisabledComponents" -Value 32 -Type DWord
+        Write-Log -Message "IPv4 preferred over IPv6 policy applied successfully." -Level Success
     }
-    
-    Write-Log -Message "IPv6 disabled on $successCount adapter(s)." -Level Success
 }
 
 <#
 .SYNOPSIS
-    Enables IPv6 on all network adapters.
+    Enables native IPv6 default behavior.
 #>
-function Enable-WinDebloat7IPv6 {
+function Enable-WinDebloatIPv6 {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param()
     
-    Write-Log -Message "Enabling IPv6 on all adapters..." -Level Info
+    Write-Log -Message "Restoring standard IPv6 behavior..." -Level Info
     
-    $adapters = Get-NetAdapter
-    
-    foreach ($adapter in $adapters) {
-        if ($PSCmdlet.ShouldProcess($adapter.Name, "Enable IPv6")) {
-            try {
-                Enable-NetAdapterBinding -Name $adapter.Name -ComponentID ms_tcpip6 -ErrorAction Stop
-                Write-Log -Message "Enabled IPv6 on $($adapter.Name)" -Level Success
-            }
-            catch {
-                Write-Log -Message "Failed to enable IPv6 on $($adapter.Name): $($_.Exception.Message)" -Level Warning
-            }
+    if ($PSCmdlet.ShouldProcess("TCP/IP Stack", "Enable Default IPv6")) {
+        Remove-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters" -Name "DisabledComponents"
+        
+        # Ensure all adapters have ms_tcpip6 bound
+        Get-NetAdapter -ErrorAction SilentlyContinue | ForEach-Object {
+            Enable-NetAdapterBinding -Name $_.Name -ComponentID ms_tcpip6 -ErrorAction SilentlyContinue
         }
+        Write-Log -Message "Default IPv6 restored." -Level Success
+    }
+}
+
+#endregion
+
+#region NetBIOS Management
+
+<#
+.SYNOPSIS
+    Disables NetBIOS over TCP/IP across all network adapters to mitigate NBT-NS poisoning and broadcast leakage.
+#>
+function Disable-WinDebloatNetBIOS {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Disabling NetBIOS over TCP/IP..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("NetBIOS over TCP/IP", "Disable NetBIOS across all interfaces")) {
+        try {
+            # 1. Update registry for all existing interfaces (NetbiosOptions = 2: Disabled)
+            $ifaceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces"
+            if (Test-Path $ifaceKey) {
+                Get-ChildItem -Path $ifaceKey -ErrorAction SilentlyContinue | ForEach-Object {
+                    Set-ItemProperty -Path $_.PSPath -Name "NetbiosOptions" -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue
+                }
+            }
+
+            # 2. Update via WMI/CIM where available (2 = Disable)
+            Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled = True" -ErrorAction SilentlyContinue | ForEach-Object {
+                Invoke-CimMethod -InputObject $_ -MethodName SetTcpipNetbios -Arguments @{ TcpipNetbiosOptions = [uint32]2 } -ErrorAction SilentlyContinue | Out-Null
+            }
+
+            Write-Log -Message "NetBIOS over TCP/IP disabled successfully." -Level Success
+        }
+        catch {
+            Write-Log -Message "Failed to disable NetBIOS: $($_.Exception.Message)" -Level Error
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores default NetBIOS over TCP/IP behavior (DHCP / enabled).
+#>
+function Enable-WinDebloatNetBIOS {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Restoring default NetBIOS over TCP/IP behavior..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("NetBIOS over TCP/IP", "Restore default NetBIOS settings")) {
+        try {
+            # NetbiosOptions = 0: Use DHCP setting (Default)
+            $ifaceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces"
+            if (Test-Path $ifaceKey) {
+                Get-ChildItem -Path $ifaceKey -ErrorAction SilentlyContinue | ForEach-Object {
+                    Set-ItemProperty -Path $_.PSPath -Name "NetbiosOptions" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+                }
+            }
+
+            Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled = True" -ErrorAction SilentlyContinue | ForEach-Object {
+                Invoke-CimMethod -InputObject $_ -MethodName SetTcpipNetbios -Arguments @{ TcpipNetbiosOptions = [uint32]0 } -ErrorAction SilentlyContinue | Out-Null
+            }
+
+            Write-Log -Message "NetBIOS over TCP/IP restored to default." -Level Success
+        }
+        catch {
+            Write-Log -Message "Failed to restore NetBIOS: $($_.Exception.Message)" -Level Error
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Gets the current NetBIOS configuration status.
+#>
+function Get-WinDebloatNetBIOSStatus {
+    [CmdletBinding()]
+    [OutputType([psobject])]
+    param()
+
+    $disabledCount = 0
+    $totalCount = 0
+
+    $ifaceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces"
+    if (Test-Path $ifaceKey) {
+        $ifaces = Get-ChildItem -Path $ifaceKey -ErrorAction SilentlyContinue
+        foreach ($iface in $ifaces) {
+            $val = (Get-ItemProperty -Path $iface.PSPath -Name "NetbiosOptions" -ErrorAction SilentlyContinue).NetbiosOptions
+            $totalCount++
+            if ($val -eq 2) { $disabledCount++ }
+        }
+    }
+
+    $isNetbiosDisabled = ($totalCount -gt 0 -and $disabledCount -eq $totalCount)
+
+    return [pscustomobject]@{
+        NetBIOSDisabled = $isNetbiosDisabled
+        DisabledCount   = $disabledCount
+        TotalInterfaces = $totalCount
     }
 }
 
@@ -305,19 +451,19 @@ function Enable-WinDebloat7IPv6 {
 .SYNOPSIS
     Gets the current network configuration status.
     
-.OUTPUTS
-    [psobject[]] Network adapter status objects.
+    .OUTPUTS
+        [psobject[]] Network adapter status objects.
 #>
-function Get-WinDebloat7NetworkStatus {
+function Get-WinDebloatNetworkStatus {
     [CmdletBinding()]
     [OutputType([psobject[]])]
     param()
     
-    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
+    $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Up" }
     
     $results = foreach ($adapter in $adapters) {
-        $dnsServers = (Get-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4).ServerAddresses
-        $ipv6Enabled = (Get-NetAdapterBinding -Name $adapter.Name -ComponentID ms_tcpip6).Enabled
+        $dnsServers = (Get-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue).ServerAddresses
+        $ipv6Enabled = (Get-NetAdapterBinding -Name $adapter.Name -ComponentID ms_tcpip6 -ErrorAction SilentlyContinue).Enabled
         
         # Try to identify DNS provider
         $provider = "Unknown"
@@ -328,20 +474,19 @@ function Get-WinDebloat7NetworkStatus {
                 break
             }
         }
-        if ($dnsServers.Count -eq 0) { $provider = "DHCP" }
+        if (-not $dnsServers -or $dnsServers.Count -eq 0) { $provider = "DHCP" }
         
         [pscustomobject]@{
             Adapter     = $adapter.Name
             Status      = $adapter.Status
-            DNSServers  = $dnsServers -join ", "
+            DNSServers  = if ($dnsServers) { $dnsServers -join ", " } else { "Automatic (DHCP)" }
             DNSProvider = $provider
-            IPv6Enabled = $ipv6Enabled
+            IPv6Enabled = [bool]$ipv6Enabled
         }
         
         Write-Log -Message "Adapter '$($adapter.Name)': DNS provider detected as $provider ($($dnsServers -join ', '))" -Level Debug
     }
 
-    
     return $results
 }
 
@@ -352,7 +497,7 @@ function Get-WinDebloat7NetworkStatus {
 .PARAMETER Config
     The configuration object loaded from a YAML profile.
 #>
-function Set-WinDebloat7Network {
+function Set-WinDebloatNetwork {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -380,26 +525,67 @@ function Set-WinDebloat7Network {
         }
         
         if ($matchedProvider) {
-            Set-WinDebloat7DNS -Provider $matchedProvider
+            Set-WinDebloatDNS -Provider $matchedProvider
         }
         else {
-            Set-WinDebloat7DNS -Provider Custom -CustomPrimary $primary -CustomSecondary $secondary
+            Set-WinDebloatDNS -Provider Custom -CustomPrimary $primary -CustomSecondary $secondary
         }
     }
     
     # IPv6
     if ($Config.network.disable_ipv6 -eq $true) {
-        Disable-WinDebloat7IPv6
+        Disable-WinDebloatIPv6
+    }
+
+    # NetBIOS
+    if ($Config.network.disable_netbios -eq $true) {
+        Disable-WinDebloatNetBIOS
     }
 }
 
 #endregion
 
+# Aliases for backward compatibility
+Set-Alias -Name 'Set-WinDebloat7DNS' -Value 'Set-WinDebloatDNS'
+Set-Alias -Name 'Set-WinDebloatDns' -Value 'Set-WinDebloatDNS'
+Set-Alias -Name 'Set-WinDebloat7Dns' -Value 'Set-WinDebloatDNS'
+Set-Alias -Name 'Get-WinDebloatDNSProviders' -Value 'Get-WinDebloatDNSProviders'
+Set-Alias -Name 'Get-WinDebloat7DNSProviders' -Value 'Get-WinDebloatDNSProviders'
+Set-Alias -Name 'Get-WinDebloatDnsProviders' -Value 'Get-WinDebloatDNSProviders'
+Set-Alias -Name 'Get-WinDebloat7DnsProviders' -Value 'Get-WinDebloatDNSProviders'
+Set-Alias -Name 'Disable-WinDebloat7IPv6' -Value 'Disable-WinDebloatIPv6'
+Set-Alias -Name 'Enable-WinDebloat7IPv6' -Value 'Enable-WinDebloatIPv6'
+Set-Alias -Name 'Disable-WinDebloatNetBIOS' -Value 'Disable-WinDebloatNetBIOS'
+Set-Alias -Name 'Disable-WinDebloat7NetBIOS' -Value 'Disable-WinDebloatNetBIOS'
+Set-Alias -Name 'Enable-WinDebloatNetBIOS' -Value 'Enable-WinDebloatNetBIOS'
+Set-Alias -Name 'Enable-WinDebloat7NetBIOS' -Value 'Enable-WinDebloatNetBIOS'
+Set-Alias -Name 'Get-WinDebloatNetBIOSStatus' -Value 'Get-WinDebloatNetBIOSStatus'
+Set-Alias -Name 'Get-WinDebloat7NetBIOSStatus' -Value 'Get-WinDebloatNetBIOSStatus'
+Set-Alias -Name 'Get-WinDebloat7NetworkStatus' -Value 'Get-WinDebloatNetworkStatus'
+Set-Alias -Name 'Set-WinDebloat7Network' -Value 'Set-WinDebloatNetwork'
+
 Export-ModuleMember -Function @(
+    'Set-WinDebloatDNS',
+    'Get-WinDebloatDNSProviders',
+    'Disable-WinDebloatIPv6',
+    'Enable-WinDebloatIPv6',
+    'Disable-WinDebloatNetBIOS',
+    'Enable-WinDebloatNetBIOS',
+    'Get-WinDebloatNetBIOSStatus',
+    'Get-WinDebloatNetworkStatus',
+    'Set-WinDebloatNetwork'
+) -Alias @(
     'Set-WinDebloat7DNS',
+    'Set-WinDebloatDns',
+    'Set-WinDebloat7Dns',
     'Get-WinDebloat7DNSProviders',
+    'Get-WinDebloatDnsProviders',
+    'Get-WinDebloat7DnsProviders',
     'Disable-WinDebloat7IPv6',
     'Enable-WinDebloat7IPv6',
+    'Disable-WinDebloat7NetBIOS',
+    'Enable-WinDebloat7NetBIOS',
+    'Get-WinDebloat7NetBIOSStatus',
     'Get-WinDebloat7NetworkStatus',
     'Set-WinDebloat7Network'
 )

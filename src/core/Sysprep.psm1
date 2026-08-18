@@ -1,3 +1,5 @@
+﻿#Requires -Version 7.6
+
 <#
 .SYNOPSIS
     Handles Sysprep Audit Mode detection and Default User registry operations.
@@ -7,11 +9,13 @@
     the Default User registry hive for applying settings to future users (OEM scenarios).
     
 .NOTES
-    Module: Win-Debloat7.Core.Sysprep
-    Version: 1.4.0
+    Module: Win-Debloat.Core.Sysprep
+    Version: 1.5.0
 #>
 
-function Test-WinDebloat7Sysprep {
+Import-Module "$PSScriptRoot\Logger.psm1" -Force
+
+function Test-WinDebloatSysprep {
     <#
     .SYNOPSIS
         Checks if the system is currently in Sysprep Audit Mode.
@@ -20,39 +24,41 @@ function Test-WinDebloat7Sysprep {
         Boolean
     #>
     [CmdletBinding()]
+    [OutputType([bool])]
     param()
 
-    $auditKey = "HKLM:\SYSTEM\Setup\Status\AuditBoot"
-    if (Test-Path $auditKey) {
-        # Check if setup is in progress/audit mode
+    $auditVal = Get-ItemPropertyValue -LiteralPath "HKLM:\SYSTEM\Setup\Status" -Name "AuditBoot" -ErrorAction SilentlyContinue
+    if ($auditVal -eq 1) {
+        # System is currently in Audit Mode
         return $true
     }
     
     # Fallback check: ImageState
-    $imageState = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Setup\State" -Name "ImageState" -ErrorAction SilentlyContinue
-    if ($imageState -match "IMAGE_STATE_UNDEPLOYABLE" -or $imageState -match "IMAGE_STATE_GENERALIZE_RESEAL_TO_AUDIT") {
+    $imageState = Get-ItemPropertyValue -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Setup\State" -Name "ImageState" -ErrorAction SilentlyContinue
+    if ($imageState -match "IMAGE_STATE_AUDIT|IMAGE_STATE_UNDEPLOYABLE|IMAGE_STATE_GENERALIZE_RESEAL_TO_AUDIT|IMAGE_STATE_SPECIALIZE_RESEAL_TO_AUDIT") {
         return $true
     }
 
     return $false
 }
 
-function Mount-WinDebloat7DefaultHive {
+function Mount-WinDebloatDefaultHive {
     <#
     .SYNOPSIS
         Mounts the Default User registry hive (NTUSER.DAT).
     
     .DESCRIPTION
-        Mounts existing default user hive to HKLM\WinDebloat7_Default.
+        Mounts existing default user hive to HKLM\WinDebloat_Default.
         This allows modifying settings for all future users.
         
     .OUTPUTS
         Boolean (True if mounted successfully or already mounted)
     #>
     [CmdletBinding()]
+    [OutputType([bool])]
     param()
 
-    $mountPoint = "HKLM\WinDebloat7_Default"
+    $mountPoint = "HKLM\WinDebloat_Default"
     $defaultUserDat = "$env:SystemDrive\Users\Default\NTUSER.DAT"
 
     if (-not (Test-Path $defaultUserDat)) {
@@ -60,14 +66,13 @@ function Mount-WinDebloat7DefaultHive {
         return $false
     }
 
-    if (Test-Path "Registry::$mountPoint") {
+    if ((Test-Path "Registry::$mountPoint") -or (Test-Path "HKLM:\WinDebloat_Default")) {
         Write-Log -Message "Default User hive already mounted." -Level Debug
         return $true
     }
 
     try {
         Write-Log -Message "Mounting Default User hive to $mountPoint" -Level Info
-        # reg.exe load is often more reliable for hidden hives than PowerShell provider sometimes
         $process = Start-Process -FilePath "reg.exe" -ArgumentList "load ""$mountPoint"" ""$defaultUserDat""" -PassThru -NoNewWindow -Wait
         
         if ($process.ExitCode -eq 0) {
@@ -84,33 +89,41 @@ function Mount-WinDebloat7DefaultHive {
     }
 }
 
-function Dismount-WinDebloat7DefaultHive {
+function Dismount-WinDebloatDefaultHive {
     <#
     .SYNOPSIS
         Dismounts the Default User registry hive.
     #>
     [CmdletBinding()]
+    [OutputType([void])]
     param()
 
-    $mountPoint = "HKLM\WinDebloat7_Default"
+    $mountPoints = @("HKLM\WinDebloat_Default", "HKLM\WinDebloat7_Default")
 
-    if (-not (Test-Path "Registry::$mountPoint")) {
-        return
-    }
-
-    try {
-        Write-Log -Message "Dismounting Default User hive..." -Level Info
-        [GC]::Collect() # Force garbage collection to release file handles
-        
-        $process = Start-Process -FilePath "reg.exe" -ArgumentList "unload ""$mountPoint""" -PassThru -NoNewWindow -Wait
-        
-        if ($process.ExitCode -ne 0) {
-            Write-Log -Message "Failed to unload Default User hive. Cleanup required." -Level Warning
+    foreach ($mountPoint in $mountPoints) {
+        if (-not (Test-Path "Registry::$mountPoint")) {
+            continue
         }
-    }
-    catch {
-        Write-Log -Message "Error dismounting hive: $($_.Exception.Message)" -Level Error
+
+        try {
+            Write-Log -Message "Dismounting Default User hive ($mountPoint)..." -Level Info
+            [GC]::Collect()
+            [GC]::WaitForPendingFinalizers()
+            
+            $process = Start-Process -FilePath "reg.exe" -ArgumentList "unload ""$mountPoint""" -PassThru -NoNewWindow -Wait
+            
+            if ($process.ExitCode -ne 0) {
+                Write-Log -Message "Failed to unload Default User hive ($mountPoint). Cleanup required." -Level Warning
+            }
+        }
+        catch {
+            Write-Log -Message "Error dismounting hive ($mountPoint): $($_.Exception.Message)" -Level Error
+        }
     }
 }
 
-Export-ModuleMember -Function Test-WinDebloat7Sysprep, Mount-WinDebloat7DefaultHive, Dismount-WinDebloat7DefaultHive
+Set-Alias -Name 'Test-WinDebloat7Sysprep' -Value 'Test-WinDebloatSysprep'
+Set-Alias -Name 'Mount-WinDebloat7DefaultHive' -Value 'Mount-WinDebloatDefaultHive'
+Set-Alias -Name 'Dismount-WinDebloat7DefaultHive' -Value 'Dismount-WinDebloatDefaultHive'
+
+Export-ModuleMember -Function @('Test-WinDebloatSysprep', 'Mount-WinDebloatDefaultHive', 'Dismount-WinDebloatDefaultHive') -Alias @('Test-WinDebloat7Sysprep', 'Mount-WinDebloat7DefaultHive', 'Dismount-WinDebloat7DefaultHive')

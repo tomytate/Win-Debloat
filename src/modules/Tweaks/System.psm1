@@ -1,6 +1,8 @@
+﻿#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    System behavior & QoL tweaks module for Win-Debloat7.
+    System behavior & QoL tweaks module for Win-Debloat.
 
 .DESCRIPTION
     Quality-of-life and system-behavior tweaks: Fast Startup, BitLocker
@@ -10,12 +12,9 @@
     verified against Windows 11 24H2/25H2.
 
 .NOTES
-    Module: Win-Debloat7.Modules.Tweaks.System
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Tweaks.System
+    Version: 1.5.0
 #>
-
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
 
 using namespace System.Management.Automation
 
@@ -24,13 +23,14 @@ Import-Module "$PSScriptRoot\..\..\core\Registry.psm1" -Force
 
 #region Boot & Power
 
-function Disable-WinDebloat7FastStartup {
+function Disable-WinDebloatFastStartup {
     <#
     .SYNOPSIS
         Disables Fast Startup (hybrid boot). Ensures full shutdowns, which
         avoids stale driver state and dual-boot clock/filesystem issues.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Fast Startup", "Disable")) {
@@ -40,12 +40,13 @@ function Disable-WinDebloat7FastStartup {
     }
 }
 
-function Enable-WinDebloat7FastStartup {
+function Enable-WinDebloatFastStartup {
     <#
     .SYNOPSIS
         Re-enables Fast Startup (hybrid boot) - the Windows out-of-box default.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Fast Startup", "Enable")) {
@@ -55,13 +56,14 @@ function Enable-WinDebloat7FastStartup {
     }
 }
 
-function Disable-WinDebloat7ModernStandbyNetworking {
+function Disable-WinDebloatModernStandbyNetworking {
     <#
     .SYNOPSIS
         Disables network connectivity during Modern Standby (sleep), reducing
         battery drain and unexpected wake activity on supported devices.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Modern Standby networking", "Disable")) {
@@ -72,13 +74,14 @@ function Disable-WinDebloat7ModernStandbyNetworking {
     }
 }
 
-function Enable-WinDebloat7ModernStandbyNetworking {
+function Enable-WinDebloatModernStandbyNetworking {
     <#
     .SYNOPSIS
         Removes the Modern Standby networking policy override, restoring the
         Windows default (connectivity allowed during standby).
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Modern Standby networking", "Restore default")) {
@@ -93,13 +96,14 @@ function Enable-WinDebloat7ModernStandbyNetworking {
 
 #region Storage & Updates
 
-function Disable-WinDebloat7AutoBitLocker {
+function Disable-WinDebloatAutoBitLocker {
     <#
     .SYNOPSIS
         Prevents automatic BitLocker device encryption (enabled by default on
         Windows 11 24H2+ clean installs). Does NOT decrypt already-encrypted drives.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("BitLocker automatic device encryption", "Prevent")) {
@@ -109,13 +113,14 @@ function Disable-WinDebloat7AutoBitLocker {
     }
 }
 
-function Enable-WinDebloat7AutoBitLocker {
+function Enable-WinDebloatAutoBitLocker {
     <#
     .SYNOPSIS
         Removes the policy blocking automatic BitLocker device encryption,
         restoring the Windows default (encryption allowed).
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("BitLocker automatic device encryption", "Allow")) {
@@ -125,13 +130,14 @@ function Enable-WinDebloat7AutoBitLocker {
     }
 }
 
-function Disable-WinDebloat7DeliveryOptimization {
+function Disable-WinDebloatDeliveryOptimization {
     <#
     .SYNOPSIS
         Disables Delivery Optimization peer-to-peer update sharing
         (HTTP-only downloads via the machine-wide policy).
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Delivery Optimization", "Disable P2P sharing")) {
@@ -141,13 +147,14 @@ function Disable-WinDebloat7DeliveryOptimization {
     }
 }
 
-function Enable-WinDebloat7DeliveryOptimization {
+function Enable-WinDebloatDeliveryOptimization {
     <#
     .SYNOPSIS
         Removes the Delivery Optimization policy override, restoring the
         Windows default P2P update-sharing behavior.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Delivery Optimization", "Restore default")) {
@@ -157,12 +164,13 @@ function Enable-WinDebloat7DeliveryOptimization {
     }
 }
 
-function Disable-WinDebloat7StorageSense {
+function Disable-WinDebloatStorageSense {
     <#
     .SYNOPSIS
         Disables Storage Sense automatic disk cleanup for the current user.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Storage Sense", "Disable")) {
@@ -172,12 +180,13 @@ function Disable-WinDebloat7StorageSense {
     }
 }
 
-function Enable-WinDebloat7StorageSense {
+function Enable-WinDebloatStorageSense {
     <#
     .SYNOPSIS
         Re-enables Storage Sense automatic disk cleanup for the current user.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Storage Sense", "Enable")) {
@@ -187,7 +196,7 @@ function Enable-WinDebloat7StorageSense {
     }
 }
 
-function Set-WinDebloat7UpdateBehavior {
+function Set-WinDebloatUpdateBehavior {
     <#
     .SYNOPSIS
         Tames (or restores) Windows Update behavior.
@@ -208,6 +217,7 @@ function Set-WinDebloat7UpdateBehavior {
         "get updates as soon as available" preference applies again.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param(
         [switch]$NoAutoReboot,
         [switch]$NoEarlyUpdates,
@@ -244,7 +254,8 @@ function Set-WinDebloat7UpdateBehavior {
 
 #region Suggestions & Ads
 
-function Disable-WinDebloat7WindowsSuggestions {
+function Disable-WinDebloatWindowsSuggestions {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Disables the full set of Windows suggestion/ad surfaces: Start
@@ -254,6 +265,7 @@ function Disable-WinDebloat7WindowsSuggestions {
         and Phone Link suggestions.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if (-not $PSCmdlet.ShouldProcess("Windows suggestion & ad surfaces", "Disable")) { return }
@@ -299,14 +311,16 @@ function Disable-WinDebloat7WindowsSuggestions {
     Write-Log -Message "Windows suggestions & ads disabled ($ok/$($tweaks.Count) values set)." -Level Success
 }
 
-function Enable-WinDebloat7WindowsSuggestions {
+function Enable-WinDebloatWindowsSuggestions {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Re-enables the full set of Windows suggestion/ad surfaces disabled by
-        Disable-WinDebloat7WindowsSuggestions (sets every value back to 1,
+        Disable-WinDebloatWindowsSuggestions (sets every value back to 1,
         the Windows default/enabled state for each).
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if (-not $PSCmdlet.ShouldProcess("Windows suggestion & ad surfaces", "Enable")) { return }
@@ -344,12 +358,13 @@ function Enable-WinDebloat7WindowsSuggestions {
     Write-Log -Message "Windows suggestions & ads re-enabled ($ok/$($tweaks.Count) values set)." -Level Success
 }
 
-function Disable-WinDebloat7SettingsHome {
+function Disable-WinDebloatSettingsHome {
     <#
     .SYNOPSIS
         Hides the promotional "Home" page in the Settings app.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Settings Home page", "Hide")) {
@@ -359,12 +374,13 @@ function Disable-WinDebloat7SettingsHome {
     }
 }
 
-function Enable-WinDebloat7SettingsHome {
+function Enable-WinDebloatSettingsHome {
     <#
     .SYNOPSIS
         Removes the override hiding the Settings app's "Home" page.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Settings Home page", "Show")) {
@@ -374,13 +390,14 @@ function Enable-WinDebloat7SettingsHome {
     }
 }
 
-function Disable-WinDebloat7ShareDragTray {
+function Disable-WinDebloatShareDragTray {
     <#
     .SYNOPSIS
         Disables the share tray that appears at the top of the screen when
         dragging files (Windows 11 24H2+).
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Drag share tray", "Disable")) {
@@ -390,12 +407,13 @@ function Disable-WinDebloat7ShareDragTray {
     }
 }
 
-function Enable-WinDebloat7ShareDragTray {
+function Enable-WinDebloatShareDragTray {
     <#
     .SYNOPSIS
         Re-enables the drag-to-share tray (Windows 11 24H2+).
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Drag share tray", "Enable")) {
@@ -405,12 +423,13 @@ function Enable-WinDebloat7ShareDragTray {
     }
 }
 
-function Disable-WinDebloat7PhoneLinkStart {
+function Disable-WinDebloatPhoneLinkStart {
     <#
     .SYNOPSIS
         Hides the Phone Link mobile-device panel in the Start menu.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Phone Link in Start", "Disable")) {
@@ -420,12 +439,13 @@ function Disable-WinDebloat7PhoneLinkStart {
     }
 }
 
-function Enable-WinDebloat7PhoneLinkStart {
+function Enable-WinDebloatPhoneLinkStart {
     <#
     .SYNOPSIS
         Restores the Phone Link mobile-device panel in the Start menu.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Phone Link in Start", "Enable")) {
@@ -439,13 +459,15 @@ function Enable-WinDebloat7PhoneLinkStart {
 
 #region Input & Privacy
 
-function Disable-WinDebloat7StickyKeysShortcut {
+function Disable-WinDebloatStickyKeysShortcut {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Disables the Sticky Keys pop-up triggered by pressing Shift 5 times
         (a common annoyance while gaming).
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Sticky Keys shortcut", "Disable")) {
@@ -455,7 +477,8 @@ function Disable-WinDebloat7StickyKeysShortcut {
     }
 }
 
-function Enable-WinDebloat7StickyKeysShortcut {
+function Enable-WinDebloatStickyKeysShortcut {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Re-enables the Sticky Keys pop-up shortcut (5x Shift), restoring the
@@ -463,6 +486,7 @@ function Enable-WinDebloat7StickyKeysShortcut {
         confirmation/indicator defaults) used across mainstream debloat tools.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Sticky Keys shortcut", "Enable")) {
@@ -472,12 +496,13 @@ function Enable-WinDebloat7StickyKeysShortcut {
     }
 }
 
-function Disable-WinDebloat7FindMyDevice {
+function Disable-WinDebloatFindMyDevice {
     <#
     .SYNOPSIS
         Disables the Find My Device location-tracking feature.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Find My Device", "Disable")) {
@@ -487,13 +512,14 @@ function Disable-WinDebloat7FindMyDevice {
     }
 }
 
-function Enable-WinDebloat7FindMyDevice {
+function Enable-WinDebloatFindMyDevice {
     <#
     .SYNOPSIS
         Removes the policy forcing Find My Device off, restoring the user's
         own Settings > Privacy choice for this feature.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Find My Device", "Restore default")) {
@@ -507,12 +533,13 @@ function Enable-WinDebloat7FindMyDevice {
 
 #region Appearance & Shell
 
-function Disable-WinDebloat7Transparency {
+function Disable-WinDebloatTransparency {
     <#
     .SYNOPSIS
         Disables transparency (acrylic/Mica) effects for a flatter, faster shell.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Transparency effects", "Disable")) {
@@ -522,12 +549,13 @@ function Disable-WinDebloat7Transparency {
     }
 }
 
-function Enable-WinDebloat7Transparency {
+function Enable-WinDebloatTransparency {
     <#
     .SYNOPSIS
         Re-enables transparency (acrylic/Mica) effects - the Windows default.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Transparency effects", "Enable")) {
@@ -537,7 +565,7 @@ function Enable-WinDebloat7Transparency {
     }
 }
 
-function Disable-WinDebloat7SnapAssist {
+function Disable-WinDebloatSnapAssist {
     <#
     .SYNOPSIS
         Disables Snap Assist window suggestions, the snap-layout flyout, and
@@ -547,6 +575,7 @@ function Disable-WinDebloat7SnapAssist {
         Also turns off window snapping completely (not just the suggestions).
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param(
         [switch]$DisableWindowSnapping
     )
@@ -566,7 +595,7 @@ function Disable-WinDebloat7SnapAssist {
     }
 }
 
-function Enable-WinDebloat7SnapAssist {
+function Enable-WinDebloatSnapAssist {
     <#
     .SYNOPSIS
         Re-enables Snap Assist window suggestions and the snap-layout flyout,
@@ -576,6 +605,7 @@ function Enable-WinDebloat7SnapAssist {
         Also restores window snapping if it was previously disabled entirely.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param(
         [switch]$EnableWindowSnapping
     )
@@ -595,7 +625,8 @@ function Enable-WinDebloat7SnapAssist {
     }
 }
 
-function Disable-WinDebloat7Widgets {
+function Disable-WinDebloatWidgets {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Disables the taskbar Widgets board via machine policy. To also remove
@@ -603,6 +634,7 @@ function Disable-WinDebloat7Widgets {
         (Microsoft.WidgetsPlatformRuntime, WebExperience).
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if (-not $PSCmdlet.ShouldProcess("Taskbar Widgets", "Disable")) { return }
@@ -613,13 +645,15 @@ function Disable-WinDebloat7Widgets {
     if ($ok) { Write-Log -Message "Taskbar Widgets disabled via policy." -Level Success }
 }
 
-function Enable-WinDebloat7Widgets {
+function Enable-WinDebloatWidgets {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Removes the policy blocking taskbar Widgets and restores the taskbar
         icon, reverting to the Windows default (Widgets available).
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if (-not $PSCmdlet.ShouldProcess("Taskbar Widgets", "Enable")) { return }
@@ -629,12 +663,13 @@ function Enable-WinDebloat7Widgets {
     if ($ok) { Write-Log -Message "Taskbar Widgets policy override removed." -Level Success }
 }
 
-function Disable-WinDebloat7ChatTaskbar {
+function Disable-WinDebloatChatTaskbar {
     <#
     .SYNOPSIS
         Hides the Chat / Meet Now icon from the taskbar.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if (-not $PSCmdlet.ShouldProcess("Chat / Meet Now taskbar icon", "Hide")) { return }
@@ -644,12 +679,13 @@ function Disable-WinDebloat7ChatTaskbar {
     if ($ok) { Write-Log -Message "Chat / Meet Now icon hidden from taskbar." -Level Success }
 }
 
-function Enable-WinDebloat7ChatTaskbar {
+function Enable-WinDebloatChatTaskbar {
     <#
     .SYNOPSIS
         Restores the Chat / Meet Now icon on the taskbar.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if (-not $PSCmdlet.ShouldProcess("Chat / Meet Now taskbar icon", "Show")) { return }
@@ -659,12 +695,14 @@ function Enable-WinDebloat7ChatTaskbar {
     if ($ok) { Write-Log -Message "Chat / Meet Now icon restored on taskbar." -Level Success }
 }
 
-function Disable-WinDebloat7StartAllApps {
+function Disable-WinDebloatStartAllApps {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Hides the "All Apps" list in the Start menu.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Start menu 'All Apps'", "Hide")) {
@@ -674,12 +712,14 @@ function Disable-WinDebloat7StartAllApps {
     }
 }
 
-function Enable-WinDebloat7StartAllApps {
+function Enable-WinDebloatStartAllApps {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Removes the policy hiding the "All Apps" list in the Start menu.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
 
     if ($PSCmdlet.ShouldProcess("Start menu 'All Apps'", "Show")) {
@@ -706,9 +746,10 @@ function Enable-WinDebloat7StartAllApps {
     The configuration object loaded from a YAML profile.
 
 .EXAMPLE
-    Set-WinDebloat7SystemTweaks -Config $config
+    Set-WinDebloatSystemTweaks -Config $config
 #>
-function Set-WinDebloat7SystemTweaks {
+function Set-WinDebloatSystemTweaks {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -725,34 +766,34 @@ function Set-WinDebloat7SystemTweaks {
     $sys = $Config.system
     Write-Log -Message "Applying System & QoL tweaks from profile..." -Level Info
 
-    if ($sys.disable_fast_startup) { Disable-WinDebloat7FastStartup }
-    if ($sys.prevent_auto_bitlocker) { Disable-WinDebloat7AutoBitLocker }
-    if ($sys.disable_delivery_optimization) { Disable-WinDebloat7DeliveryOptimization }
-    if ($sys.disable_storage_sense) { Disable-WinDebloat7StorageSense }
-    if ($sys.no_auto_reboot_updates) { Set-WinDebloat7UpdateBehavior -NoAutoReboot }
-    if ($sys.no_early_updates) { Set-WinDebloat7UpdateBehavior -NoEarlyUpdates }
-    if ($sys.disable_sticky_keys_shortcut) { Disable-WinDebloat7StickyKeysShortcut }
-    if ($sys.disable_share_drag_tray) { Disable-WinDebloat7ShareDragTray }
-    if ($sys.disable_find_my_device) { Disable-WinDebloat7FindMyDevice }
-    if ($sys.disable_modern_standby_networking) { Disable-WinDebloat7ModernStandbyNetworking }
-    if ($sys.disable_widgets) { Disable-WinDebloat7Widgets }
-    if ($sys.hide_chat_taskbar) { Disable-WinDebloat7ChatTaskbar }
-    if ($sys.disable_transparency) { Disable-WinDebloat7Transparency }
-    if ($sys.disable_snap_assist) { Disable-WinDebloat7SnapAssist }
-    if ($sys.hide_start_all_apps) { Disable-WinDebloat7StartAllApps }
-    if ($sys.disable_suggestions) { Disable-WinDebloat7WindowsSuggestions }
-    if ($sys.hide_settings_home) { Disable-WinDebloat7SettingsHome }
-    if ($sys.hide_phone_link_start) { Disable-WinDebloat7PhoneLinkStart }
+    if ($sys.disable_fast_startup) { Disable-WinDebloatFastStartup }
+    if ($sys.prevent_auto_bitlocker) { Disable-WinDebloatAutoBitLocker }
+    if ($sys.disable_delivery_optimization) { Disable-WinDebloatDeliveryOptimization }
+    if ($sys.disable_storage_sense) { Disable-WinDebloatStorageSense }
+    if ($sys.no_auto_reboot_updates) { Set-WinDebloatUpdateBehavior -NoAutoReboot }
+    if ($sys.no_early_updates) { Set-WinDebloatUpdateBehavior -NoEarlyUpdates }
+    if ($sys.disable_sticky_keys_shortcut) { Disable-WinDebloatStickyKeysShortcut }
+    if ($sys.disable_share_drag_tray) { Disable-WinDebloatShareDragTray }
+    if ($sys.disable_find_my_device) { Disable-WinDebloatFindMyDevice }
+    if ($sys.disable_modern_standby_networking) { Disable-WinDebloatModernStandbyNetworking }
+    if ($sys.disable_widgets) { Disable-WinDebloatWidgets }
+    if ($sys.hide_chat_taskbar) { Disable-WinDebloatChatTaskbar }
+    if ($sys.disable_transparency) { Disable-WinDebloatTransparency }
+    if ($sys.disable_snap_assist) { Disable-WinDebloatSnapAssist }
+    if ($sys.hide_start_all_apps) { Disable-WinDebloatStartAllApps }
+    if ($sys.disable_suggestions) { Disable-WinDebloatWindowsSuggestions }
+    if ($sys.hide_settings_home) { Disable-WinDebloatSettingsHome }
+    if ($sys.hide_phone_link_start) { Disable-WinDebloatPhoneLinkStart }
 
     if ($sys.debloat_search) {
-        # Set-WinDebloat7Search lives in the UI tweaks module; resolve it at run
+        # Set-WinDebloatSearch lives in the UI tweaks module; resolve it at run
         # time so this module stays importable standalone.
-        $searchCmd = Get-Command Set-WinDebloat7Search -ErrorAction SilentlyContinue
+        $searchCmd = Get-Command Set-WinDebloatSearch, Set-WinDebloat7Search -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($searchCmd) {
             & $searchCmd -DisableBingSearch -DisableSearchHighlights -DisableSearchHistory
         }
         else {
-            Write-Log -Message "Set-WinDebloat7Search not available - skipping debloat_search (load the full Win-Debloat7 module)." -Level Warning
+            Write-Log -Message "Set-WinDebloatSearch not available - skipping debloat_search (load the full Win-Debloat module)." -Level Warning
         }
     }
 
@@ -761,7 +802,78 @@ function Set-WinDebloat7SystemTweaks {
 
 #endregion
 
+# Backward-compatibility aliases
+Set-Alias -Name 'Set-WinDebloat7SystemTweaks' -Value 'Set-WinDebloatSystemTweaks' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7FastStartup' -Value 'Disable-WinDebloatFastStartup' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7FastStartup' -Value 'Enable-WinDebloatFastStartup' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7ModernStandbyNetworking' -Value 'Disable-WinDebloatModernStandbyNetworking' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7ModernStandbyNetworking' -Value 'Enable-WinDebloatModernStandbyNetworking' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7AutoBitLocker' -Value 'Disable-WinDebloatAutoBitLocker' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7AutoBitLocker' -Value 'Enable-WinDebloatAutoBitLocker' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7DeliveryOptimization' -Value 'Disable-WinDebloatDeliveryOptimization' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7DeliveryOptimization' -Value 'Enable-WinDebloatDeliveryOptimization' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7StorageSense' -Value 'Disable-WinDebloatStorageSense' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7StorageSense' -Value 'Enable-WinDebloatStorageSense' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Set-WinDebloat7UpdateBehavior' -Value 'Set-WinDebloatUpdateBehavior' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7WindowsSuggestions' -Value 'Disable-WinDebloatWindowsSuggestions' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7WindowsSuggestions' -Value 'Enable-WinDebloatWindowsSuggestions' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7SettingsHome' -Value 'Disable-WinDebloatSettingsHome' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7SettingsHome' -Value 'Enable-WinDebloatSettingsHome' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7ShareDragTray' -Value 'Disable-WinDebloatShareDragTray' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7ShareDragTray' -Value 'Enable-WinDebloatShareDragTray' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7PhoneLinkStart' -Value 'Disable-WinDebloatPhoneLinkStart' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7PhoneLinkStart' -Value 'Enable-WinDebloatPhoneLinkStart' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7StickyKeysShortcut' -Value 'Disable-WinDebloatStickyKeysShortcut' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7StickyKeysShortcut' -Value 'Enable-WinDebloatStickyKeysShortcut' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7FindMyDevice' -Value 'Disable-WinDebloatFindMyDevice' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7FindMyDevice' -Value 'Enable-WinDebloatFindMyDevice' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7Transparency' -Value 'Disable-WinDebloatTransparency' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7Transparency' -Value 'Enable-WinDebloatTransparency' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7SnapAssist' -Value 'Disable-WinDebloatSnapAssist' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7SnapAssist' -Value 'Enable-WinDebloatSnapAssist' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7Widgets' -Value 'Disable-WinDebloatWidgets' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7Widgets' -Value 'Enable-WinDebloatWidgets' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7ChatTaskbar' -Value 'Disable-WinDebloatChatTaskbar' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7ChatTaskbar' -Value 'Enable-WinDebloatChatTaskbar' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7StartAllApps' -Value 'Disable-WinDebloatStartAllApps' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7StartAllApps' -Value 'Enable-WinDebloatStartAllApps' -Description 'Backward-compatibility alias'
+
 Export-ModuleMember -Function @(
+    'Set-WinDebloatSystemTweaks',
+    'Disable-WinDebloatFastStartup',
+    'Enable-WinDebloatFastStartup',
+    'Disable-WinDebloatModernStandbyNetworking',
+    'Enable-WinDebloatModernStandbyNetworking',
+    'Disable-WinDebloatAutoBitLocker',
+    'Enable-WinDebloatAutoBitLocker',
+    'Disable-WinDebloatDeliveryOptimization',
+    'Enable-WinDebloatDeliveryOptimization',
+    'Disable-WinDebloatStorageSense',
+    'Enable-WinDebloatStorageSense',
+    'Set-WinDebloatUpdateBehavior',
+    'Disable-WinDebloatWindowsSuggestions',
+    'Enable-WinDebloatWindowsSuggestions',
+    'Disable-WinDebloatSettingsHome',
+    'Enable-WinDebloatSettingsHome',
+    'Disable-WinDebloatShareDragTray',
+    'Enable-WinDebloatShareDragTray',
+    'Disable-WinDebloatPhoneLinkStart',
+    'Enable-WinDebloatPhoneLinkStart',
+    'Disable-WinDebloatStickyKeysShortcut',
+    'Enable-WinDebloatStickyKeysShortcut',
+    'Disable-WinDebloatFindMyDevice',
+    'Enable-WinDebloatFindMyDevice',
+    'Disable-WinDebloatTransparency',
+    'Enable-WinDebloatTransparency',
+    'Disable-WinDebloatSnapAssist',
+    'Enable-WinDebloatSnapAssist',
+    'Disable-WinDebloatWidgets',
+    'Enable-WinDebloatWidgets',
+    'Disable-WinDebloatChatTaskbar',
+    'Enable-WinDebloatChatTaskbar',
+    'Disable-WinDebloatStartAllApps',
+    'Enable-WinDebloatStartAllApps'
+) -Alias @(
     'Set-WinDebloat7SystemTweaks',
     'Disable-WinDebloat7FastStartup',
     'Enable-WinDebloat7FastStartup',

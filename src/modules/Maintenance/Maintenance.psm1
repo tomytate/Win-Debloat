@@ -1,17 +1,17 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Scheduled maintenance module for Win-Debloat7
+    Scheduled maintenance module for Win-Debloat
     
 .DESCRIPTION
     Manages automated system maintenance tasks.
     Registers a Windows Scheduled Task to run weekly optimizations.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Maintenance
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Maintenance
+    Version: 2.0.0
 #>
-
-#Requires -Version 7.6
 
 using namespace System.Management.Automation
 
@@ -19,7 +19,7 @@ Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force
 
 <#
 .SYNOPSIS
-    Registers the Win-Debloat7 maintenance task.
+    Registers the Win-Debloat maintenance task.
     
 .DESCRIPTION
     Creates a scheduled task that runs weekly.
@@ -28,19 +28,23 @@ Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force
 .PARAMETER Daily
     Run daily instead of weekly.
 #>
-function Register-WinDebloat7Maintenance {
+function Register-WinDebloatMaintenance {
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param(
         [switch]$Daily
     )
     
-    $taskName = "Win-Debloat7-Maintenance"
+    $taskName = "Win-Debloat-Maintenance"
     # Fix: Resolve absolute path to avoid relative path issues in Task Scheduler
     $scriptRoot = Resolve-Path "$PSScriptRoot\..\..\.."
-    $scriptPath = Join-Path $scriptRoot "Win-Debloat7.ps1"
+    $scriptPath = Join-Path $scriptRoot "Win-Debloat.ps1"
+    if (-not (Test-Path $scriptPath)) {
+        $scriptPath = Join-Path $scriptRoot "Win-Debloat7.ps1"
+    }
     
     if (-not (Test-Path $scriptPath)) {
-        throw "Could not locate Win-Debloat7.ps1 at $scriptPath"
+        throw "Could not locate Win-Debloat.ps1 or Win-Debloat7.ps1 at $scriptRoot"
     }
     
     # Use -File with a quoted path so install locations containing spaces work
@@ -65,21 +69,21 @@ function Register-WinDebloat7Maintenance {
 .SYNOPSIS
     Unregisters the maintenance task.
 #>
-function Unregister-WinDebloat7Maintenance {
+function Unregister-WinDebloatMaintenance {
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param()
     
-    $taskName = "Win-Debloat7-Maintenance"
+    $taskNames = @("Win-Debloat-Maintenance", "Win-Debloat7-Maintenance")
     
     try {
-        if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
-            if ($PSCmdlet.ShouldProcess($taskName, "Unregister Scheduled Task")) {
-                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction Stop
-                Write-Log -Message "Maintenance task removed." -Level Success
+        foreach ($taskName in $taskNames) {
+            if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+                if ($PSCmdlet.ShouldProcess($taskName, "Unregister Scheduled Task")) {
+                    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction Stop
+                    Write-Log -Message "Maintenance task '$taskName' removed." -Level Success
+                }
             }
-        }
-        else {
-            Write-Log -Message "Maintenance task not found." -Level Info
         }
     }
     catch {
@@ -92,8 +96,9 @@ function Unregister-WinDebloat7Maintenance {
     Executes the maintenance logic.
     Called by the scheduled task.
 #>
-function Invoke-WinDebloat7Maintenance {
+function Invoke-WinDebloatMaintenance {
     [CmdletBinding()]
+    [OutputType([void])]
     param()
     
     Write-Log -Message "Starting Scheduled Maintenance (Deep Clean)..." -Level Info
@@ -132,4 +137,21 @@ function Invoke-WinDebloat7Maintenance {
     Write-Log -Message "Maintenance completed." -Level Success
 }
 
-Export-ModuleMember -Function Register-WinDebloat7Maintenance, Unregister-WinDebloat7Maintenance, Invoke-WinDebloat7Maintenance
+# Aliases for backward compatibility
+Set-Alias -Name 'Register-WinDebloat7Maintenance' -Value 'Register-WinDebloatMaintenance'
+Set-Alias -Name 'Unregister-WinDebloat7Maintenance' -Value 'Unregister-WinDebloatMaintenance'
+Set-Alias -Name 'Invoke-WinDebloat7Maintenance' -Value 'Invoke-WinDebloatMaintenance'
+Set-Alias -Name 'Start-WinDebloatMaintenance' -Value 'Invoke-WinDebloatMaintenance'
+Set-Alias -Name 'Start-WinDebloat7Maintenance' -Value 'Invoke-WinDebloatMaintenance'
+
+Export-ModuleMember -Function @(
+    'Register-WinDebloatMaintenance',
+    'Unregister-WinDebloatMaintenance',
+    'Invoke-WinDebloatMaintenance'
+) -Alias @(
+    'Register-WinDebloat7Maintenance',
+    'Unregister-WinDebloat7Maintenance',
+    'Invoke-WinDebloat7Maintenance',
+    'Start-WinDebloatMaintenance',
+    'Start-WinDebloat7Maintenance'
+)

@@ -1,20 +1,19 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Bloatware management module for Win-Debloat7
+    Bloatware management module for Win-Debloat
     
 .DESCRIPTION
     Handles identification and removal of pre-installed Windows apps (UWP).
-    Uses PowerShell 7.5 best practices with proper error handling.
+    Uses PowerShell 7.6 best practices with proper error handling.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Bloatware
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Bloatware
+    Version: 2.0.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
-
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
 
 using namespace System.Management.Automation
 using namespace System.Collections.Generic
@@ -105,7 +104,7 @@ $Script:BloatwareCategories = @{
 .OUTPUTS
     [string[]] Array of app package names.
 #>
-function Get-WinDebloat7BloatwareList {
+function Get-WinDebloatBloatwareList {
     [CmdletBinding()]
     [OutputType([string[]])]
     param(
@@ -135,9 +134,9 @@ function Get-WinDebloat7BloatwareList {
     [void]
     
 .EXAMPLE
-    Remove-WinDebloat7Bloatware -Config $config
+    Remove-WinDebloatBloatware -Config $config
 #>
-function Remove-WinDebloat7Bloatware {
+function Remove-WinDebloatBloatware {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     [OutputType([void])]
     param(
@@ -185,30 +184,46 @@ function Remove-WinDebloat7Bloatware {
         $Config.bloatware.custom_list
     }
     elseif ($removalMode -in @("Conservative", "Moderate", "Aggressive")) {
-        Get-WinDebloat7BloatwareList -Mode $removalMode
+        Get-WinDebloatBloatwareList -Mode $removalMode
     }
     else {
-        Get-WinDebloat7BloatwareList -Mode Moderate
+        Get-WinDebloatBloatwareList -Mode Moderate
     }
     
-    $total = $currentPackages.Count + $provisionedPackages.Count
+    $total = [math]::Max(1, ($currentPackages.Count + $provisionedPackages.Count))
     $current = 0
     
-    # Build regex pattern for matching (PERF-003 fix: Pre-build pattern)
-    $excludePattern = if ($excludeList.Count -gt 0) {
-        ($excludeList | ForEach-Object { [regex]::Escape($_) }) -join '|'
+    # Protected immutable system whitelist
+    $immutableWhitelistRegex = '^(Microsoft\.(WindowsStore|DesktopAppInstaller|StorePurchaseApp|SecHealthUI|WindowsTerminal|Windows\.ShellExperienceHost|Windows\.StartMenuExperienceHost|Windows\.AccountsControl|AAD\.BrokerPlugin|Windows\.CloudExperienceHost|Windows\.Search|VCLibs|NET\.Native|UI\.Xaml|Services\.Store\.Engagement|WindowsAppRuntime|DirectX|HEIFImageExtension|VP9VideoExtensions|WebMediaExtensions|WebpImageExtension|RawImageExtension|AV1VideoExtension|Windows\.Apprep\.ChxApp|Windows\.CapturePicker))'
+
+    # Helper scriptblock to convert glob patterns (*, ?) to regex patterns
+    $convertGlobToRegex = {
+        param([string[]]$Patterns)
+        if (-not $Patterns -or $Patterns.Count -eq 0) { return $null }
+        return ($Patterns | ForEach-Object { 
+            if ($_ -match '\*|\?') {
+                [regex]::Escape($_).Replace('\*', '.*').Replace('\?', '.')
+            }
+            else {
+                [regex]::Escape($_)
+            }
+        }) -join '|'
     }
-    else { $null }
-    
-    # Process List
-    # Optimized Matching (O(N) instead of O(N*M))
-    $targetsRegex = ($targetApps | ForEach-Object { [regex]::Escape($_) }) -join '|'
+
+    # Build regex patterns for matching with glob support
+    $excludePattern = & $convertGlobToRegex $excludeList
+    $targetsRegex = & $convertGlobToRegex $targetApps
     if (-not $targetsRegex) { return }
 
     # Iterate packages once
     foreach ($pkg in $currentPackages) {
         $current++
         if ($current % 50 -eq 0) { Write-Progress -Activity "Removing Bloatware" -Status "Scanning $($pkg.Name)" -PercentComplete ([math]::Round(($current / $total) * 100)) }
+
+        # Check immutable whitelist first
+        if ($pkg.Name -match $immutableWhitelistRegex) {
+            continue
+        }
 
         if ($pkg.Name -match $targetsRegex) {
             # Double check exclusion pattern
@@ -234,20 +249,29 @@ function Remove-WinDebloat7Bloatware {
     # Iterate provisioned once
     foreach ($pkg in $provisionedPackages) {
         $current++
+        $dispName = if ($pkg.DisplayName) { $pkg.DisplayName } else { $pkg.PackageName }
         if ($current % 50 -eq 0) { 
-            Write-Progress -Activity "Removing Bloatware" -Status "Checking $($pkg.DisplayName)" -PercentComplete ([math]::Round(($current / $total) * 100))
+            Write-Progress -Activity "Removing Bloatware" -Status "Checking $dispName" -PercentComplete ([math]::Round(($current / $total) * 100))
         }
-        if ($pkg.DisplayName -match $targetsRegex) {
-            if ($excludePattern -and $pkg.DisplayName -match $excludePattern) {
+
+        # Check immutable whitelist first
+        if ($dispName -match $immutableWhitelistRegex -or $pkg.PackageName -match $immutableWhitelistRegex) {
+            continue
+        }
+
+        if ($dispName -match $targetsRegex -or $pkg.PackageName -match $targetsRegex) {
+            if ($excludePattern -and ($dispName -match $excludePattern -or $pkg.PackageName -match $excludePattern)) {
+                $skippedCount++
                 continue
             }
             
-            if ($PSCmdlet.ShouldProcess($pkg.DisplayName, "Deprovision Bloatware")) {
+            if ($PSCmdlet.ShouldProcess($dispName, "Deprovision Bloatware")) {
                 try {
-                    $pkg | Remove-AppxProvisionedPackage -Online -AllUsers -ErrorAction Stop | Out-Null
+                    Remove-AppxProvisionedPackage -Online -PackageName $pkg.PackageName -ErrorAction Stop | Out-Null
+                    Write-Log -Message "Deprovisioned: $dispName" -Level Info
                 }
                 catch {
-                    Write-Log -Message "Failed deprovision: $($_.Exception.Message)" -Level Debug
+                    Write-Log -Message "Failed deprovision '$dispName': $($_.Exception.Message)" -Level Debug
                 }
             }
         }
@@ -263,11 +287,12 @@ function Remove-WinDebloat7Bloatware {
 
 <#
 .SYNOPSIS
-    Removes OneDrive completely.
+    Removes OneDrive completely and safely without deleting user files.
     Adapted from Win-Debloat-Tools.
 #>
-function Uninstall-WinDebloat7OneDrive {
+function Uninstall-WinDebloatOneDrive {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+    [OutputType([void])]
     param()
 
     Write-Log -Message "Starting OneDrive Removal..." -Level Info
@@ -289,11 +314,10 @@ function Uninstall-WinDebloat7OneDrive {
             }
         }
         
-        # 3. Cleanup Files
+        # 3. Cleanup Files (Application directories only - NEVER delete $env:userprofile\OneDrive to protect user docs)
         $paths = @(
             "$env:localappdata\Microsoft\OneDrive",
-            "$env:programdata\Microsoft OneDrive",
-            "$env:userprofile\OneDrive"
+            "$env:programdata\Microsoft OneDrive"
         )
         foreach ($p in $paths) {
             if (Test-Path $p) {
@@ -313,8 +337,9 @@ function Uninstall-WinDebloat7OneDrive {
     Removes Microsoft Edge (Advanced/Risky).
     Adapted from Win-Debloat-Tools.
 #>
-function Uninstall-WinDebloat7Edge {
+function Uninstall-WinDebloatEdge {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+    [OutputType([void])]
     param()
 
     Write-Log -Message "Starting Edge Removal (Warning: This may break WebViews)..." -Level Warning
@@ -347,8 +372,9 @@ function Uninstall-WinDebloat7Edge {
 .SYNOPSIS
     Removes Xbox Apps and Services.
 #>
-function Uninstall-WinDebloat7Xbox {
+function Uninstall-WinDebloatXbox {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+    [OutputType([void])]
     param()
 
     Write-Log -Message "Starting Xbox Removal..." -Level Info
@@ -361,13 +387,29 @@ function Uninstall-WinDebloat7Xbox {
             Set-Service -Name $svc -StartupType Disabled -ErrorAction SilentlyContinue
         }
 
-        # 2. Apps
+        # 2. Apps (Installed & Provisioned)
         $apps = @(
             "*XboxApp*", "*XboxGameOverlay*", "*XboxGamingOverlay*", "*XboxSpeechToTextOverlay*", 
-            "*GamingApp*", "*GamingServices*"
+            "*GamingApp*", "*GamingServices*", "*XboxIdentityProvider*"
         )
         foreach ($app in $apps) {
             Get-AppxPackage -AllUsers $app | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+        }
+
+        # 3. Deprovision
+        try {
+            $provisioned = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+            if ($provisioned) {
+                foreach ($app in $apps) {
+                    $pattern = [regex]::Escape($app).Replace('\*', '.*')
+                    $provisioned | Where-Object { $_.PackageName -match $pattern -or $_.DisplayName -match $pattern } | ForEach-Object {
+                        Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction SilentlyContinue | Out-Null
+                    }
+                }
+            }
+        }
+        catch {
+            Write-Verbose "Could not deprovision Xbox packages: $($_.Exception.Message)"
         }
         
         Write-Log -Message "Xbox apps and services removed." -Level Success
@@ -376,8 +418,21 @@ function Uninstall-WinDebloat7Xbox {
 
 #endregion
 
+# Aliases for backward compatibility
+Set-Alias -Name 'Get-WinDebloat7BloatwareList' -Value 'Get-WinDebloatBloatwareList'
+Set-Alias -Name 'Remove-WinDebloat7Bloatware' -Value 'Remove-WinDebloatBloatware'
+Set-Alias -Name 'Uninstall-WinDebloat7OneDrive' -Value 'Uninstall-WinDebloatOneDrive'
+Set-Alias -Name 'Uninstall-WinDebloat7Edge' -Value 'Uninstall-WinDebloatEdge'
+Set-Alias -Name 'Uninstall-WinDebloat7Xbox' -Value 'Uninstall-WinDebloatXbox'
+
 Export-ModuleMember -Function @(
-    "Get-WinDebloat7BloatwareList", 
+    "Get-WinDebloatBloatwareList", 
+    "Remove-WinDebloatBloatware",
+    "Uninstall-WinDebloatOneDrive",
+    "Uninstall-WinDebloatEdge",
+    "Uninstall-WinDebloatXbox"
+) -Alias @(
+    "Get-WinDebloat7BloatwareList",
     "Remove-WinDebloat7Bloatware",
     "Uninstall-WinDebloat7OneDrive",
     "Uninstall-WinDebloat7Edge",

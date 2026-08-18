@@ -3,7 +3,12 @@ $features = "$PSScriptRoot/../../src/modules/Features/Features.psm1"
 $security = "$PSScriptRoot/../../src/modules/Security/Security.psm1"
 
 # Mock Logs
-function Write-Log { param($Message, $Level) }
+function Write-Log {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidOverwritingBuiltInCmdlets', '', Justification = 'Test mock')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '', Justification = 'Mock signature')]
+    param($Message, $Level)
+    $null = $Message; $null = $Level
+}
 
 Import-Module $repair -Force
 Import-Module $features -Force
@@ -18,42 +23,47 @@ if (-not (Get-Command Enable-WindowsOptionalFeature -ErrorAction SilentlyContinu
 Describe "System Integration Tests" {
     
     Context "Repair Module" {
-        It "Reset-WinDebloat7Network should invoke netsh commands" {
-            Mock Start-Process { return $true } -ModuleName Repair
+        It "Reset-WinDebloatNetwork and Reset-WinDebloat7Network should invoke netsh commands" {
+            Mock -ModuleName Repair Start-Process { return $true }
+            Reset-WinDebloatNetwork -Confirm:$false
+            Should -Invoke -CommandName Start-Process -Times 5 -ModuleName Repair
+
             Reset-WinDebloat7Network -Confirm:$false
-            Assert-MockCalled Start-Process -Times 5 -ModuleName Repair
+            Should -Invoke -CommandName Start-Process -Times 10 -ModuleName Repair
         }
     }
     
     Context "Features Module" {
-        It "Set-WinDebloat7OptionalFeatures should disable features by default" {
-            # Return an object that has 'State' property equal to 'Enabled' to trigger the Disable logic
-            Mock Get-WindowsOptionalFeature { return [PSCustomObject]@{ State = "Enabled"; FeatureName = $FeatureName } } -ModuleName Features
-            Mock Disable-WindowsOptionalFeature { } -Verifiable -ModuleName Features
+        It "Set-WinDebloatOptionalFeatures and Set-WinDebloat7OptionalFeatures should disable features by default" {
+            Mock -ModuleName Features Get-WindowsOptionalFeature { return [PSCustomObject]@{ State = "Enabled"; FeatureName = $FeatureName } }
+            Mock -ModuleName Features Disable-WindowsOptionalFeature { }
             
+            Set-WinDebloatOptionalFeatures -Features @("FaxServicesClientPackage") -Confirm:$false
+            Should -Invoke -CommandName Disable-WindowsOptionalFeature -ModuleName Features -Times 1
+
             Set-WinDebloat7OptionalFeatures -Features @("FaxServicesClientPackage") -Confirm:$false
-            
-            Assert-MockCalled Disable-WindowsOptionalFeature -ModuleName Features
+            Should -Invoke -CommandName Disable-WindowsOptionalFeature -ModuleName Features -Times 2
         }
 
-        It "Set-WinDebloat7OptionalFeatures -Enable should enable features" {
-            Mock Get-WindowsOptionalFeature { return [PSCustomObject]@{ State = "Disabled"; FeatureName = $FeatureName } } -ModuleName Features
-            Mock Enable-WindowsOptionalFeature { } -Verifiable -ModuleName Features
+        It "Set-WinDebloatOptionalFeatures -Enable should enable features" {
+            Mock -ModuleName Features Get-WindowsOptionalFeature { return [PSCustomObject]@{ State = "Disabled"; FeatureName = $FeatureName } }
+            Mock -ModuleName Features Enable-WindowsOptionalFeature { }
             
-            Set-WinDebloat7OptionalFeatures -Features @("FaxServicesClientPackage") -Enable -Confirm:$false
-            
-            Assert-MockCalled Enable-WindowsOptionalFeature -ModuleName Features
+            Set-WinDebloatOptionalFeatures -Features @("FaxServicesClientPackage") -Enable -Confirm:$false
+            Should -Invoke -CommandName Enable-WindowsOptionalFeature -ModuleName Features
         }
     }
     
     Context "Security Module" {
-        It "Enable-WinDebloat7PUAProtection should call Set-MpPreference" {
-            Mock Get-Command { return $true } -ModuleName Security
-            Mock Set-MpPreference { } -Verifiable -ModuleName Security
+        It "Enable-WinDebloatPUAProtection and Enable-WinDebloat7PUAProtection should call Set-MpPreference" {
+            Mock -ModuleName Security Get-Command { return $true }
+            Mock -ModuleName Security Set-MpPreference { }
             
+            Enable-WinDebloatPUAProtection -Confirm:$false
+            Should -Invoke -CommandName Set-MpPreference -ModuleName Security -Times 1
+
             Enable-WinDebloat7PUAProtection -Confirm:$false
-            
-            Assert-MockCalled Set-MpPreference -ModuleName Security
+            Should -Invoke -CommandName Set-MpPreference -ModuleName Security -Times 2
         }
     }
 }

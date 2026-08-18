@@ -1,20 +1,19 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Scheduled task cleanup module for Win-Debloat7
+    Scheduled task cleanup module for Win-Debloat
     
 .DESCRIPTION
     Identifies and disables telemetry-related scheduled tasks that can
     respawn tracking services even after they're disabled.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Privacy.Tasks
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Privacy.Tasks
+    Version: 2.0.0
 .LINK
     https://learn.microsoft.com/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
-
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
 
 using namespace System.Management.Automation
 
@@ -106,7 +105,8 @@ $Script:TelemetryTasks = @{
 .OUTPUTS
     [psobject[]] Array of task objects with current state.
 #>
-function Get-WinDebloat7TelemetryTasks {
+function Get-WinDebloatTelemetryTasks {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding()]
     [OutputType([psobject[]])]
     param(
@@ -160,9 +160,10 @@ function Get-WinDebloat7TelemetryTasks {
     Which set of tasks to disable: Safe (recommended), Aggressive, or All.
     
 .EXAMPLE
-    Disable-WinDebloat7TelemetryTasks -Mode Safe
+    Disable-WinDebloatTelemetryTasks -Mode Safe
 #>
-function Disable-WinDebloat7TelemetryTasks {
+function Disable-WinDebloatTelemetryTasks {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     [OutputType([void])]
     param(
@@ -172,7 +173,7 @@ function Disable-WinDebloat7TelemetryTasks {
     
     Write-Log -Message "Disabling telemetry tasks (Mode: $Mode)..." -Level Info
     
-    $tasks = Get-WinDebloat7TelemetryTasks -Mode $Mode | Where-Object { $_.Enabled }
+    $tasks = Get-WinDebloatTelemetryTasks -Mode $Mode | Where-Object { $_.Enabled }
     
     if ($tasks.Count -eq 0) {
         Write-Log -Message "No enabled telemetry tasks to disable." -Level Info
@@ -213,7 +214,8 @@ function Disable-WinDebloat7TelemetryTasks {
 .PARAMETER Mode
     Which set of tasks to enable: Safe, Aggressive, or All.
 #>
-function Enable-WinDebloat7TelemetryTasks {
+function Enable-WinDebloatTelemetryTasks {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -223,30 +225,57 @@ function Enable-WinDebloat7TelemetryTasks {
     
     Write-Log -Message "Re-enabling telemetry tasks (Mode: $Mode)..." -Level Info
     
-    $tasks = Get-WinDebloat7TelemetryTasks -Mode $Mode | Where-Object { -not $_.Enabled }
+    $tasks = Get-WinDebloatTelemetryTasks -Mode $Mode | Where-Object { -not $_.Enabled }
     
     if ($tasks.Count -eq 0) {
         Write-Log -Message "No disabled telemetry tasks to enable." -Level Info
         return
     }
     
+    $successCount = 0
+    $failCount = 0
+    $total = $tasks.Count
+    $current = 0
+    
     foreach ($task in $tasks) {
+        $current++
+        $percent = [math]::Round(($current / $total) * 100)
+        Write-Progress -Activity "Enabling Telemetry Tasks" -Status "[$current/$total] $($task.TaskName)" -PercentComplete $percent
+        
         if ($PSCmdlet.ShouldProcess($task.FullPath, "Enable Scheduled Task")) {
             try {
                 Enable-ScheduledTask -TaskPath "$($task.TaskPath)\" -TaskName $task.TaskName -ErrorAction Stop | Out-Null
                 Write-Log -Message "Enabled: $($task.TaskName)" -Level Success
+                $successCount++
             }
             catch {
                 Write-Log -Message "Failed to enable $($task.TaskName): $($_.Exception.Message)" -Level Warning
+                $failCount++
             }
         }
     }
+    
+    Write-Progress -Activity "Enabling Telemetry Tasks" -Completed
+    Write-Log -Message "Task restore complete: $successCount enabled, $failCount failed" -Level $(if ($failCount -eq 0) { "Success" } else { "Warning" })
 }
 
 #endregion
 
+# Aliases for backward compatibility
+Set-Alias -Name 'Get-WinDebloat7TelemetryTasks' -Value 'Get-WinDebloatTelemetryTasks'
+Set-Alias -Name 'Disable-WinDebloat7TelemetryTasks' -Value 'Disable-WinDebloatTelemetryTasks'
+Set-Alias -Name 'Set-WinDebloatTelemetryTasks' -Value 'Disable-WinDebloatTelemetryTasks'
+Set-Alias -Name 'Set-WinDebloat7TelemetryTasks' -Value 'Disable-WinDebloatTelemetryTasks'
+Set-Alias -Name 'Enable-WinDebloat7TelemetryTasks' -Value 'Enable-WinDebloatTelemetryTasks'
+
 Export-ModuleMember -Function @(
+    'Get-WinDebloatTelemetryTasks',
+    'Disable-WinDebloatTelemetryTasks',
+    'Enable-WinDebloatTelemetryTasks'
+) -Alias @(
     'Get-WinDebloat7TelemetryTasks',
     'Disable-WinDebloat7TelemetryTasks',
+    'Set-WinDebloatTelemetryTasks',
+    'Set-WinDebloat7TelemetryTasks',
     'Enable-WinDebloat7TelemetryTasks'
 )

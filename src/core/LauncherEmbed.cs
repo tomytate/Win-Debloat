@@ -1,13 +1,13 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Reflection;
 
-namespace WinDebloat7
+namespace WinDebloat
 {
     /// <summary>
-    /// Single-file launcher: extracts the embedded payload and runs Win-Debloat7.ps1
+    /// Single-file launcher: extracts the embedded payload and runs Win-Debloat.ps1
     /// under PowerShell 7.6+ (current LTS). If a suitable PowerShell is not installed,
     /// the launcher installs it automatically:
     ///   1. winget (forcing the MSI via --installer-type wix; since 7.6.0 winget
@@ -21,7 +21,7 @@ namespace WinDebloat7
     /// </summary>
     class Launcher
     {
-        // Minimum PowerShell version required by Win-Debloat7 (#Requires -Version 7.6)
+        // Minimum PowerShell version required by Win-Debloat (#Requires -Version 7.6)
         const int MinMajor = 7;
         const int MinMinor = 6;
 
@@ -34,10 +34,54 @@ namespace WinDebloat7
             get { return Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\PowerShell\7\pwsh.exe"); }
         }
 
+        static bool IsAdministrator()
+        {
+            try
+            {
+                using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+                {
+                    var principal = new System.Security.Principal.WindowsPrincipal(identity);
+                    return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+                }
+            }
+            catch { return false; }
+        }
+
+        static bool ElevateSelf(string[] args)
+        {
+            try
+            {
+                ProcessStartInfo proc = new ProcessStartInfo();
+                proc.UseShellExecute = true;
+                proc.WorkingDirectory = Environment.CurrentDirectory;
+                proc.FileName = Process.GetCurrentProcess().MainModule.FileName;
+                proc.Verb = "runas";
+                if (args != null && args.Length > 0)
+                {
+                    proc.Arguments = string.Join(" ", args);
+                }
+                Process p = Process.Start(proc);
+                return p != null;
+            }
+            catch { return false; }
+        }
+
         static void Main(string[] args)
         {
             try
             {
+                // 0. Ensure Administrator Elevation
+                if (!IsAdministrator())
+                {
+                    if (ElevateSelf(args))
+                    {
+                        return;
+                    }
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("⚠️ Win-Debloat requires Administrator privileges.");
+                    Console.ResetColor();
+                }
+
                 // 1. Ensure PowerShell 7.6+ is available (auto-install if needed)
                 string pwshPath = EnsurePowerShell();
                 if (pwshPath == null)
@@ -52,7 +96,7 @@ namespace WinDebloat7
                 }
 
                 // 2. Setup Temp Directory
-                string tempPath = Path.Combine(Path.GetTempPath(), "WD7_" + Guid.NewGuid().ToString().Substring(0, 8));
+                string tempPath = Path.Combine(Path.GetTempPath(), "WD_" + Guid.NewGuid().ToString().Substring(0, 8));
                 Directory.CreateDirectory(tempPath);
 
                 string zipPath = Path.Combine(tempPath, "payload.zip");
@@ -89,10 +133,11 @@ namespace WinDebloat7
                 // 4. Prepare PowerShell Command
                 string scriptCmd = string.Format(
                     "$progressPreference='SilentlyContinue'; " +
-                    "Write-Host '🚀 Initializing Win-Debloat7...' -ForegroundColor Cyan; " +
+                    "Write-Host '🚀 Initializing Win-Debloat...' -ForegroundColor Cyan; " +
                     "Expand-Archive -LiteralPath '{0}' -DestinationPath '{1}' -Force; " +
                     "Set-Location '{1}'; " +
-                    "& './Win-Debloat7.ps1' {2}",
+                    "$entry = if (Test-Path './Win-Debloat.ps1') {{ './Win-Debloat.ps1' }} else {{ './Win-Debloat7.ps1' }}; " +
+                    "& $entry {2}",
                     zipPath, tempPath, args.Length > 0 ? String.Join(" ", args) : ""
                 );
 
@@ -184,7 +229,7 @@ namespace WinDebloat7
         {
             Version v = GetPwshVersion(pwshPath);
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("✅ PowerShell " + (v != null ? v.ToString() : "7") + " ready! Launching Win-Debloat7...");
+            Console.WriteLine("✅ PowerShell " + (v != null ? v.ToString() : "7") + " ready! Launching Win-Debloat...");
             Console.ResetColor();
         }
 
@@ -289,7 +334,7 @@ namespace WinDebloat7
                 ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
                 using (WebClient client = new WebClient())
                 {
-                    client.Headers.Add("User-Agent", "Win-Debloat7-Launcher");
+                    client.Headers.Add("User-Agent", "Win-Debloat-Launcher");
                     client.DownloadFile(url, msiPath);
                 }
 

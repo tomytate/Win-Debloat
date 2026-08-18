@@ -1,38 +1,62 @@
+[CmdletBinding()]
+param(
+    [ValidateSet('Normal', 'Detailed', 'Minimal', 'None')]
+    [string]$Output = 'Detailed',
+    [switch]$CI
+)
 
-$ErrorActionPreference = "Continue"
+$ErrorActionPreference = 'Stop'
 
-Write-Host "Starting Win-Debloat7 Test Suite" -ForegroundColor Cyan
-Write-Host "================================" -ForegroundColor Cyan
+# Ensure modern Pester is loaded
+Import-Module Pester -MinimumVersion 5.0.0 -Force -ErrorAction SilentlyContinue
 
-# 1. Run Core Tests
-Write-Host "`n[1/2] Running Core Tests..." -ForegroundColor Yellow
-$coreRes = Invoke-Pester -Path "$PSScriptRoot\Core.Tests.ps1" -PassThru -Output Minimal
+Write-Host "=========================================" -ForegroundColor Cyan
+Write-Host "     Starting Win-Debloat Test Suite     " -ForegroundColor Cyan
+Write-Host "=========================================" -ForegroundColor Cyan
 
-# Cleanup
-Remove-Module Win-Debloat7* -ErrorAction SilentlyContinue
-[System.GC]::Collect()
+$testFiles = Get-ChildItem -Path $PSScriptRoot -Filter "*.Tests.ps1" -Recurse | Select-Object -ExpandProperty FullName
 
-# 2. Run Module Tests 
-Write-Host "`n[2/2] Running Module Tests..." -ForegroundColor Yellow
-$modRes = Invoke-Pester -Path "$PSScriptRoot\Modules.Tests.ps1", "$PSScriptRoot\Software.Tests.ps1", "$PSScriptRoot\Integration.Tests.ps1" -PassThru -Output Minimal
+$loadedPester = Get-Module Pester
+$hasPester5 = $loadedPester -and ($loadedPester.Version.Major -ge 5)
 
-# 3. Aggregate
-$totalPassed = $coreRes.PassedCount + $modRes.PassedCount
-$totalFailed = $coreRes.FailedCount + $modRes.FailedCount
-$totalCount = $coreRes.TotalCount + $modRes.TotalCount
+if ($hasPester5) {
+    $pesterConfig = [PesterConfiguration]::Default
+    $pesterConfig.Run.Path = @($PSScriptRoot)
+    $pesterConfig.Run.PassThru = $true
+    $pesterConfig.Output.Verbosity = $Output
 
-Write-Host "`n================================" -ForegroundColor Cyan
-Write-Host "FINAL SUMMARY" -ForegroundColor Cyan
-Write-Host "================================" -ForegroundColor Cyan
-Write-Host "Total Tests: $totalCount"
-Write-Host "PASSED:      $totalPassed" -ForegroundColor Green
-Write-Host "FAILED:      $totalFailed" -ForegroundColor $(if ($totalFailed -gt 0) { "Red" } else { "Green" })
+    if ($CI) {
+        $pesterConfig.TestResult.Enabled = $true
+        $pesterConfig.TestResult.OutputPath = Join-Path $PSScriptRoot "TestResults.xml"
+        $pesterConfig.TestResult.OutputFormat = 'NUnitXml'
+    }
 
-if ($totalFailed -eq 0) {
-    Write-Host "`nSUCCESS: All tests passed." -ForegroundColor Green
-    exit 0
+    $result = Invoke-Pester -Configuration $pesterConfig
+    $totalCount = $result.TotalCount
+    $passedCount = $result.PassedCount
+    $failedCount = $result.FailedCount
+    $skippedCount = $result.SkippedCount
 }
 else {
+    $result = Invoke-Pester -Script $testFiles -PassThru
+    $totalCount = $result.TotalCount
+    $passedCount = $result.PassedCount
+    $failedCount = $result.FailedCount
+    $skippedCount = $result.SkippedCount
+}
+
+Write-Host "`n=========================================" -ForegroundColor Cyan
+Write-Host "             FINAL SUMMARY               " -ForegroundColor Cyan
+Write-Host "=========================================" -ForegroundColor Cyan
+Write-Host "Total Tests: $totalCount"
+Write-Host "PASSED:      $passedCount" -ForegroundColor Green
+Write-Host "FAILED:      $failedCount" -ForegroundColor $(if ($failedCount -gt 0) { "Red" } else { "Green" })
+Write-Host "SKIPPED:     $skippedCount" -ForegroundColor Yellow
+
+if ($failedCount -gt 0) {
     Write-Host "`nFAILURE: Some tests failed." -ForegroundColor Red
     exit 1
 }
+
+Write-Host "`nSUCCESS: All tests passed." -ForegroundColor Green
+exit 0

@@ -1,25 +1,24 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Driver update module for Win-Debloat7
+    Driver update module for Win-Debloat
     
 .DESCRIPTION
     Handles driver enumeration, status checking, and updates via
     Windows Update, Winget, or Snappy Driver Installer.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Drivers
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Drivers
+    Version: 2.0.0
 .LINK
     https://learn.microsoft.com/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
 
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
-
 using namespace System.Management.Automation
 
 Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force
-Import-Module "$PSScriptRoot\..\Integrations\Integrations.psm1" -Force
+Import-Module "$PSScriptRoot\..\Integrations\Integrations.psm1" -Force -ErrorAction SilentlyContinue
 
 #region Driver Status
 
@@ -38,9 +37,9 @@ Import-Module "$PSScriptRoot\..\Integrations\Integrations.psm1" -Force
     [psobject[]] Array of driver information objects.
     
 .EXAMPLE
-    Get-WinDebloat7DriverStatus -Category "Display"
+    Get-WinDebloatDriverStatus -Category "Display"
 #>
-function Get-WinDebloat7DriverStatus {
+function Get-WinDebloatDriverStatus {
     [CmdletBinding()]
     [OutputType([psobject[]])]
     param(
@@ -77,7 +76,8 @@ function Get-WinDebloat7DriverStatus {
         # Calculate age and flag outdated drivers (>1 year old)
         $oneYearAgo = (Get-Date).AddYears(-1)
         $drivers = $drivers | ForEach-Object {
-            $_ | Add-Member -NotePropertyName "IsOutdated" -NotePropertyValue ($_.DriverDate -lt $oneYearAgo) -PassThru
+            $isOutdated = ($null -ne $_.DriverDate) -and ($_.DriverDate -is [datetime]) -and ($_.DriverDate -lt $oneYearAgo)
+            $_ | Add-Member -NotePropertyName "IsOutdated" -NotePropertyValue $isOutdated -PassThru
         }
         
         $outdatedCount = ($drivers | Where-Object { $_.IsOutdated }).Count
@@ -98,7 +98,7 @@ function Get-WinDebloat7DriverStatus {
 .OUTPUTS
     [psobject] GPU information including vendor
 #>
-function Get-WinDebloat7GPUInfo {
+function Get-WinDebloatGPUInfo {
     [CmdletBinding()]
     [OutputType([psobject])]
     param()
@@ -133,21 +133,13 @@ function Get-WinDebloat7GPUInfo {
 
 <#
 .SYNOPSIS
-    Updates drivers using Windows Update.
-    
-.DESCRIPTION
-    Uses the PSWindowsUpdate module to scan for and install driver updates
-    from Windows Update.
-    
-.PARAMETER AcceptAll
-    Automatically accept all driver updates without prompting.
+    Updates drivers via Windows Update.
 #>
 function Update-DriversViaWindowsUpdate {
-    [CmdletBinding(SupportsShouldProcess)]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console feedback')]
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     [OutputType([void])]
-    param(
-        [switch]$AcceptAll
-    )
+    param()
     
     # Check for PSWindowsUpdate module
     if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) {
@@ -169,7 +161,9 @@ function Update-DriversViaWindowsUpdate {
         }
     }
     
-    Import-Module PSWindowsUpdate -ErrorAction Stop
+    if (-not (Get-Module -Name PSWindowsUpdate)) {
+        Import-Module PSWindowsUpdate -ErrorAction Stop
+    }
     
     Write-Log -Message "Scanning Windows Update for driver updates..." -Level Info
     
@@ -182,49 +176,40 @@ function Update-DriversViaWindowsUpdate {
             return
         }
         
-        Write-Host "`nAvailable Driver Updates:" -ForegroundColor Cyan
-        $updates | ForEach-Object { 
-            Write-Host "  - $($_.Title)" -ForegroundColor White 
-        }
+        Write-Host "`nAvailable Driver Updates ($($updates.Count)):" -ForegroundColor Cyan
+        $updates | Format-Table KB, Title, Size -AutoSize
         
-        if (-not $AcceptAll) {
-            $confirm = Read-Host "`nInstall $($updates.Count) driver updates? [Y/N]"
-            if ($confirm -notmatch '^[Yy]') { return }
-        }
-        
-        if ($PSCmdlet.ShouldProcess("$($updates.Count) drivers", "Install via Windows Update")) {
-            Write-Log -Message "Installing driver updates via Windows Update..." -Level Info
-            Install-WindowsUpdate -Category "Drivers" -AcceptAll -IgnoreReboot -ErrorAction Stop
-            Write-Log -Message "Driver updates installed successfully." -Level Success
+        if ($PSCmdlet.ShouldProcess("Drivers", "Install $($updates.Count) updates via Windows Update")) {
+            $confirm = Read-Host "Install all driver updates? [Y/N]"
+            if ($confirm -match '^[Yy]') {
+                Write-Log -Message "Installing driver updates via Windows Update..." -Level Info
+                Install-WindowsUpdate -Category "Drivers" -AcceptAll -IgnoreReboot -ErrorAction Stop
+                Write-Log -Message "Driver updates installed successfully." -Level Success
+                Write-Log -Message "A system restart is recommended to complete driver installation." -Level Warning
+            }
         }
     }
     catch {
-        Write-Log -Message "Windows Update driver installation failed: $($_.Exception.Message)" -Level Error
+        Write-Log -Message "Failed to check/install Windows Update drivers: $($_.Exception.Message)" -Level Error
     }
 }
 
 <#
 .SYNOPSIS
-    Updates GPU drivers via Winget.
-    
-.DESCRIPTION
-    Detects GPU vendor and installs appropriate driver/software package.
+    Updates GPU drivers via Winget packages.
 #>
 function Update-GPUDriverViaWinget {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console feedback')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
-    param()
+    param(
+        [psobject]$GPUInfo
+    )
     
-    # Check for Winget
-    try { $null = Get-Command winget -ErrorAction Stop }
-    catch {
-        Write-Log -Message "Winget not available for GPU driver installation." -Level Warning
-        return
-    }
+    $gpu = if ($GPUInfo) { $GPUInfo } else { Get-WinDebloatGPUInfo }
     
-    $gpu = Get-WinDebloat7GPUInfo
-    if (-not $gpu) {
-        Write-Log -Message "Could not detect GPU." -Level Warning
+    if (-not $gpu -or $gpu.Vendor -eq "Unknown") {
+        Write-Log -Message "Could not detect GPU vendor or unsupported GPU." -Level Warning
         return
     }
     
@@ -232,27 +217,24 @@ function Update-GPUDriverViaWinget {
     
     $packages = switch ($gpu.Vendor) {
         "NVIDIA" {
-            # NVIDIA does not publish GeForce Experience / NVIDIA App on winget;
-            # offer the trusted community driver tools that ARE on winget.
             @(
-                @{ Name = "NVCleanstall (clean driver installer)"; Id = "TechPowerUp.NVCleanstall" }
-                @{ Name = "TinyNvidiaUpdateChecker (driver update checker)"; Id = "Hawaii_Beach.TinyNvidiaUpdateChecker" }
+                [pscustomobject]@{ Name = "NVIDIA GeForce Experience"; Id = "Nvidia.GeForceExperience" },
+                [pscustomobject]@{ Name = "NVIDIA App (Beta)"; Id = "Nvidia.NvidiaApp" }
             )
         }
         "AMD" {
-            # AMD Adrenalin is not distributable via winget or Chocolatey -
-            # open the official download page instead.
-            Write-Log -Message "AMD Adrenalin is not available via winget. Opening the official AMD driver page..." -Level Info
-            Start-Process "https://www.amd.com/en/support/download/drivers.html"
-            return
+            @(
+                [pscustomobject]@{ Name = "AMD Software: Adrenalin Edition"; Id = "AdvancedMicroDevicesInc.AMDSoftwareAdrenalinEdition" }
+            )
         }
         "Intel" {
             @(
-                @{ Name = "Intel Driver & Support Assistant"; Id = "Intel.IntelDriverAndSupportAssistant" }
+                [pscustomobject]@{ Name = "Intel Driver & Support Assistant"; Id = "Intel.IntelDriverAndSupportAssistant" },
+                [pscustomobject]@{ Name = "Intel Arc Control"; Id = "Intel.ArcControl" }
             )
         }
         default {
-            Write-Log -Message "Unknown GPU vendor - cannot auto-update drivers." -Level Warning
+            Write-Log -Message "No winget driver package available for $($gpu.Vendor)." -Level Info
             return
         }
     }
@@ -266,9 +248,17 @@ function Update-GPUDriverViaWinget {
     Write-Host "  [S] Skip GPU driver update" -ForegroundColor Gray
     
     $sel = Read-Host "Select option"
-    if ($sel -match '^[Ss]$') { return }
+    if ($sel -match '^[Ss]$' -or [string]::IsNullOrWhiteSpace($sel)) { return }
     
-    $selectedPkg = $packages[[int]$sel - 1]
+    $parsedIdx = 0
+    if ([int]::TryParse($sel, [ref]$parsedIdx) -and $parsedIdx -ge 1 -and $parsedIdx -le $packages.Count) {
+        $selectedPkg = $packages[$parsedIdx - 1]
+    }
+    else {
+        Write-Log -Message "Invalid selection: $sel" -Level Warning
+        return
+    }
+    
     if ($selectedPkg) {
         if ($PSCmdlet.ShouldProcess($selectedPkg.Name, "Install via Winget")) {
             Write-Log -Message "Installing $($selectedPkg.Name)..." -Level Info
@@ -293,16 +283,19 @@ function Update-GPUDriverViaWinget {
     This function downloads and launches SDIO if not present.
 #>
 function Start-SnappyDriverInstaller {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console feedback')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param()
 
-    # Single SDIO implementation lives in the Integrations module: it downloads
-    # the rolling SDIO_Latest.zip and launches the x64 executable it finds
-    # (the previous copy here pinned an old build and searched for a stale
-    # exe name that fresh downloads never matched).
+    # Single SDIO implementation lives in the Integrations module
     if ($PSCmdlet.ShouldProcess("SDIO", "Download and launch")) {
-        Update-WinDebloat7SDIO
+        if (Get-Command Update-WinDebloatSDIO -ErrorAction SilentlyContinue) {
+            Update-WinDebloatSDIO
+        }
+        elseif (Get-Command Update-WinDebloat7SDIO -ErrorAction SilentlyContinue) {
+            Update-WinDebloat7SDIO
+        }
     }
 }
 
@@ -319,7 +312,9 @@ function Start-SnappyDriverInstaller {
 .PARAMETER Method
     Update method: WindowsUpdate, GPU, SDIO, or Interactive (menu).
 #>
-function Update-WinDebloat7Drivers {
+function Update-WinDebloatDrivers {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console feedback')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -337,13 +332,13 @@ function Update-WinDebloat7Drivers {
             Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Cyan
             
             # Show current driver status
-            $gpu = Get-WinDebloat7GPUInfo
+            $gpu = Get-WinDebloatGPUInfo
             if ($gpu) {
                 Write-Host "`nCurrent GPU: $($gpu.Name)" -ForegroundColor White
                 Write-Host "Driver Version: $($gpu.DriverVersion)" -ForegroundColor Gray
             }
             
-            $outdated = (Get-WinDebloat7DriverStatus | Where-Object { $_.IsOutdated }).Count
+            $outdated = (Get-WinDebloatDriverStatus | Where-Object { $_.IsOutdated }).Count
             Write-Host "Potentially Outdated Drivers: $outdated" -ForegroundColor $(if ($outdated -gt 5) { "Yellow" } else { "Gray" })
             
             Write-Host "`nUpdate Options:" -ForegroundColor Cyan
@@ -360,7 +355,7 @@ function Update-WinDebloat7Drivers {
                 "2" { Update-GPUDriverViaWinget }
                 "3" { Start-SnappyDriverInstaller }
                 "4" {
-                    $drivers = Get-WinDebloat7DriverStatus
+                    $drivers = Get-WinDebloatDriverStatus
                     $drivers | Sort-Object DeviceClass | Format-Table DeviceName, DriverVersion, IsOutdated -AutoSize | Out-Host
                     Read-Host "Press Enter to continue..."
                 }
@@ -371,8 +366,25 @@ function Update-WinDebloat7Drivers {
 
 #endregion
 
+# Aliases for backward compatibility
+Set-Alias -Name 'Get-WinDebloat7DriverStatus' -Value 'Get-WinDebloatDriverStatus'
+Set-Alias -Name 'Get-WinDebloat7GPUInfo' -Value 'Get-WinDebloatGPUInfo'
+Set-Alias -Name 'Get-WinDebloatGpuInfo' -Value 'Get-WinDebloatGPUInfo'
+Set-Alias -Name 'Get-WinDebloat7GpuInfo' -Value 'Get-WinDebloatGPUInfo'
+Set-Alias -Name 'Update-WinDebloat7Drivers' -Value 'Update-WinDebloatDrivers'
+Set-Alias -Name 'Update-WinDebloatDriver' -Value 'Update-WinDebloatDrivers'
+Set-Alias -Name 'Update-WinDebloat7Driver' -Value 'Update-WinDebloatDrivers'
+
 Export-ModuleMember -Function @(
+    'Get-WinDebloatDriverStatus',
+    'Get-WinDebloatGPUInfo',
+    'Update-WinDebloatDrivers'
+) -Alias @(
     'Get-WinDebloat7DriverStatus',
     'Get-WinDebloat7GPUInfo',
-    'Update-WinDebloat7Drivers'
+    'Get-WinDebloatGpuInfo',
+    'Get-WinDebloat7GpuInfo',
+    'Update-WinDebloat7Drivers',
+    'Update-WinDebloatDriver',
+    'Update-WinDebloat7Driver'
 )

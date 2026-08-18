@@ -3,10 +3,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 
-namespace WinDebloat7
+namespace WinDebloat
 {
     /// <summary>
-    /// Folder launcher: runs Win-Debloat7.ps1 from the same directory under
+    /// Folder launcher: runs Win-Debloat.ps1 from the same directory under
     /// PowerShell 7.6+ (current LTS), auto-installing PowerShell when missing
     /// (winget MSI first, direct MSI download as fallback).
     ///
@@ -17,7 +17,7 @@ namespace WinDebloat7
     /// </summary>
     class Launcher
     {
-        // Minimum PowerShell version required by Win-Debloat7 (#Requires -Version 7.6)
+        // Minimum PowerShell version required by Win-Debloat (#Requires -Version 7.6)
         const int MinMajor = 7;
         const int MinMinor = 6;
 
@@ -29,20 +29,73 @@ namespace WinDebloat7
             get { return Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\PowerShell\7\pwsh.exe"); }
         }
 
+        static bool IsAdministrator()
+        {
+            try
+            {
+                using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+                {
+                    var principal = new System.Security.Principal.WindowsPrincipal(identity);
+                    return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+                }
+            }
+            catch { return false; }
+        }
+
+        static bool ElevateSelf(string[] args)
+        {
+            try
+            {
+                ProcessStartInfo proc = new ProcessStartInfo();
+                proc.UseShellExecute = true;
+                proc.WorkingDirectory = Environment.CurrentDirectory;
+                proc.FileName = Process.GetCurrentProcess().MainModule.FileName;
+                proc.Verb = "runas";
+                if (args != null && args.Length > 0)
+                {
+                    proc.Arguments = string.Join(" ", args);
+                }
+                Process p = Process.Start(proc);
+                return p != null;
+            }
+            catch { return false; }
+        }
+
         static void Main(string[] args)
         {
             try
             {
-                string scriptName = "Win-Debloat7.ps1";
+                // 0. Ensure Administrator Elevation
+                if (!IsAdministrator())
+                {
+                    if (ElevateSelf(args))
+                    {
+                        return;
+                    }
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("⚠️ Win-Debloat requires Administrator privileges.");
+                    Console.ResetColor();
+                }
+
+                string scriptName = "Win-Debloat.ps1";
                 string scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, scriptName);
 
                 if (!File.Exists(scriptPath))
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Error: " + scriptName + " not found in the current directory.");
-                    Console.WriteLine("Please ensure the exe is in the same folder as the script.");
-                    Console.ReadKey();
-                    return;
+                    string fallbackScript = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Win-Debloat7.ps1");
+                    if (File.Exists(fallbackScript))
+                    {
+                        scriptName = "Win-Debloat7.ps1";
+                        scriptPath = fallbackScript;
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("Error: " + scriptName + " not found in the current directory.");
+                        Console.WriteLine("Please ensure the exe is in the same folder as the script.");
+                        Console.ReadKey();
+                        return;
+                    }
                 }
 
                 string pwshPath = EnsurePowerShell();
@@ -196,7 +249,7 @@ namespace WinDebloat7
                 ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
                 using (WebClient client = new WebClient())
                 {
-                    client.Headers.Add("User-Agent", "Win-Debloat7-Launcher");
+                    client.Headers.Add("User-Agent", "Win-Debloat-Launcher");
                     client.DownloadFile(url, msiPath);
                 }
 

@@ -1,17 +1,21 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Integrations with Third-Party Security and Maintenance Tools.
+    Integrations with Third-Party Security and Maintenance Tools for Win-Debloat.
     
 .DESCRIPTION
     Provides wrappers to securely download and execute trusted external tools
     such as O&O ShutUp10++, Malwarebytes AdwCleaner, and Snappy Driver Installer.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Integrations
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Integrations
+    Version: 2.0.0
 #>
 
-function Invoke-WinDebloat7ShutUp10 {
+Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force -ErrorAction SilentlyContinue
+
+function Invoke-WinDebloatShutUp10 {
     <#
     .SYNOPSIS
         Downloads and runs O&O ShutUp10++.
@@ -19,6 +23,7 @@ function Invoke-WinDebloat7ShutUp10 {
         If set, automatically applies recommended settings (requires cfg file).
     #>
     [CmdletBinding()]
+    [OutputType([void])]
     param(
         [Switch]$Recommended
     )
@@ -29,11 +34,9 @@ function Invoke-WinDebloat7ShutUp10 {
     Write-Log -Message "Downloading O&O ShutUp10++..." -Level Info
     
     try {
-        Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing -ErrorAction Stop
+        Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing -MaximumRetryCount 3 -RetryIntervalSec 2 -ErrorAction Stop
         
         if ($Recommended) {
-            # In a real scenario, we might bundle a .cfg file or pass arguments
-            # OOSU10.exe /ooshutup10.cfg /quiet
             Write-Log -Message "Launching ShutUp10++ (Interactive)..." -Level Info
             Start-Process -FilePath $dest -Wait
         }
@@ -47,12 +50,13 @@ function Invoke-WinDebloat7ShutUp10 {
     }
 }
 
-function Invoke-WinDebloat7AdwCleaner {
+function Invoke-WinDebloatAdwCleaner {
     <#
     .SYNOPSIS
         Downloads and runs Malwarebytes AdwCleaner.
     #>
     [CmdletBinding()]
+    [OutputType([void])]
     param()
 
     $url = "https://downloads.malwarebytes.com/file/adwcleaner"
@@ -61,22 +65,22 @@ function Invoke-WinDebloat7AdwCleaner {
     Write-Log -Message "Downloading Malwarebytes AdwCleaner..." -Level Info
     
     try {
-        Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing -ErrorAction Stop
+        Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing -MaximumRetryCount 3 -RetryIntervalSec 2 -ErrorAction Stop
         Write-Log -Message "Launching AdwCleaner..." -Level Info
         Start-Process -FilePath $dest -Verb RunAs # Requires Admin
     }
     catch {
         Write-Log -Message "Failed to download AdwCleaner: $($_.Exception.Message)" -Level Error
-        throw
     }
 }
 
-function Update-WinDebloat7SDIO {
+function Update-WinDebloatSDIO {
     <#
     .SYNOPSIS
         Downloads Snappy Driver Installer Origin (SDIO).
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
     param(
         # Aligned with the rest of the app's tool storage (ProgramData)
         [string]$Path = "$env:ProgramData\Win-Debloat7\Tools\SDIO"
@@ -91,7 +95,7 @@ function Update-WinDebloat7SDIO {
     try {
         if (-not (Test-Path $Path)) { New-Item -Path $Path -ItemType Directory -Force | Out-Null }
         
-        Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing -ErrorAction Stop
+        Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing -MaximumRetryCount 3 -RetryIntervalSec 2 -ErrorAction Stop
         
         Write-Log -Message "Extracting to $Path..." -Level Info
         Expand-Archive -Path $zip -DestinationPath $Path -Force
@@ -114,4 +118,21 @@ function Update-WinDebloat7SDIO {
     }
 }
 
-Export-ModuleMember -Function Invoke-WinDebloat7ShutUp10, Invoke-WinDebloat7AdwCleaner, Update-WinDebloat7SDIO
+# Aliases for backward compatibility
+Set-Alias -Name 'Invoke-WinDebloat7ShutUp10' -Value 'Invoke-WinDebloatShutUp10'
+Set-Alias -Name 'Invoke-WinDebloat7AdwCleaner' -Value 'Invoke-WinDebloatAdwCleaner'
+Set-Alias -Name 'Update-WinDebloat7SDIO' -Value 'Update-WinDebloatSDIO'
+Set-Alias -Name 'Invoke-WinDebloatSDIO' -Value 'Update-WinDebloatSDIO'
+Set-Alias -Name 'Invoke-WinDebloat7SDIO' -Value 'Update-WinDebloatSDIO'
+
+Export-ModuleMember -Function @(
+    'Invoke-WinDebloatShutUp10',
+    'Invoke-WinDebloatAdwCleaner',
+    'Update-WinDebloatSDIO'
+) -Alias @(
+    'Invoke-WinDebloat7ShutUp10',
+    'Invoke-WinDebloat7AdwCleaner',
+    'Update-WinDebloat7SDIO',
+    'Invoke-WinDebloatSDIO',
+    'Invoke-WinDebloat7SDIO'
+)

@@ -1,19 +1,19 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Version detection for Windows 11 and 25H2 support.
+    Version detection for Windows 11 and 25H2 support in Win-Debloat.
     
 .DESCRIPTION
     Provides functions to detect specific Windows 11 versions and feature updates.
     Includes result caching to prevent repeated CIM queries (PERF-001 fix).
     
 .NOTES
-    Module: Win-Debloat7.Modules.Windows11.VersionDetection
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Windows11.VersionDetection
+    Version: 2.0.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
-
-#Requires -Version 7.6
 
 using namespace System.Management.Automation
 
@@ -48,10 +48,10 @@ $Script:CacheLifetimeMinutes = 5
     [WindowsVersionInfo]
     
 .EXAMPLE
-    $ver = Get-WindowsVersionInfo
+    $ver = Get-WinDebloatVersionInfo
     Write-Host "Running on $($ver.FriendlyName)"
 #>
-function Get-WindowsVersionInfo {
+function Get-WinDebloatVersionInfo {
     [CmdletBinding()]
     [OutputType([WindowsVersionInfo])]
     param(
@@ -82,13 +82,13 @@ function Get-WindowsVersionInfo {
     $displayVersion = $null
     $editionId = $null
     if (-not $TestOS) {
-        try { $displayVersion = Get-ItemPropertyValue -Path $cvKey -Name "DisplayVersion" -ErrorAction Stop } catch { }
+        try { $displayVersion = Get-ItemPropertyValue -Path $cvKey -Name "DisplayVersion" -ErrorAction Stop } catch { $displayVersion = $null }
         if (-not $displayVersion) {
             # Pre-2004 builds used ReleaseId (e.g. "1909") instead of DisplayVersion
-            try { $displayVersion = Get-ItemPropertyValue -Path $cvKey -Name "ReleaseId" -ErrorAction Stop } catch { }
+            try { $displayVersion = Get-ItemPropertyValue -Path $cvKey -Name "ReleaseId" -ErrorAction Stop } catch { $displayVersion = $null }
         }
-        try { $editionId = Get-ItemPropertyValue -Path $cvKey -Name "EditionID" -ErrorAction Stop } catch { }
-        try { $info.Ubr = [int](Get-ItemPropertyValue -Path $cvKey -Name "UBR" -ErrorAction Stop) } catch { }
+        try { $editionId = Get-ItemPropertyValue -Path $cvKey -Name "EditionID" -ErrorAction Stop } catch { $editionId = $null }
+        try { $info.Ubr = [int](Get-ItemPropertyValue -Path $cvKey -Name "UBR" -ErrorAction Stop) } catch { $info.Ubr = $null }
     }
 
     # Prefer the registry's DisplayVersion; fall back to a correct build->label map
@@ -115,18 +115,15 @@ function Get-WindowsVersionInfo {
     $info.FriendlyName = $info.DisplayVersion
 
     # Edition: prefer EditionID (Core/Professional/Enterprise/...), else parse Caption
-    $info.Edition =
-    switch -Wildcard ($editionId) {
-        "Core*" { "Home"; break }
-        "Professional*" { "Pro"; break }
-        "Enterprise*" { "Enterprise"; break }
-        "Education*" { "Education"; break }
-        "ServerStandard*" { "Server Standard"; break }
-        "ServerDatacenter*" { "Server Datacenter"; break }
-        default {
-            $m = [regex]::Match($os.Caption, '(Home|Pro(?:fessional)?|Enterprise|Education|Server\s+\w+)')
-            if ($m.Success) { $m.Value -replace 'Professional', 'Pro' } else { "" }
-        }
+    $info.Edition = if ($editionId -like "Core*") { "Home" }
+    elseif ($editionId -like "Professional*") { "Pro" }
+    elseif ($editionId -like "Enterprise*") { "Enterprise" }
+    elseif ($editionId -like "Education*") { "Education" }
+    elseif ($editionId -like "ServerStandard*") { "Server Standard" }
+    elseif ($editionId -like "ServerDatacenter*") { "Server Datacenter" }
+    else {
+        $m = [regex]::Match($os.Caption, '(Home|Pro(?:fessional)?|Enterprise|Education|Server\s+\w+)')
+        if ($m.Success) { $m.Value -replace 'Professional', 'Pro' } else { "" }
     }
 
     # Compose a display-ready name; force the "11" label when the build says so
@@ -154,9 +151,9 @@ function Get-WindowsVersionInfo {
     [bool] True if current version meets or exceeds minimum.
     
 .EXAMPLE
-    if (Test-Windows11Version -MinimumVersion "23H2") { ... }
+    if (Test-WinDebloat11Version -MinimumVersion "23H2") { ... }
 #>
-function Test-Windows11Version {
+function Test-WinDebloat11Version {
     [CmdletBinding()]
     [OutputType([bool])]
     param(
@@ -167,7 +164,7 @@ function Test-Windows11Version {
         [psobject]$TestOS # For Unit Testing
     )
     
-    $current = Get-WindowsVersionInfo -TestOS $TestOS
+    $current = Get-WinDebloatVersionInfo -TestOS $TestOS
     if (-not $current.IsWindows11) { return $false }
     
     $minBuild = switch ($MinimumVersion) {
@@ -185,7 +182,7 @@ function Test-Windows11Version {
 .SYNOPSIS
     Clears the version info cache.
 #>
-function Clear-WindowsVersionCache {
+function Clear-WinDebloatVersionCache {
     [CmdletBinding()]
     [OutputType([void])]
     param()
@@ -194,4 +191,31 @@ function Clear-WindowsVersionCache {
     $Script:CacheTimestamp = [datetime]::MinValue
 }
 
-Export-ModuleMember -Function Get-WindowsVersionInfo, Test-Windows11Version, Clear-WindowsVersionCache
+# Aliases for backward compatibility
+Set-Alias -Name 'Get-WindowsVersionInfo' -Value 'Get-WinDebloatVersionInfo'
+Set-Alias -Name 'Get-WinDebloat7VersionInfo' -Value 'Get-WinDebloatVersionInfo'
+Set-Alias -Name 'Test-Windows11Version' -Value 'Test-WinDebloat11Version'
+Set-Alias -Name 'Test-WinDebloatWindows11Version' -Value 'Test-WinDebloat11Version'
+Set-Alias -Name 'Test-WinDebloat7Windows11Version' -Value 'Test-WinDebloat11Version'
+Set-Alias -Name 'Test-WinDebloat711Version' -Value 'Test-WinDebloat11Version'
+Set-Alias -Name 'Test-WinDebloatVersion' -Value 'Test-WinDebloat11Version'
+Set-Alias -Name 'Test-WinDebloat7Version' -Value 'Test-WinDebloat11Version'
+Set-Alias -Name 'Clear-WindowsVersionCache' -Value 'Clear-WinDebloatVersionCache'
+Set-Alias -Name 'Clear-WinDebloat7VersionCache' -Value 'Clear-WinDebloatVersionCache'
+
+Export-ModuleMember -Function @(
+    'Get-WinDebloatVersionInfo',
+    'Test-WinDebloat11Version',
+    'Clear-WinDebloatVersionCache'
+) -Alias @(
+    'Get-WindowsVersionInfo',
+    'Get-WinDebloat7VersionInfo',
+    'Test-Windows11Version',
+    'Test-WinDebloatWindows11Version',
+    'Test-WinDebloat7Windows11Version',
+    'Test-WinDebloat711Version',
+    'Test-WinDebloatVersion',
+    'Test-WinDebloat7Version',
+    'Clear-WindowsVersionCache',
+    'Clear-WinDebloat7VersionCache'
+)

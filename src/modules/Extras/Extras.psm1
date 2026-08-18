@@ -1,18 +1,17 @@
+﻿#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Extras module for Win-Debloat7 (Advanced Edition)
+    Extras module for Win-Debloat (Advanced Edition)
     
 .DESCRIPTION
     Provides integrations for third-party tools like MAS and Defender Remover.
     These tools are NOT included in the Standard edition due to AV flags.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Extras
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Extras
+    Version: 1.5.0
 #>
-
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
 
 using namespace System.Management.Automation
 
@@ -23,7 +22,9 @@ Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force
     Downloads and runs the latest Defender Remover.
 #>
 function Invoke-WinDebloat7DefenderRemover {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console output')]
     [CmdletBinding()]
+    [OutputType([void])]
     param()
 
     Write-Log -Message "Launching Defender Remover..." -Level Info
@@ -80,8 +81,10 @@ function Invoke-WinDebloat7DefenderRemover {
     Runs Microsoft Activation Scripts (MAS).
 #>
 function Invoke-WinDebloat7Activation {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console output')]
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingInvokeExpression', '')]
     [CmdletBinding()]
+    [OutputType([void])]
     param()
 
     Write-Log -Message "Launching Microsoft Activation Scripts (MAS)..." -Level Info
@@ -121,4 +124,9 @@ function Invoke-WinDebloat7Activation {
     }
 }
 
-Export-ModuleMember -Function Invoke-WinDebloat7DefenderRemover, Invoke-WinDebloat7Activation
+# Aliases for backward compatibility and rebranding
+Set-Alias -Name 'Invoke-WinDebloatDefenderRemover' -Value 'Invoke-WinDebloat7DefenderRemover'
+Set-Alias -Name 'Invoke-WinDebloatActivation' -Value 'Invoke-WinDebloat7Activation'
+
+Export-ModuleMember -Function Invoke-WinDebloat7DefenderRemover, Invoke-WinDebloat7Activation `
+                    -Alias Invoke-WinDebloatDefenderRemover, Invoke-WinDebloatActivation

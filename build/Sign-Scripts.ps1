@@ -2,7 +2,7 @@
 
 param(
     [string]$CertificatePath,
-    [string]$TargetDir = "$PSScriptRoot\..\Win-Debloat7"
+    [string]$TargetDir = "$PSScriptRoot\.."
 )
 
 if ([string]::IsNullOrEmpty($CertificatePath)) {

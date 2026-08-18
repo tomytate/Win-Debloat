@@ -1,6 +1,8 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
-    Gaming optimization module for Win-Debloat7
+    Gaming optimization module for Win-Debloat
     
 .DESCRIPTION
     Advanced low-level optimizations for gaming and esports performance.
@@ -8,14 +10,11 @@
     and system responsiveness (MMCSS).
     
 .NOTES
-    Module: Win-Debloat7.Modules.Performance.Gaming
-    Version: 1.4.0
+    Module: Win-Debloat.Modules.Performance.Gaming
+    Version: 2.0.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
-
-#Requires -Version 7.6
-#Requires -RunAsAdministrator
 
 using namespace System.Management.Automation
 
@@ -44,7 +43,7 @@ Import-Module "$PSScriptRoot\..\..\core\Registry.psm1" -Force
 .PARAMETER EnableMultimediaOptimization
     Prioritizes 'Games' profile in MMCSS.
 #>
-function Set-WinDebloat7Gaming {
+function Set-WinDebloatGaming {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     [OutputType([void])]
     param(
@@ -113,4 +112,15 @@ function Set-WinDebloat7Gaming {
     Write-Log -Message "Gaming optimizations applied: $successCount settings changed." -Level Success
 }
 
-Export-ModuleMember -Function Set-WinDebloat7Gaming
+# Aliases for backward compatibility
+Set-Alias -Name 'Set-WinDebloat7Gaming' -Value 'Set-WinDebloatGaming'
+Set-Alias -Name 'Optimize-WinDebloatGaming' -Value 'Set-WinDebloatGaming'
+Set-Alias -Name 'Optimize-WinDebloat7Gaming' -Value 'Set-WinDebloatGaming'
+
+Export-ModuleMember -Function @(
+    'Set-WinDebloatGaming'
+) -Alias @(
+    'Set-WinDebloat7Gaming',
+    'Optimize-WinDebloatGaming',
+    'Optimize-WinDebloat7Gaming'
+)
