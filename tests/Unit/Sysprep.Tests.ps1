@@ -4,12 +4,12 @@
 # - Mount-WinDebloatDefaultHive (and alias Mount-WinDebloat7DefaultHive)
 # - Dismount-WinDebloatDefaultHive (and alias Dismount-WinDebloat7DefaultHive)
 
-$sut = "$PSScriptRoot/../../src/core/Sysprep.psm1"
-
-Import-Module "$PSScriptRoot/../../src/core/Logger.psm1" -Force
-Import-Module $sut -Force
-
 Describe "Sysprep Module" {
+    BeforeAll {
+        $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        Import-Module "$root\src\core\Logger.psm1" -Force
+        Import-Module "$root\src\core\Sysprep.psm1" -Force
+    }
 
     Context "Test-WinDebloatSysprep" {
         It "Should return `$true when AuditBoot DWORD is 1" {

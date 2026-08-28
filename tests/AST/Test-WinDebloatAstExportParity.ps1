@@ -1,5 +1,3 @@
-#Requires -Version 7.6
-
 <#
 .SYNOPSIS
     AST 5-Way Parity Assertion Engine for Win-Debloat.

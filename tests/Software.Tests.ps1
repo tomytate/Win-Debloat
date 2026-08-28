@@ -80,6 +80,42 @@ Describe "Modules.Software" {
             Mock -ModuleName Software Test-PackageManager { return $true }
             (Install-PackageManager -Name "PSResourceGet" -Force) | Should -Be $true
         }
+
+        It "Downloads and installs Winget with full mock isolation when not installed" {
+            Mock -ModuleName Software Test-PackageManager { return $false }
+            Mock -ModuleName Software Invoke-RestMethod {
+                return [PSCustomObject]@{
+                    assets = @(
+                        [PSCustomObject]@{
+                            name = "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
+                            browser_download_url = "https://github.com/microsoft/winget-cli/releases/download/v1.0/bundle.msixbundle"
+                        }
+                    )
+                }
+            }
+            Mock -ModuleName Software Invoke-WebRequest { }
+            Mock -ModuleName Software Add-AppxPackage { }
+            Mock -ModuleName Software Remove-Item { }
+
+            $result = Install-PackageManager -Name "Winget" -Force
+            $result | Should -Be $true
+            Should -Invoke -ModuleName Software Invoke-RestMethod -Times 1
+            Should -Invoke -ModuleName Software Invoke-WebRequest -Times 1
+            Should -Invoke -ModuleName Software Add-AppxPackage -Times 1
+        }
+
+        It "Installs Chocolatey with full mock isolation when not installed" {
+            Mock -ModuleName Software Test-PackageManager { return $false }
+            Mock -ModuleName Software Set-ExecutionPolicy { }
+            Mock -ModuleName Software Invoke-WebRequest {
+                return [PSCustomObject]@{ Content = "# choco mock install script" }
+            }
+            Mock -ModuleName Software Remove-Item { }
+
+            $result = Install-PackageManager -Name "Chocolatey" -Force
+            $result | Should -Be $true
+            Should -Invoke -ModuleName Software Invoke-WebRequest -Times 1
+        }
     }
 
     Context "Invoke-WD7PackageInstall with PSResourceGet" {
@@ -113,14 +149,35 @@ Describe "Modules.Software" {
     }
 
     Context "Invoke-WD7PackageInstall with Native Package Installers (winget, choco)" {
+        It "Invokes native winget successfully with expected arguments" {
+            Mock -ModuleName Software winget {
+                $global:LASTEXITCODE = 0
+            }
+
+            $code = Invoke-WD7PackageInstall -Provider "Winget" -PackageId "Sample.App" -Quiet
+            $code | Should -Be 0
+            Should -Invoke -ModuleName Software winget -Times 1
+        }
+
+        It "Invokes native choco successfully with expected arguments" {
+            Mock -ModuleName Software choco {
+                $global:LASTEXITCODE = 0
+            }
+
+            $code = Invoke-WD7PackageInstall -Provider "Chocolatey" -PackageId "sample-app" -Quiet
+            $code | Should -Be 0
+            Should -Invoke -ModuleName Software choco -Times 1
+        }
+
         It "Captures error output via PSRedirectToVariable when native command fails" {
             Mock -ModuleName Software winget {
-                [Console]::Error.WriteLine("Package not found in sources")
+                Write-Error "Package not found in sources"
                 $global:LASTEXITCODE = 1
             }
 
             $code = Invoke-WD7PackageInstall -Provider "Winget" -PackageId "NonExistentApp" -Quiet
             $code | Should -Be 1
+            Should -Invoke -ModuleName Software winget -Times 1
         }
     }
 
@@ -197,6 +254,40 @@ Describe "Modules.Software" {
             $res.Details[0].Status | Should -Be "Failed"
             $res.Details[0].Error | Should -Match "Choco download failed"
             $res.Details[0].ErrorReason | Should -Match "Choco download failed"
+        }
+    }
+
+    Context "Update-WinDebloatSoftware" {
+        It "Runs winget, choco, and PSResourceGet upgrades when available with full mock isolation" {
+            Mock -ModuleName Software Test-PackageManager { return $true }
+            Mock -ModuleName Software winget { $global:LASTEXITCODE = 0 }
+            Mock -ModuleName Software choco { $global:LASTEXITCODE = 0 }
+            Mock -ModuleName Software Update-PSResource { }
+
+            { Update-WinDebloatSoftware } | Should -Not -Throw
+            Should -Invoke -ModuleName Software winget -Times 1
+            Should -Invoke -ModuleName Software choco -Times 1
+            Should -Invoke -ModuleName Software Update-PSResource -Times 1
+        }
+    }
+
+    Context "Optimize-WinDebloatWinGetSettings and Reset-WinDebloatWinGetSettings" {
+        It "Optimizes WinGet settings with full filesystem mock isolation" {
+            Mock -ModuleName Software Test-Path { return $false }
+            Mock -ModuleName Software New-Item { }
+            Mock -ModuleName Software Set-Content { }
+
+            { Optimize-WinDebloatWinGetSettings } | Should -Not -Throw
+            Should -Invoke -ModuleName Software New-Item -Times 1
+            Should -Invoke -ModuleName Software Set-Content -Times 1
+        }
+
+        It "Resets WinGet settings with full filesystem mock isolation" {
+            Mock -ModuleName Software Test-Path { return $true }
+            Mock -ModuleName Software Remove-Item { }
+
+            { Reset-WinDebloatWinGetSettings } | Should -Not -Throw
+            Should -Invoke -ModuleName Software Remove-Item -Times 1
         }
     }
 

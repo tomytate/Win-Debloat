@@ -1,5 +1,3 @@
-#Requires -Version 7.6
-
 <#
 .SYNOPSIS
     Unit tests for Win-Debloat UI Modules (Colors.psm1 & Menu.psm1).

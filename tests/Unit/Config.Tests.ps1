@@ -1,7 +1,10 @@
-$sut = "$PSScriptRoot/../../src/core/Config.psm1"
-Import-Module $sut -Force
-
 Describe "Config Module" {
+    BeforeAll {
+        $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        Import-Module "$root\src\core\Logger.psm1" -Force
+        Import-Module "$root\src\core\Config.psm1" -Force
+    }
+
     Context "Get-WinDebloatRecommendedProfile and Get-WinDebloat7RecommendedProfile" {
         It "Should recommend Performance for < 8GB RAM (cmdlet and alias)" {
             Mock -ModuleName Config Get-CimInstance -ParameterFilter { $ClassName -eq 'Win32_ComputerSystem' } { 

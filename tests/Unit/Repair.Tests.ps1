@@ -4,12 +4,12 @@
 # - Reset-WinDebloatNetwork / Reset-WinDebloat7Network
 # - Reset-WinDebloatUpdate / Reset-WinDebloat7Update
 
-$sut = "$PSScriptRoot/../../src/modules/Repair/Repair.psm1"
-
-Import-Module "$PSScriptRoot/../../src/core/Logger.psm1" -Force
-Import-Module $sut -Force
-
 Describe "Repair Module" {
+    BeforeAll {
+        $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        Import-Module "$root\src\core\Logger.psm1" -Force
+        Import-Module "$root\src\modules\Repair\Repair.psm1" -Force
+    }
 
     Context "Repair-WinDebloatSystem and Repair-WinDebloat7System" {
         BeforeEach {

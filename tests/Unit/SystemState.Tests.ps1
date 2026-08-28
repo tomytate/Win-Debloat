@@ -1,14 +1,17 @@
-#Requires -Version 7.6
-
-$sutSystemState = "$PSScriptRoot/../../src/core/SystemState.psm1"
-$sutState = "$PSScriptRoot/../../src/core/State.psm1"
-
-Import-Module "$PSScriptRoot/../../src/core/Logger.psm1" -Force
-Import-Module "$PSScriptRoot/../../src/core/Registry.psm1" -Force
-Import-Module $sutSystemState -Force
-Import-Module $sutState -Force
+<#
+.SYNOPSIS
+    Unit tests for Win-Debloat SystemState and State Subsystems.
+#>
 
 Describe "SystemState Module" {
+    BeforeAll {
+        $src = Join-Path $PSScriptRoot "..\..\src"
+        Import-Module "$src\core\Logger.psm1" -Force -ErrorAction SilentlyContinue
+        Import-Module "$src\core\Registry.psm1" -Force -ErrorAction SilentlyContinue
+        Import-Module "$src\core\SystemState.psm1" -Force -ErrorAction Stop
+        Import-Module "$src\core\State.psm1" -Force -ErrorAction Stop
+    }
+
     Context "Get-WinDebloatSystemState and Get-WinDebloat7SystemState" {
         It "Should return a state object with all expected properties (cmdlet and alias)" {
             Mock -ModuleName SystemState Get-RegistryKey { return 1 }
@@ -148,6 +151,13 @@ Describe "SystemState Module" {
 }
 
 Describe "Core.State Module - DPAPI Encryption & Edge Cases" {
+    BeforeAll {
+        $src = Join-Path $PSScriptRoot "..\..\src"
+        Import-Module "$src\core\Logger.psm1" -Force -ErrorAction SilentlyContinue
+        Import-Module "$src\core\Registry.psm1" -Force -ErrorAction SilentlyContinue
+        Import-Module "$src\core\State.psm1" -Force -ErrorAction Stop
+    }
+
     Context "Protect-WD7Data and Unprotect-WD7Data" {
         It "Successfully protects and unprotects arbitrary byte data" {
             $original = [System.Text.Encoding]::UTF8.GetBytes("Secret snapshot payload content 12345")
@@ -259,6 +269,13 @@ Describe "Core.State Module - DPAPI Encryption & Edge Cases" {
 }
 
 Describe "Core.State Module - Registry Diffing & Fidelity" {
+    BeforeAll {
+        $src = Join-Path $PSScriptRoot "..\..\src"
+        Import-Module "$src\core\Logger.psm1" -Force -ErrorAction SilentlyContinue
+        Import-Module "$src\core\Registry.psm1" -Force -ErrorAction SilentlyContinue
+        Import-Module "$src\core\State.psm1" -Force -ErrorAction Stop
+    }
+
     Context "Test-WD7RegistryValueEqual" {
         It "Compares DWord values with 100% fidelity" {
             Test-WD7RegistryValueEqual -Value1 0 -Kind1 'DWord' -Value2 0 -Kind2 'DWord' | Should -Be $true
@@ -471,6 +488,13 @@ Describe "Core.State Module - Registry Diffing & Fidelity" {
 }
 
 Describe "Core.State Module - Rollback & Restoration" {
+    BeforeAll {
+        $src = Join-Path $PSScriptRoot "..\..\src"
+        Import-Module "$src\core\Logger.psm1" -Force -ErrorAction SilentlyContinue
+        Import-Module "$src\core\Registry.psm1" -Force -ErrorAction SilentlyContinue
+        Import-Module "$src\core\State.psm1" -Force -ErrorAction Stop
+    }
+
     Context "Restore-WD7RegistryKey" {
         It "Reverts modified values to their prior types and data" {
             Mock -ModuleName State Set-RegistryKey { return $true }

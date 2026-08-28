@@ -14,12 +14,17 @@
 
 [CmdletBinding()]
 param(
-    [string]$XamlPath = (Join-Path $PSScriptRoot "..\src\ui\gui\MainWindow.xaml"),
+    [string]$XamlPath = '',
     [int]$LatencyThresholdMs = 50,
     [int]$StressCycles = 10
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($XamlPath)) {
+    $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+    $XamlPath = Join-Path $scriptDir "..\src\ui\gui\MainWindow.xaml"
+}
 
 Write-Host "=================================================================" -ForegroundColor Cyan
 Write-Host "   WIN-DEBLOAT HEADLESS WPF NAVIGATION TEST SPECIALIST SUITE    " -ForegroundColor Cyan
@@ -302,9 +307,20 @@ $testScript = {
     return $results
 }
 
-$ps.AddScript($testScript).AddArgument($resolvedXaml.Path).AddArgument($LatencyThresholdMs).AddArgument($StressCycles) | Out-Null
-$testResults = $ps.Invoke()
-$runspace.Dispose()
+$testResults = $null
+try {
+    $ps.AddScript($testScript).AddArgument($resolvedXaml.Path).AddArgument($LatencyThresholdMs).AddArgument($StressCycles) | Out-Null
+    $testResults = $ps.Invoke()
+    if ($ps.HadErrors) {
+        foreach ($err in $ps.Streams.Error) {
+            Write-Error $err
+        }
+    }
+}
+finally {
+    $ps.Dispose()
+    $runspace.Dispose()
+}
 
 # Display formatted results table
 Write-Host "TEST EXECUTION METRICS:" -ForegroundColor Yellow

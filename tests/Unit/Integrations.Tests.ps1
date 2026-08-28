@@ -4,12 +4,12 @@
 # - Invoke-WinDebloatAdwCleaner / Invoke-WinDebloat7AdwCleaner
 # - Update-WinDebloatSDIO / Update-WinDebloat7SDIO
 
-$sut = "$PSScriptRoot/../../src/modules/Integrations/Integrations.psm1"
-
-Import-Module "$PSScriptRoot/../../src/core/Logger.psm1" -Force
-Import-Module $sut -Force
-
 Describe "Integrations Module" {
+    BeforeAll {
+        $src = Join-Path $PSScriptRoot "..\..\src"
+        Import-Module "$src\core\Logger.psm1" -Force -ErrorAction SilentlyContinue
+        Import-Module "$src\modules\Integrations\Integrations.psm1" -Force -ErrorAction Stop
+    }
 
     Context "Invoke-WinDebloatShutUp10 and Invoke-WinDebloat7ShutUp10" {
         BeforeEach {

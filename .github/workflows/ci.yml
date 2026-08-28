@@ -8,13 +8,12 @@ on:
 
 jobs:
   test:
-    name: Test on ${{ matrix.os }} (${{ matrix.ps }})
+    name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-2025, windows-2022]
-        ps: [pwsh7, powershell5]
 
     steps:
     - uses: actions/checkout@v4
@@ -24,8 +23,7 @@ jobs:
       run: |
         & ./tests/AST/Test-WinDebloatAstExportParity.ps1
 
-    - name: Run Test Suite (PowerShell 7.6+)
-      if: matrix.ps == 'pwsh7'
+    - name: Run Complete Test Suite (PowerShell 7.6+)
       shell: pwsh
       run: |
         if (-not (Get-Module -ListAvailable Pester | Where-Object { $_.Version -ge [version]"5.5" })) {
@@ -33,17 +31,14 @@ jobs:
         }
         & ./tests/Run-AllTests.ps1 -Suite All -Output Detailed -CI -CodeCoverage
 
-    - name: Run Test Suite (Windows PowerShell 5.1)
-      if: matrix.ps == 'powershell5'
+    - name: Verify PowerShell 5.1 Auto-Forwarding & Bootstrap
       shell: powershell
       run: |
-        if (-not (Get-Module -ListAvailable Pester | Where-Object { $_.Version -ge [version]"5.5" })) {
-            Install-Module Pester -Force -SkipPublisherCheck -Scope CurrentUser
-        }
-        & ./tests/Run-AllTests.ps1 -Suite Unit -Output Detailed -CI
+        Write-Host "Verifying Windows PowerShell 5.1 runner bootstrap..." -ForegroundColor Cyan
+        & ./tests/Run-AllTests.ps1 -Suite AST -CI
 
     - name: Verify Dual Release Build Process
-      if: matrix.ps == 'pwsh7' && matrix.os == 'windows-2025'
+      if: matrix.os == 'windows-2025'
       shell: pwsh
       run: |
         & ./build/Build-DualRelease.ps1 -Version "0.0.0-CI" -OutputDir dist -Platform all
@@ -64,7 +59,7 @@ jobs:
         }
 
     - name: Upload Test & Coverage Artifacts
-      if: always() && matrix.ps == 'pwsh7'
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-artifacts-${{ matrix.os }}

@@ -38,8 +38,6 @@
     https://github.com/tomytate/Win-Debloat7
 #>
 
-#Requires -Version 7.6
-
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [ValidateScript({ Test-Path $_ -PathType Leaf })]
@@ -64,22 +62,180 @@ param(
     [switch]$Gui
 )
 
-# Auto-elevation check
+# Runtime Compatibility Check: Windows PowerShell 5.1 -> PowerShell 7.6+ (LTS) Re-launch / Auto-Install
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $isAdmin) {
-    Write-Host "⚡ Win-Debloat requires Administrator privileges. Requesting elevation..." -ForegroundColor Yellow
-    $boundArgs = @()
-    if ($ProfileFile) { $boundArgs += "-ProfileFile `"$ProfileFile`"" }
-    if ($Unattended) { $boundArgs += "-Unattended" }
-    if ($Maintenance) { $boundArgs += "-Maintenance" }
-    if ($Gui) { $boundArgs += "-Gui" }
+
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    Write-Host "⚡ Windows PowerShell $($PSVersionTable.PSVersion) detected. Win-Debloat requires PowerShell 7.6+ (LTS)." -ForegroundColor Cyan
     
-    $argList = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" " + ($boundArgs -join " ")
+    # 1. Resolve pwsh.exe executable
+    $pwshPath = $null
+    $pwshCmd = Get-Command "pwsh.exe" -CommandType Application -ErrorAction SilentlyContinue
+    if ($pwshCmd -and $pwshCmd.Source -and (Test-Path $pwshCmd.Source)) {
+        $pwshPath = $pwshCmd.Source
+    }
+    
+    if (-not $pwshPath) {
+        $candidatePaths = @(
+            [Environment]::ExpandEnvironmentVariables('%ProgramFiles%\PowerShell\7\pwsh.exe'),
+            [Environment]::ExpandEnvironmentVariables('%ProgramW6432%\PowerShell\7\pwsh.exe'),
+            [Environment]::ExpandEnvironmentVariables('%LOCALAPPDATA%\Microsoft\PowerShell\7\pwsh.exe'),
+            [Environment]::ExpandEnvironmentVariables('%ProgramFiles(x86)%\PowerShell\7\pwsh.exe'),
+            [Environment]::ExpandEnvironmentVariables('%ProgramFiles%\PowerShell\7-preview\pwsh.exe')
+        )
+        foreach ($candidate in $candidatePaths) {
+            if ($candidate -and (Test-Path $candidate)) {
+                $pwshPath = $candidate
+                break
+            }
+        }
+    }
+    
+    # 2. Prompt or Auto-Install PowerShell 7.6+ LTS if missing
+    if (-not $pwshPath) {
+        Write-Host "⚠️ PowerShell 7.6+ LTS was not found on this system." -ForegroundColor Yellow
+        $installApproved = $false
+        if ($Unattended) {
+            $installApproved = $true
+        }
+        elseif ([Environment]::UserInteractive) {
+            Write-Host ""
+            $userChoice = Read-Host "Would you like to install PowerShell 7.6 LTS automatically now? [Y/N]"
+            if ($userChoice -match '^[Yy]') {
+                $installApproved = $true
+            }
+        }
+        
+        if ($installApproved) {
+            Write-Host "⚡ Installing PowerShell 7.6+ LTS automatically..." -ForegroundColor Green
+            $installSuccess = $false
+            
+            # Step A: Attempt silent install via winget (forced WiX/MSI to ensure un-sandboxed admin tooling)
+            if (Get-Command "winget.exe" -ErrorAction SilentlyContinue) {
+                Write-Host " -> Attempting installation via winget..." -ForegroundColor Cyan
+                try {
+                    $wingetArgs = "install --id Microsoft.PowerShell --source winget --installer-type wix --accept-source-agreements --accept-package-agreements --silent --disable-interactivity"
+                    $wingetProc = Start-Process -FilePath "winget.exe" -ArgumentList $wingetArgs -Wait -PassThru -NoNewWindow
+                    if ($wingetProc.ExitCode -eq 0) {
+                        $installSuccess = $true
+                    }
+                }
+                catch {
+                    Write-Host " -> winget install encountered an issue: $($_.Exception.Message)" -ForegroundColor DarkGray
+                }
+            }
+            
+            # Step B: Direct MSI download fallback from official GitHub releases
+            if (-not $installSuccess) {
+                Write-Host " -> Downloading official PowerShell 7.6 LTS MSI package..." -ForegroundColor Cyan
+                $msiFile = $null
+                try {
+                    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls11 -bor [System.Net.SecurityProtocolType]::Tls
+                    $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_ARCHITEW6432 -eq 'ARM64') { 'arm64' } else { 'x64' }
+                    $fallbackVer = "7.6.5"
+                    $msiUrl = "https://github.com/PowerShell/PowerShell/releases/download/v$fallbackVer/PowerShell-$fallbackVer-win-$arch.msi"
+                    $msiFile = Join-Path $env:TEMP "PowerShell-$fallbackVer-win-$arch.msi"
+                    
+                    (New-Object System.Net.WebClient).DownloadFile($msiUrl, $msiFile)
+                    
+                    Write-Host " -> Running MSI installer..." -ForegroundColor Cyan
+                    $msiProc = Start-Process -FilePath "msiexec.exe" -ArgumentList "/package `"$msiFile`" /passive ADD_PATH=1 REGISTER_MANIFEST=1 USE_MU=1 ENABLE_MU=1" -Wait -PassThru
+                    if ($msiProc.ExitCode -eq 0 -or $msiProc.ExitCode -eq 3010) {
+                        $installSuccess = $true
+                    }
+                }
+                catch {
+                    Write-Host "MSI install error: $($_.Exception.Message)" -ForegroundColor Red
+                }
+                finally {
+                    if ($msiFile -and (Test-Path $msiFile)) {
+                        Remove-Item $msiFile -Force -ErrorAction SilentlyContinue
+                    }
+                }
+            }
+            
+            # Re-discover pwsh after installation
+            $checkPaths = @(
+                [Environment]::ExpandEnvironmentVariables('%ProgramFiles%\PowerShell\7\pwsh.exe'),
+                [Environment]::ExpandEnvironmentVariables('%ProgramW6432%\PowerShell\7\pwsh.exe'),
+                [Environment]::ExpandEnvironmentVariables('%LOCALAPPDATA%\Microsoft\PowerShell\7\pwsh.exe')
+            )
+            foreach ($candidate in $checkPaths) {
+                if ($candidate -and (Test-Path $candidate)) {
+                    $pwshPath = $candidate
+                    break
+                }
+            }
+        }
+        
+        if (-not $pwshPath) {
+            Write-Host "❌ PowerShell 7.6+ LTS is required to run Win-Debloat." -ForegroundColor Red
+            Write-Host "Please install PowerShell manually from: https://github.com/PowerShell/PowerShell/releases/latest" -ForegroundColor Yellow
+            if ([Environment]::UserInteractive -and -not $Unattended) {
+                $openBrowser = Read-Host "Open the PowerShell download page in your browser? [Y/N]"
+                if ($openBrowser -match '^[Yy]') {
+                    Start-Process "https://github.com/PowerShell/PowerShell/releases/latest"
+                }
+            }
+            exit 1
+        }
+    }
+    
+    # 3. Build arguments and re-launch into pwsh.exe (elevated)
+    $boundArgs = [System.Collections.Generic.List[string]]::new()
+    if ($ProfileFile) { $boundArgs.Add("-ProfileFile `"$ProfileFile`"") }
+    if ($Unattended) { $boundArgs.Add("-Unattended") }
+    if ($Maintenance) { $boundArgs.Add("-Maintenance") }
+    if ($Gui) { $boundArgs.Add("-Gui") }
+    if ($PSBoundParameters.ContainsKey('Verbose') -and $Verbose) { $boundArgs.Add("-Verbose") }
+    foreach ($extra in $args) {
+        if ($extra -match '\s') { $boundArgs.Add("`"$extra`"") } else { $boundArgs.Add($extra) }
+    }
+    
+    $argString = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+    if ($boundArgs.Count -gt 0) { $argString += " " + ($boundArgs -join " ") }
+    
+    Write-Host "⚡ Launching Win-Debloat in PowerShell 7.6+..." -ForegroundColor Cyan
+    $startInfo = @{
+        FilePath     = $pwshPath
+        ArgumentList = $argString
+    }
+    if (-not $isAdmin) {
+        $startInfo['Verb'] = 'RunAs'
+    }
+    
     try {
-        Start-Process -FilePath "pwsh.exe" -ArgumentList $argList -Verb RunAs -ErrorAction Stop
+        Start-Process @startInfo -ErrorAction Stop
     }
     catch {
-        Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
+        Write-Host "Failed to launch elevated PowerShell 7: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+    exit 0
+}
+
+# Auto-elevation check (when already running under PowerShell 7.6+ but not elevated)
+if (-not $isAdmin) {
+    Write-Host "⚡ Win-Debloat requires Administrator privileges. Requesting elevation..." -ForegroundColor Yellow
+    $boundArgs = [System.Collections.Generic.List[string]]::new()
+    if ($ProfileFile) { $boundArgs.Add("-ProfileFile `"$ProfileFile`"") }
+    if ($Unattended) { $boundArgs.Add("-Unattended") }
+    if ($Maintenance) { $boundArgs.Add("-Maintenance") }
+    if ($Gui) { $boundArgs.Add("-Gui") }
+    if ($PSBoundParameters.ContainsKey('Verbose') -and $Verbose) { $boundArgs.Add("-Verbose") }
+    foreach ($extra in $args) {
+        if ($extra -match '\s') { $boundArgs.Add("`"$extra`"") } else { $boundArgs.Add($extra) }
+    }
+    
+    $argString = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+    if ($boundArgs.Count -gt 0) { $argString += " " + ($boundArgs -join " ") }
+    
+    try {
+        Start-Process -FilePath "pwsh.exe" -ArgumentList $argString -Verb RunAs -ErrorAction Stop
+    }
+    catch {
+        Write-Host "Failed to request Administrator elevation: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
     }
     exit 0
 }

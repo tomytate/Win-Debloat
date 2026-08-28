@@ -77,7 +77,7 @@ function Set-WinDebloatContextMenu {
         try {
             if ($Style -eq "Classic") {
                 # To enable classic, we need to create this key with an empty default value
-                if (-not (Test-Path $keyPath)) {
+                if (-not (Test-Path -Path $keyPath)) {
                     New-Item -Path $keyPath -Force -ErrorAction Stop | Out-Null
                 }
                 # Set default value to empty string
@@ -86,8 +86,9 @@ function Set-WinDebloatContextMenu {
             }
             else {
                 # To enable Modern (default), we delete the key override
-                if (Test-Path "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}") {
-                    Remove-Item -Path "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}" -Recurse -Force -ErrorAction Stop
+                $modernKey = "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}"
+                if (Test-Path -Path $modernKey) {
+                    Remove-Item -Path $modernKey -Recurse -Force -ErrorAction Stop
                 }
                 Write-Log -Message "Modern Context Menu restored." -Level Success
             }
@@ -389,9 +390,9 @@ function Set-WinDebloatContextMenuItems {
     $removed = 0
     foreach ($t in $targets) {
         if ($PSCmdlet.ShouldProcess($t, "Remove context menu handler")) {
-            if (Test-Path $t) {
+            if (Test-Path -LiteralPath $t) {
                 try {
-                    Remove-Item -Path $t -Recurse -Force -ErrorAction Stop
+                    Remove-Item -LiteralPath $t -Recurse -Force -ErrorAction Stop
                     $removed++
                 }
                 catch {
