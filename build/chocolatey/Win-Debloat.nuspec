@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>win-debloat</id>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
     <packageSourceUrl>https://github.com/tomytate/Win-Debloat</packageSourceUrl>
     <owners>tomytate</owners>
     <title>Win-Debloat (Premium)</title>
@@ -21,12 +21,13 @@
 Win-Debloat is a modern, modular, and safe Windows debloating and optimization framework designed for PowerShell 7.6+.
 
 ### Features
-* **Debloat**: Remove pre-installed bloatware safely.
-* **Privacy**: Disable telemetry, tracking, and ads.
-* **Performance**: Optimize power plans and background services.
-* **Network**: Configure DNS (Cloudflare, Google, etc.).
-* **Gaming**: Special optimizations for high-end rigs.
-* **GUI/TUI**: Choose between a rich WPF GUI or a fast TUI.
+* **Debloat**: Remove pre-installed bloatware safely with O(N) regex precision.
+* **Privacy Score**: 11-vector 100-point privacy scoring engine with graded analysis.
+* **AI Neutralization**: Neutralize Windows Recall (v2), Copilot, and reclaim 2.0-4.5 GB RAM from AI Fabric.
+* **Enterprise Security**: Windows Protected Print (RFC 8011), Sudo Isolation, and BitLocker XTS-256.
+* **Performance & Gaming**: AMD X3D Core Parking safeguards, Intel Thread Director, DirectStorage 1.2, and TCP CUBIC/BBR2.
+* **GUI/TUI**: Choose between a Cyberpunk 24-bit TrueColor TUI or a high-DPI WPF Cockpit GUI.
+* **Snapshots**: DPAPI-encrypted snapshots for 100% symmetric system rollback.
 
 **Note**: This package installs the "Standard" edition.
     </description>

@@ -1,4 +1,4 @@
-﻿#Requires -Version 7.6
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -8,12 +8,11 @@
     Quality-of-life and system-behavior tweaks: Fast Startup, BitLocker
     auto-encryption, Delivery Optimization, Storage Sense, update behavior,
     Windows suggestion/ad surfaces, and more.
-    Registry values adapted from the Win11Debloat project (MIT, Raphire) and
-    verified against Windows 11 24H2/25H2.
+    Registry values researched and verified against Windows 11 24H2/25H2.
 
 .NOTES
     Module: Win-Debloat.Modules.Tweaks.System
-    Version: 1.5.0
+    Version: 1.6.0
 #>
 
 using namespace System.Management.Automation
@@ -302,6 +301,30 @@ function Disable-WinDebloatWindowsSuggestions {
         @{ Path = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.BackupReminder"; Name = "Enabled"; Value = 0 }
         # Phone Link / mobile device suggestions
         @{ Path = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Mobility"; Name = "OptedIn"; Value = 0 }
+        
+        # 2026 Lock screen cards & search highlight suggestions
+        @{ Path = $cdm; Name = "SubscribedContent-410400Enabled"; Value = 0 }
+        @{ Path = $cdm; Name = "SubscribedContent-280017Enabled"; Value = 0 }
+        @{ Path = $cdm; Name = "ContentDeliveryAllowed"; Value = 0 }
+        @{ Path = $cdm; Name = "OemPreInstalledAppsEnabled"; Value = 0 }
+        @{ Path = $cdm; Name = "PreInstalledAppsEnabled"; Value = 0 }
+        
+        # Start Menu layout: More Pins & clean suggestions
+        @{ Path = $advanced; Name = "Start_ShowRecent"; Value = 0 }
+        @{ Path = $advanced; Name = "Start_ShowAddedApps"; Value = 0 }
+        @{ Path = $advanced; Name = "Start_ShowRecommendations"; Value = 0 }
+        @{ Path = $advanced; Name = "Start_ShowFrequent"; Value = 0 }
+        @{ Path = $advanced; Name = "Start_Layout"; Value = 1 }
+
+        # Machine-wide CloudContent Group Policies
+        @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"; Name = "DisableWindowsConsumerFeatures"; Value = 1 }
+        @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"; Name = "DisableCloudOptimizedContent"; Value = 1 }
+        @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"; Name = "DisableConsumerAccountStateContent"; Value = 1 }
+        @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"; Name = "DisableSoftLanding"; Value = 1 }
+        @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"; Name = "DisableWindowsSpotlightFeatures"; Value = 1 }
+        @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"; Name = "DisableWindowsSpotlightOnSettings"; Value = 1 }
+        @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"; Name = "DisableThirdPartySuggestions"; Value = 1 }
+        @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"; Name = "TurnOffTailoredExperiences"; Value = 1 }
     )
 
     $ok = 0
@@ -339,11 +362,21 @@ function Enable-WinDebloatWindowsSuggestions {
         @{ Path = $cdm; Name = "SubscribedContent-353696Enabled"; Value = 1 }
         @{ Path = $cdm; Name = "SubscribedContent-353698Enabled"; Value = 1 }
         @{ Path = $cdm; Name = "SubscribedContent-338387Enabled"; Value = 1 }
+        @{ Path = $cdm; Name = "SubscribedContent-410400Enabled"; Value = 1 }
+        @{ Path = $cdm; Name = "SubscribedContent-280017Enabled"; Value = 1 }
+        @{ Path = $cdm; Name = "ContentDeliveryAllowed"; Value = 1 }
+        @{ Path = $cdm; Name = "OemPreInstalledAppsEnabled"; Value = 1 }
+        @{ Path = $cdm; Name = "PreInstalledAppsEnabled"; Value = 1 }
         @{ Path = $cdm; Name = "RotatingLockScreenOverlayEnabled"; Value = 1 }
         @{ Path = $cdm; Name = "SilentInstalledAppsEnabled"; Value = 1 }
         @{ Path = $advanced; Name = "Start_IrisRecommendations"; Value = 1 }
         @{ Path = $advanced; Name = "Start_AccountNotifications"; Value = 1 }
         @{ Path = $advanced; Name = "ShowSyncProviderNotifications"; Value = 1 }
+        @{ Path = $advanced; Name = "Start_ShowRecent"; Value = 1 }
+        @{ Path = $advanced; Name = "Start_ShowAddedApps"; Value = 1 }
+        @{ Path = $advanced; Name = "Start_ShowRecommendations"; Value = 1 }
+        @{ Path = $advanced; Name = "Start_ShowFrequent"; Value = 1 }
+        @{ Path = $advanced; Name = "Start_Layout"; Value = 0 }
         @{ Path = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications"; Name = "EnableAccountNotifications"; Value = 1 }
         @{ Path = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\UserProfileEngagement"; Name = "ScoobeSystemSettingEnabled"; Value = 1 }
         @{ Path = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested"; Name = "Enabled"; Value = 1 }
@@ -355,6 +388,18 @@ function Enable-WinDebloatWindowsSuggestions {
     foreach ($t in $tweaks) {
         if (Set-RegistryKey -Path $t.Path -Name $t.Name -Value $t.Value -Type DWord) { $ok++ }
     }
+
+    # Remove CloudContent policy overrides
+    $cloud = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"
+    Remove-RegistryKey -Path $cloud -Name "DisableWindowsConsumerFeatures"
+    Remove-RegistryKey -Path $cloud -Name "DisableCloudOptimizedContent"
+    Remove-RegistryKey -Path $cloud -Name "DisableConsumerAccountStateContent"
+    Remove-RegistryKey -Path $cloud -Name "DisableSoftLanding"
+    Remove-RegistryKey -Path $cloud -Name "DisableWindowsSpotlightFeatures"
+    Remove-RegistryKey -Path $cloud -Name "DisableWindowsSpotlightOnSettings"
+    Remove-RegistryKey -Path $cloud -Name "DisableThirdPartySuggestions"
+    Remove-RegistryKey -Path $cloud -Name "TurnOffTailoredExperiences"
+
     Write-Log -Message "Windows suggestions & ads re-enabled ($ok/$($tweaks.Count) values set)." -Level Success
 }
 

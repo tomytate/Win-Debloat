@@ -1,6 +1,6 @@
 # Features & Capabilities
 
-Win-Debloat is a modular Windows optimization and privacy framework. You can run the entire suite using a YAML Profile, or use individual modules via the CLI, TUI, or GUI. Version 1.5.0 includes **138 exported functions** across **30 registered modules** — engineered with zero-data-loss hardening, full preview capabilities, and complete reversibility (with full backward-compatible `*-WinDebloat7*` alias support).
+Win-Debloat is a modular Windows optimization and privacy framework. You can run the entire suite using a YAML Profile, or use individual modules via the CLI, TUI, or GUI. Version 1.6.0 includes **227 exported functions** (and 256 backward-compatible aliases) across **30 registered modules** — engineered with zero-data-loss hardening, full preview capabilities, and complete reversibility.
 
 ---
 
@@ -8,7 +8,7 @@ Win-Debloat is a modular Windows optimization and privacy framework. You can run
 
 ### GUI (Graphical User Interface)
 Launch with `.\Win-Debloat.ps1 -Gui` (or `.\Win-Debloat7.ps1 -Gui`) or via `Win-Debloat.exe`.
-- **Dashboard**: Real-time system telemetry (RAM usage, active TCP connections, tiered bloatware count, 100-point graded privacy score).
+- **Dashboard**: Real-time system telemetry (RAM usage, active TCP connections, tiered bloatware count, 11-vector 100-point graded privacy score).
 - **System Tweaks**: One-click toggles for Privacy, Performance, AI disablement, and a comprehensive System QoL checklist (18 boot, shell, and File Explorer tweaks).
 - **Software Manager**: Curated catalog of 175 applications with live search across 12 categories, multi-manager installation (winget, Chocolatey, Microsoft Store, npm), bulk upgrades, and driver tools.
 - **Tools & Repair**: 4-step industrial system repair, network reset, Windows Update reset, and safe Explorer restart.
@@ -31,50 +31,56 @@ Removes pre-installed Appx packages using O(N) regex matching (50x faster than l
 - **Advanced Removal**: Deep uninstallation of OneDrive, Edge (preserving WebView2), and Xbox (including background services).
 - **Safety**: Profile-based exclusion lists and DPAPI-encrypted pre-change state snapshots.
 
-### 2. Privacy Hardening & AI Disablement
-- **Telemetry Blocking**: Neutralizes DiagTrack, Connected User Experiences, and WaaSMedicSvc.
-- **Advertising**: Resets Advertising ID, disables Start Menu suggestions, and eliminates Windows promotion nags.
-- **AI Disablement Suite**: Neutralizes Copilot, Recall, Click-to-Do, Notepad AI, Paint AI, and Edge AI through Group Policy and registry overrides.
-- **Firewall Blocking**: Blocks 45 known Microsoft telemetry domains via Windows Defender Firewall (domains resolved to active IP ranges).
-- **Scheduled Tasks**: Disables Microsoft telemetry and diagnostic data collection tasks.
+### 2. Privacy Hardening & AI Fabric Neutralization
+- **11-Vector Privacy Score**: Dynamic real-time calculation across Telemetry, Windows Recall v2, Copilot, Start Ads, Advertising ID, Location, Activity History, NPU/AI Fabric, Sudo Isolation, Background Apps, and Clipboard History.
+- **AI Fabric RAM Reclaim**: Deactivates Phi-Silica 3.3B SLM background hosts and terminates `WorkloadsSessionHost`, `AIFabricHost`, `DirectMLHost` to reclaim 2.0 to 4.5 GB RAM.
+- **Windows Recall v2 & Click To Do**: VBS enclave Group Policy lockdown and optional package deprovisioning.
+- **Firewall Blocking**: Blocks known Microsoft telemetry domains via Windows Defender Firewall.
+- **Scheduled Tasks**: Neutralizes telemetry tasks and UCPD rollback velocity tasks.
 
-### 3. Performance & Power Optimization
-- **Power Plans**: Unlocks and activates the hidden Windows "Ultimate Performance" power scheme.
-- **Service Presets**: 5 intelligent service profiles (Privacy, Performance, Security, Minimal, Gaming) driven by `config/services.json`.
-- **Gaming Mode**: Disables Nagle's Algorithm (`TCPNoDelay`), optimizes MMCSS scheduling, disables Game DVR background capture, and elevates GPU task priorities.
-- **RAM Optimization**: Reduces non-paged pool overhead and provides real-time memory monitoring.
-- **Benchmarking**: Before/after system performance measurement and comparative reporting.
+### 3. Enterprise Security Hardening
+- **Windows Protected Print (WPP)**: RFC 8011 IPP printer validation and Point-and-Print spooler vulnerability mitigation.
+- **Sudo for Windows Isolation**: Enforces safe execution modes (ForceNewWindow / DisableInput) to prevent UIPI keystroke hijacking.
+- **BitLocker XTS-AES 256**: Enforces military-grade volume encryption and closes ADV180028 SSD hardware encryption bypass vulnerabilities.
+- **Baseline Hardening**: Restricts unauthenticated RPC interfaces, enforces SMB signing, enables LSA RunAsPPL protection, and enables Kernel DMA protections.
 
-### 4. Network & DNS Hardening
+### 4. Next-Gen Performance & Gaming
+- **AMD X3D Dual-CCD Safeguards**: Protects AutoGameMode and AMD 3D V-Cache Optimizer Service to eliminate cross-CCD latency penalties on Ryzen 7000X3D/9000X3D.
+- **Intel Thread Director Tuning**: Optimizes P-core scheduling priority (`SCHEDPOLICY 1`) and EPP performance bias (`PERFEPP 0`).
+- **DirectStorage 1.2+ & DirectSR**: Expands NTFS lookaside pools, enables Win32 Long Paths, and enables windowed VRR super-resolution.
+- **TCP Congestion Control (CUBIC / BBR2)**: Configures modern TCP congestion providers with loopback RPC safety and NetAdapter RSC jitter suppression.
+- **Power Plans & Benchmarking**: Unlocks Ultimate Performance power schemes and provides before/after system benchmarking.
+
+### 5. Network & DNS Hardening
 - **DNS Providers**: 11 secure DNS configurations (Cloudflare, Google, Quad9, AdGuard, OpenDNS, CleanBrowsing, NextDNS) including Family Safe and Malware Blocking variants.
 - **IPv6 Control**: Granular IPv6 toggling with Microsoft Store compatibility guidance.
 - **Network Diagnostics**: Real-time network state monitoring and active connection tracking.
 
-### 5. Industrial System Repair (4-Step Pipeline)
+### 6. Industrial System Repair (4-Step Pipeline)
 Standardized sequence for resolving OS corruption:
 1. **ChkDsk** — File system integrity check and volume scan
 2. **SFC /scannow** — First-pass System File Checker verification
 3. **DISM /Online /Cleanup-Image /RestoreHealth** — Component store remediation
 4. **SFC /scannow** — Second-pass verification using the repaired component store
 
-### 6. Multi-Provider Software & Driver Management
+### 7. Multi-Provider Software & Driver Management
 - **Multi-Source Engine**: Automatic fallback across `winget` → `Chocolatey` → `Microsoft Store` → `npm`.
 - **AI Tools & CLIs**: One-click install of AI CLI tools (Claude Code, Gemini CLI, OpenAI Codex, GitHub Copilot CLI) and desktop assistants (Claude, ChatGPT, Microsoft Copilot, Perplexity, Cherry Studio, Chatbox, Ollama, LM Studio).
 - **Essentials Catalog**: 175 curated applications across 12 categories with automated monthly package-ID validation in CI.
 - **Driver Updates**: Windows Update driver scanning, GPU vendor driver updates (NVIDIA/AMD), and Snappy Driver Installer Origin (SDIO) integration.
 
-### 7. Windows 11 UI & System QoL Customization
+### 8. Windows 11 UI & System QoL Customization
 - **Taskbar & Start**: Center/Left taskbar alignment, search box modes, Task View toggle, Widgets disablement, Chat icon removal, End Task menu shortcut, and Start Menu "Recommended" section removal.
 - **Context Menus**: Classic Windows 10 vs Modern Windows 11 context menus; removal of legacy clutter ("Share", "Give access to", "Include in library").
 - **File Explorer**: Hide Gallery/Home/OneDrive from navigation pane, display file extensions, show hidden files, configure default landing page.
 - **System QoL (Reversible)**: 16 reversible tweak pairs including Fast Startup, automatic BitLocker, Delivery Optimization P2P, Storage Sense, update auto-reboot control, Sticky Keys pop-up, drag-share tray, Find My Device, and window Snap Assist.
 
-### 8. Enterprise Deployment & Sysprep
+### 9. Enterprise Deployment & Sysprep
 - **Audit Mode Detection**: Automatic detection of Windows Audit / Sysprep mode.
 - **Default User Hive**: Direct mounting and configuration of `C:\Users\Default\NTUSER.DAT` so optimizations apply to all future user accounts.
 - **Headless Deployment**: Full `-Profile config.yaml -Unattended` automation for RMM systems (Intune, SCCM, PDQ Deploy, Action1).
 
-### 9. Third-Party Integrations
+### 10. Third-Party Integrations
 - **O&O ShutUp10++**: Portable privacy hardening tool wrapper with automated SHA-256 validation.
 - **Malwarebytes AdwCleaner**: Portable adware and PUP scanner.
 - **SDIO**: Snappy Driver Installer Origin offline driver package downloader and updater.

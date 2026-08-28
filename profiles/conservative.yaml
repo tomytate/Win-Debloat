@@ -1,10 +1,10 @@
-# Win-Debloat7 "Conservative" Profile
+# Win-Debloat "Conservative" Profile
 # Best for: Work PCs, Enterprise environments, or cautious users.
 # Safety: Maximum. No app removal, minimal privacy tweaks.
 
 metadata:
   name: "Conservative"
-  author: "Win-Debloat7 Team"
+  author: "Win-Debloat Team"
   description: "Minimal changes for maximum stability."
   version: "1.0.0"
   target_os: [ "Windows 10", "Windows 11" ]

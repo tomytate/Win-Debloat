@@ -27,7 +27,7 @@ namespace WinDebloat
 
         // Pinned fallback MSI release, used only when winget is unavailable or fails.
         // winget always installs the latest stable; bump this constant on new releases.
-        const string FallbackMsiVersion = "7.6.3";
+        const string FallbackMsiVersion = "7.6.5";
 
         static string DefaultPwshPath
         {
@@ -90,7 +90,7 @@ namespace WinDebloat
                     Console.WriteLine("Could not install PowerShell " + MinMajor + "." + MinMinor + "+ automatically.");
                     Console.ResetColor();
                     Console.WriteLine("Press any key to open the download page...");
-                    Console.ReadKey();
+                    SafeReadKey();
                     Process.Start(new ProcessStartInfo("https://github.com/PowerShell/PowerShell/releases/latest") { UseShellExecute = true });
                     return;
                 }
@@ -120,7 +120,7 @@ namespace WinDebloat
                     Console.WriteLine("Error: Embedded payload.zip not found.");
                     Console.WriteLine("This executable was likely built incorrectly.");
                     Console.ResetColor();
-                    Console.ReadKey();
+                    SafeReadKey();
                     return;
                 }
 
@@ -138,7 +138,7 @@ namespace WinDebloat
                     "Set-Location '{1}'; " +
                     "$entry = if (Test-Path './Win-Debloat.ps1') {{ './Win-Debloat.ps1' }} else {{ './Win-Debloat7.ps1' }}; " +
                     "& $entry {2}",
-                    zipPath, tempPath, args.Length > 0 ? String.Join(" ", args) : ""
+                    zipPath.Replace("'", "''"), tempPath.Replace("'", "''"), args.Length > 0 ? String.Join(" ", args) : ""
                 );
 
                 ProcessStartInfo startInfo = new ProcessStartInfo();
@@ -163,7 +163,7 @@ namespace WinDebloat
                     Console.WriteLine("Tried launching: " + pwshPath);
                     Console.ResetColor();
                     Console.WriteLine("Please restart the application.");
-                    Console.ReadKey();
+                    SafeReadKey();
                 }
 
                 // 6. Cleanup
@@ -179,8 +179,20 @@ namespace WinDebloat
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("Launcher Error: " + ex.Message);
                 Console.ResetColor();
-                Console.ReadKey();
+                SafeReadKey();
             }
+        }
+
+        static void SafeReadKey()
+        {
+            try
+            {
+                if (Environment.UserInteractive && !Console.IsInputRedirected)
+                {
+                    Console.ReadKey();
+                }
+            }
+            catch { /* Ignore when no interactive console is attached */ }
         }
 
         /// <summary>
@@ -242,10 +254,20 @@ namespace WinDebloat
             Version v = GetPwshVersion("pwsh.exe");
             if (IsSufficient(v)) return "pwsh.exe";
 
-            if (File.Exists(DefaultPwshPath))
+            string[] candidatePaths = new string[]
             {
-                v = GetPwshVersion(DefaultPwshPath);
-                if (IsSufficient(v)) return DefaultPwshPath;
+                DefaultPwshPath,
+                Environment.ExpandEnvironmentVariables(@"%ProgramW6432%\PowerShell\7\pwsh.exe"),
+                Environment.ExpandEnvironmentVariables(@"%LOCALAPPDATA%\Microsoft\PowerShell\7\pwsh.exe")
+            };
+
+            foreach (string candidate in candidatePaths)
+            {
+                if (!string.IsNullOrEmpty(candidate) && File.Exists(candidate))
+                {
+                    v = GetPwshVersion(candidate);
+                    if (IsSufficient(v)) return candidate;
+                }
             }
 
             return null;

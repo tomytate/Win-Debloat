@@ -16,7 +16,7 @@
 
 .NOTES
     Module: Win-Debloat.Core.State
-    Version: 1.5.0
+    Version: 1.6.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
@@ -35,7 +35,7 @@ class SystemSnapshot {
     [string]$Description
     [hashtable]$Registry
     [array]$Services
-    [string]$Version = "1.5.0"
+    [string]$Version = "1.6.0"
 }
 
 #region Registry target catalog
@@ -63,13 +63,31 @@ $Script:RegistrySnapshotTargets = @(
     'HKLM:\SOFTWARE\Policies\Microsoft\FindMyDevice'
     'HKCU:\Control Panel\International\User Profile'
 
-    # ── AI / Copilot / Recall ───────────────────────────────────────────
+    # ── AI / Copilot / Recall / NPU Fabric ──────────────────────────────
     'HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot'
     'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot'
     'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI'
+    'HKCU:\Software\Policies\Microsoft\Windows\WindowsAI'
+    'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI\ModelManagement'
     'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
     'HKCU:\Software\Microsoft\Notepad'
     'HKCU:\Software\Microsoft\Paint'
+    'HKLM:\SYSTEM\CurrentControlSet\Services\WSAIFabricSvc'
+    'HKLM:\SYSTEM\CurrentControlSet\Services\AIFabricUserSvc'
+    'HKLM:\SYSTEM\CurrentControlSet\Services\NarrativeFlows'
+
+    # ── Security / Sudo / WPP / BitLocker / RPC / SMB ───────────────────
+    'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Sudo'
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo'
+    'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Printers\ProtectedPrint'
+    'HKLM:\SOFTWARE\Policies\Microsoft\FVE'
+    'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection'
+    'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Rpc'
+    'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC'
+    'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
+    'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters'
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit'
+    'HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging'
 
     # ── Suggestions / ads / spotlight ───────────────────────────────────
     'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
@@ -80,9 +98,9 @@ $Script:RegistrySnapshotTargets = @(
     'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Mobility'
     'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
     'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel'
-    'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+    'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize'
 
-    # ── Performance / gaming ────────────────────────────────────────────
+    # ── Performance / gaming / storage / graphics ───────────────────────
     'HKCU:\Control Panel\Desktop'
     'HKCU:\Control Panel\Desktop\WindowMetrics'
     'HKCU:\Control Panel\Mouse'
@@ -94,6 +112,11 @@ $Script:RegistrySnapshotTargets = @(
     'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile'
     'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
     'HKLM:\SOFTWARE\Microsoft\MSMQ\Parameters'
+    'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'
+    'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management'
+    'HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers'
+    'HKCU:\Software\Microsoft\DirectX\UserGpuPreferences'
+    'HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl'
 
     # ── System QoL / boot / updates ─────────────────────────────────────
     'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power'
@@ -1267,6 +1290,8 @@ Set-Alias -Name Restore-WinDebloat7Snapshot -Value Restore-WinDebloatSnapshot
 Set-Alias -Name Get-WinDebloat7Snapshot -Value Get-WinDebloatSnapshot
 Set-Alias -Name Compare-WinDebloat7Snapshot -Value Compare-WinDebloatSnapshot
 Set-Alias -Name Get-WinDebloat7RegistryTargets -Value Get-WinDebloatRegistryTargets
+Set-Alias -Name Get-WinDebloat7SnapshotDirectory -Value Get-WinDebloatSnapshotDirectory
+Set-Alias -Name Get-WinDebloat7SnapshotSearchPaths -Value Get-WinDebloatSnapshotSearchPaths
 
 Set-Alias -Name Protect-WD7Data -Value Protect-WDData
 Set-Alias -Name Protect-WinDebloatData -Value Protect-WDData
@@ -1299,7 +1324,8 @@ Export-ModuleMember -Function New-WinDebloatSnapshot, Restore-WinDebloatSnapshot
                               Restore-WDRegistryKey, Get-WDRegistryKeyState, ConvertTo-WDRegistryType, Get-WDRawRegistryKey, `
                               Get-WinDebloatSnapshotDirectory, Get-WinDebloatSnapshotSearchPaths `
                     -Alias New-WinDebloat7Snapshot, Restore-WinDebloat7Snapshot, Get-WinDebloat7Snapshot, Compare-WinDebloat7Snapshot, `
-                           Get-WinDebloat7RegistryTargets, Protect-WD7Data, Protect-WinDebloatData, Protect-WinDebloat7Data, `
+                           Get-WinDebloat7RegistryTargets, Get-WinDebloat7SnapshotDirectory, Get-WinDebloat7SnapshotSearchPaths, `
+                           Protect-WD7Data, Protect-WinDebloatData, Protect-WinDebloat7Data, `
                            Unprotect-WD7Data, Unprotect-WinDebloatData, Unprotect-WinDebloat7Data, Test-WD7RegistryValueEqual, `
                            Test-WinDebloatRegistryValueEqual, Test-WinDebloat7RegistryValueEqual, Get-WD7RegistryKeyState, `
                            Get-WinDebloatRegistryKeyState, Get-WinDebloat7RegistryKeyState, Restore-WD7RegistryKey, `

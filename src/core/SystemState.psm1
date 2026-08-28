@@ -1,4 +1,4 @@
-﻿#Requires -Version 7.6
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Core.SystemState
-    Version: 1.5.0
+    Version: 1.6.0
 #>
 
 using namespace System.Management.Automation
@@ -33,6 +33,13 @@ function Get-WinDebloatSystemState {
         $activeScheme = try { (powercfg /getactivescheme 2>$null) | Out-String } catch { "" }
     }
 
+    $sudoModeVal = Get-RegistryKey "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo" "Enabled"
+    $isSudoUnsafe = ($sudoModeVal -eq 3) # Mode 3 = normal inline interactive (risk of keystroke injection)
+
+    $aiFabricRunning = try {
+        @(Get-Service -Name "WSAIFabricSvc", "AIFabricUserSvc*" -ErrorAction SilentlyContinue).Where({ $_.Status -eq 'Running' }).Count -gt 0
+    } catch { $false }
+
     $state = [pscustomobject]@{
         # Customization
         DarkTheme         = (Get-RegistryKey "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" "AppsUseLightTheme") -eq 0
@@ -41,13 +48,22 @@ function Get-WinDebloatSystemState {
         ClipboardHistory  = (Get-RegistryKey "HKCU:\Software\Microsoft\Clipboard" "EnableClipboardHistory") -eq 1
         Hibernate         = (Get-RegistryKey "HKLM:\SYSTEM\CurrentControlSet\Control\Power" "HibernateEnabled") -eq 1
         
-        # Privacy
+        # Privacy & 2026 AI Surface
         Telemetry         = (Get-RegistryKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" "AllowTelemetry") -ne 0
         Location          = (Get-RegistryKey "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" "Value") -ne "Deny"
         Copilot           = ((Get-RegistryKey "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot") -ne 1) -and ((Get-RegistryKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot") -ne 1)
-        Recall            = ((Get-RegistryKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis") -ne 1) -or 
-                            (@(Get-Service "AIFabric*" -ErrorAction SilentlyContinue).Where({ $_.Status -eq 'Running' }).Count -gt 0)
+        Recall            = ((Get-RegistryKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis") -ne 1) -or $aiFabricRunning
         AdvertisingId     = (Get-RegistryKey "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" "Enabled") -ne 0
+        StartAds          = ((Get-RegistryKey "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-338388Enabled") -ne 0) -or ((Get-RegistryKey "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-338389Enabled") -ne 0)
+        AIFabric          = $aiFabricRunning -or ((Get-RegistryKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI\ModelManagement" "DisableModelDownload") -ne 1)
+        SudoUnsafe        = $isSudoUnsafe
+        
+        # Security
+        WPP               = (Get-RegistryKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Printers\ProtectedPrint" "ProtectedPrintMode") -eq 1
+        BitLockerXTS256   = (Get-RegistryKey "HKLM:\SOFTWARE\Policies\Microsoft\FVE" "EncryptionMethodWithXtsOs") -eq 7
+        RPCHardening      = (Get-RegistryKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Rpc" "RestrictRemoteClients") -eq 1
+        SMBSigning        = (Get-RegistryKey "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" "RequireSecuritySignature") -eq 1
+        LSAProtection     = (Get-RegistryKey "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" "RunAsPPL") -eq 1
         
         # Performance / Gaming
         GameMode          = (Get-RegistryKey "HKCU:\Software\Microsoft\GameBar" "AllowAutoGameMode") -ne 0
@@ -62,8 +78,10 @@ function Get-WinDebloatSystemState {
         GamingMMCSS       = (Get-RegistryKey "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "SystemResponsiveness") -eq 0
         VisualEffects     = (Get-RegistryKey "HKCU:\Control Panel\Desktop" "MenuShowDelay") -eq "0"
         UltimatePlan      = [bool]($activeScheme -match "e9a42b02-d5df-448d-aa00-03f14749eb61|Ultimate")
+        HAGS              = (Get-RegistryKey "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" "HwSchMode") -eq 2
+        DirectStorageMem  = (Get-RegistryKey "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" "NtfsMemoryUsage") -eq 2
         
-        # Updates
+        # Updates & Network
         WindowsUpdate     = (Get-RegistryKey "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" "NoAutoUpdate") -ne 1
         IPv6              = (Get-RegistryKey "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters" "DisabledComponents") -ne 255
         IPv6Disabled      = (Get-RegistryKey "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters" "DisabledComponents") -eq 32 -or (Get-RegistryKey "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters" "DisabledComponents") -eq 255
@@ -79,32 +97,26 @@ function Get-WinDebloatSystemState {
 
 <#
 .SYNOPSIS
-    Calculates a 0-100 privacy score from the live system state.
+    Calculates a 0-100 privacy score from the live system state using the 11-Vector Matrix (v1.6.0).
 
 .DESCRIPTION
     Starts at 100 and deducts weighted points for each privacy-relevant setting
-    that is still ENABLED. The weights are chosen to sum to exactly 100, so a
-    fully-hardened system scores 100 and a fully-exposed one scores 0.
+    that is still ENABLED. The weights are chosen to sum to exactly 100:
 
     Weighting (points lost when the risk is active):
-        Telemetry ............. 22   (the biggest data channel)
-        Windows Recall ........ 16   (records screenshots of everything)
-        Advertising ID ........ 14   (cross-app ad tracking)
-        Copilot ............... 12   (cloud AI integration)
-        Activity History ...... 12   (timeline sent to Microsoft)
-        Location tracking ..... 12
-        Background apps ....... 07
-        Clipboard history ..... 05
-        ──────────────────────────
-                                100
-
-.PARAMETER State
-    An existing state object from Get-WinDebloatSystemState or custom object/hashtable.
-    If omitted, the state is fetched fresh.
-
-.OUTPUTS
-    [pscustomobject] with Score (int 0-100), Grade (A-F), Rating (text),
-    and Breakdown (per-item Name / Weight / Active / Lost).
+        Telemetry ................. 18   (primary telemetry data channel)
+        Windows Recall ............ 14   (continuous desktop screenshot indexing)
+        Copilot ................... 12   (cloud AI integration)
+        Start Ads & Suggestions ... 10   (ContentDeliveryManager ad payloads)
+        Advertising ID ............ 10   (cross-app profiling)
+        Location tracking ......... 10   (geolocation sensor consent)
+        Activity History .......... 08   (timeline synchronization)
+        NPU / AI Fabric ........... 08   (Phi-Silica SLM background RAM load)
+        Sudo Keystroke Isolation .. 04   (unsafe inline interactive mode)
+        Background apps ........... 04   (background execution permissions)
+        Clipboard history ......... 02   (cloud clipboard sharing)
+        ──────────────────────────────
+                                   100
 #>
 function Get-WinDebloatPrivacyScore {
     [CmdletBinding()]
@@ -128,16 +140,19 @@ function Get-WinDebloatPrivacyScore {
         return $false
     }
 
-    # Name => @(weight, isActive-risk). "Active" means the privacy risk is ON.
+    # 11-Vector Matrix Definition
     $criteria = @(
-        [pscustomobject]@{ Name = 'Telemetry';         Weight = 22; Active = (& $getProp $State 'Telemetry') }
-        [pscustomobject]@{ Name = 'Windows Recall';    Weight = 16; Active = (& $getProp $State 'Recall') }
-        [pscustomobject]@{ Name = 'Advertising ID';    Weight = 14; Active = (& $getProp $State 'AdvertisingId') }
-        [pscustomobject]@{ Name = 'Copilot';           Weight = 12; Active = (& $getProp $State 'Copilot') }
-        [pscustomobject]@{ Name = 'Activity History';  Weight = 12; Active = (& $getProp $State 'ActivityHistory') }
-        [pscustomobject]@{ Name = 'Location';          Weight = 12; Active = (& $getProp $State 'Location') }
-        [pscustomobject]@{ Name = 'Background Apps';   Weight = 7;  Active = (& $getProp $State 'BackgroundApps') }
-        [pscustomobject]@{ Name = 'Clipboard History';  Weight = 5;  Active = (& $getProp $State 'ClipboardHistory') }
+        [pscustomobject]@{ Name = 'Telemetry';          Weight = 18; Active = (& $getProp $State 'Telemetry') }
+        [pscustomobject]@{ Name = 'Windows Recall';     Weight = 14; Active = (& $getProp $State 'Recall') }
+        [pscustomobject]@{ Name = 'Copilot';            Weight = 12; Active = (& $getProp $State 'Copilot') }
+        [pscustomobject]@{ Name = 'Start Suggestions';  Weight = 10; Active = (& $getProp $State 'StartAds') }
+        [pscustomobject]@{ Name = 'Advertising ID';     Weight = 10; Active = (& $getProp $State 'AdvertisingId') }
+        [pscustomobject]@{ Name = 'Location';           Weight = 10; Active = (& $getProp $State 'Location') }
+        [pscustomobject]@{ Name = 'Activity History';   Weight = 8;  Active = (& $getProp $State 'ActivityHistory') }
+        [pscustomobject]@{ Name = 'NPU / AI Fabric';    Weight = 8;  Active = (& $getProp $State 'AIFabric') }
+        [pscustomobject]@{ Name = 'Sudo Isolation';     Weight = 4;  Active = (& $getProp $State 'SudoUnsafe') }
+        [pscustomobject]@{ Name = 'Background Apps';    Weight = 4;  Active = (& $getProp $State 'BackgroundApps') }
+        [pscustomobject]@{ Name = 'Clipboard History';  Weight = 2;  Active = (& $getProp $State 'ClipboardHistory') }
     )
 
     $breakdown = foreach ($c in $criteria) {

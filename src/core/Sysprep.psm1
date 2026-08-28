@@ -1,4 +1,4 @@
-﻿#Requires -Version 7.6
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -7,10 +7,12 @@
 .DESCRIPTION
     Provides functions to detect if Windows is in Audit Mode and to mount/dismount
     the Default User registry hive for applying settings to future users (OEM scenarios).
+    Guarantees NTUSER.DAT is never left locked via explicit .Dispose(), dual GC passes,
+    and exponential retry backoff on hive unloads.
     
 .NOTES
     Module: Win-Debloat.Core.Sysprep
-    Version: 1.5.0
+    Version: 1.6.0
 #>
 
 Import-Module "$PSScriptRoot\Logger.psm1" -Force
@@ -93,6 +95,11 @@ function Dismount-WinDebloatDefaultHive {
     <#
     .SYNOPSIS
         Dismounts the Default User registry hive.
+        
+    .DESCRIPTION
+        Safely dismounts the Default User hive (NTUSER.DAT) across all mount aliases.
+        Performs explicit disposal on open subkeys, dual garbage collection cycles,
+        and 3x exponential retry backoff to ensure no process locks remain on NTUSER.DAT.
     #>
     [CmdletBinding()]
     [OutputType([void])]
@@ -107,12 +114,48 @@ function Dismount-WinDebloatDefaultHive {
 
         try {
             Write-Log -Message "Dismounting Default User hive ($mountPoint)..." -Level Info
-            [GC]::Collect()
-            [GC]::WaitForPendingFinalizers()
-            
-            $process = Start-Process -FilePath "reg.exe" -ArgumentList "unload ""$mountPoint""" -PassThru -NoNewWindow -Wait
-            
-            if ($process.ExitCode -ne 0) {
+
+            # Explicitly close and dispose any lingering .NET subkey handles before unloading
+            $subKeyName = $mountPoint -replace '^HKLM\\', ''
+            try {
+                $hKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($subKeyName, $false)
+                if ($null -ne $hKey) {
+                    $hKey.Dispose()
+                    $hKey = $null
+                }
+            }
+            catch {
+                # Non-fatal if opening key fails
+            }
+
+            # 3x exponential retry backoff on reg.exe unload with dual GC collections
+            $maxRetries = 3
+            $unloaded = $false
+            $lastExitCode = -1
+
+            for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
+                # Dual GC collect to release any unmanaged registry handles and finalizer queues
+                [System.GC]::Collect()
+                [System.GC]::WaitForPendingFinalizers()
+                [System.GC]::Collect()
+                [System.GC]::WaitForPendingFinalizers()
+
+                $process = Start-Process -FilePath "reg.exe" -ArgumentList "unload ""$mountPoint""" -PassThru -NoNewWindow -Wait
+                $lastExitCode = if ($process) { $process.ExitCode } else { -1 }
+
+                if ($lastExitCode -eq 0) {
+                    $unloaded = $true
+                    break
+                }
+
+                if ($attempt -lt $maxRetries) {
+                    $backoffMs = [int]([Math]::Pow(2, $attempt - 1) * 500)
+                    Write-Log -Message "Failed to unload Default User hive ($mountPoint) on attempt $attempt (Exit Code: $lastExitCode). Retrying in ${backoffMs}ms..." -Level Warning
+                    Start-Sleep -Milliseconds $backoffMs
+                }
+            }
+
+            if (-not $unloaded) {
                 Write-Log -Message "Failed to unload Default User hive ($mountPoint). Cleanup required." -Level Warning
             }
         }

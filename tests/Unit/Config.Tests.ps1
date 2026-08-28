@@ -127,7 +127,7 @@ Describe "Config Module" {
             $ProfileSchema.ValidVisualEffects | Should -Be @('Appearance', 'Performance', 'Custom')
             $ProfileSchema.ValidRemovalModes | Should -Be @('None', 'Conservative', 'Moderate', 'Aggressive', 'Custom')
             $ProfileSchema.ValidPackageManagers | Should -Be @('Winget', 'Chocolatey', 'Auto')
-            $ProfileSchema.ValidTargetOS | Should -Be @('Windows 10', 'Windows 11')
+            $ProfileSchema.ValidTargetOS | Should -Be @('Windows 10', 'Windows 11', 'Server 2022', 'Server 2025')
         }
     }
 

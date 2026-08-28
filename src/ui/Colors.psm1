@@ -1,4 +1,4 @@
-﻿#Requires -Version 7.6
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -9,7 +9,7 @@
     
 .NOTES
     Module: Win-Debloat.UI.Colors
-    Version: 1.5.0
+    Version: 1.6.0
 #>
 
 # Premium Color Scheme - Neon Cyber Palette
@@ -49,8 +49,8 @@ $Script:WD7Header = @"
 ║     ██║███╗██║██║██║╚██╗██║╚════╝██║  ██║██╔══╝  ██╔══██╗██║     ██║   ██║██╔══██║   ██║        ║
 ║     ╚███╔███╔╝██║██║ ╚████║      ██████╔╝███████╗██████╔╝███████╗╚██████╔╝██║  ██║   ██║        ║
 ║      ╚══╝╚══╝ ╚═╝╚═╝  ╚═══╝      ╚═════╝ ╚══════╝╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝        ║
-║                        Ultimate System Optimizer & Toolbox v1.5.0 "Top G"                       ║
-║                             PowerShell 7.6+ | Windows 11 25H2 Ready                             ║
+║                        Ultimate System Optimizer & Toolbox v1.6.0 "Apex"                         ║
+║                             PowerShell 7.6+ | Windows 11 26H1 Ready                             ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
 "@
 
@@ -115,7 +115,7 @@ function Write-WD7Host {
     )
     
     # Check for RGB Support ($PSStyle exists in PS 7.2+)
-    $useRgb = $null -ne $PSStyle
+    $useRgb = ($null -ne $PSStyle -and $PSStyle.OutputRendering -ne [System.Management.Automation.OutputRendering]::PlainText)
     $ansi = ""
     $reset = ""
     
@@ -138,21 +138,182 @@ function Write-WD7Host {
     }
     else {
         # Fallback to ConsoleColor
-        $consoleColor = $Script:WD7Theme.Fallback[$Color]
+        $cc = $Script:WD7Theme.Fallback[$Color]
         if ($NoNewline) {
-            Write-Host $Message -ForegroundColor $consoleColor -NoNewline
+            Write-Host $Message -ForegroundColor $cc -NoNewline
         }
         else {
-            Write-Host $Message -ForegroundColor $consoleColor
+            Write-Host $Message -ForegroundColor $cc
         }
     }
 }
 
 <#
 .SYNOPSIS
-    Renders the Win-Debloat ASCII header banner.
+    Generates a 24-bit TrueColor linear RGB gradient across a string or multiline text.
+.PARAMETER Text
+    The input text to colorize.
+.PARAMETER StartColor
+    Starting color hex code (e.g. #00D4FF) or theme color name (e.g. Primary, Secondary, Success, Warning, Error, Info, Dark, White).
+.PARAMETER EndColor
+    Ending color hex code (e.g. #7B2CBF) or theme color name.
+.PARAMETER LineByLine
+    When specified, interpolates gradient across lines rather than individual characters.
+.OUTPUTS
+    [string] ANSI 24-bit TrueColor styled text.
+#>
+function Get-WD7GradientText {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline)]
+        [AllowEmptyString()]
+        [AllowNull()]
+        [string]$Text,
+
+        [Parameter(Position = 1)]
+        [string]$StartColor = "Primary",
+
+        [Parameter(Position = 2)]
+        [string]$EndColor = "Secondary",
+
+        [switch]$LineByLine
+    )
+
+    process {
+        if ([string]::IsNullOrEmpty($Text)) { return "" }
+
+        # Resolve colors (Hex or Theme palette name)
+        $startHex = if ($StartColor -match '^#([0-9a-fA-F]{6})$') { $StartColor }
+                    elseif ($Script:WD7Theme.Colors.ContainsKey($StartColor)) { $Script:WD7Theme.Colors[$StartColor] }
+                    else { $Script:WD7Theme.Colors["Primary"] }
+
+        $endHex = if ($EndColor -match '^#([0-9a-fA-F]{6})$') { $EndColor }
+                  elseif ($Script:WD7Theme.Colors.ContainsKey($EndColor)) { $Script:WD7Theme.Colors[$EndColor] }
+                  else { $Script:WD7Theme.Colors["Secondary"] }
+
+        # Check for TrueColor RGB support ($PSStyle exists in PS 7.2+)
+        $useRgb = ($null -ne $PSStyle -and $PSStyle.OutputRendering -ne [System.Management.Automation.OutputRendering]::PlainText)
+        if (-not $useRgb) {
+            return $Text
+        }
+
+        $r1 = [Convert]::ToByte($startHex.Substring(1, 2), 16)
+        $g1 = [Convert]::ToByte($startHex.Substring(3, 2), 16)
+        $b1 = [Convert]::ToByte($startHex.Substring(5, 2), 16)
+
+        $r2 = [Convert]::ToByte($endHex.Substring(1, 2), 16)
+        $g2 = [Convert]::ToByte($endHex.Substring(3, 2), 16)
+        $b2 = [Convert]::ToByte($endHex.Substring(5, 2), 16)
+
+        $esc = [char]27
+        $reset = "$esc[0m"
+
+        if ($LineByLine) {
+            $lines = $Text -split "\r?\n"
+            $lineCount = $lines.Count
+            if ($lineCount -le 1) {
+                $ansi = "$esc[38;2;$r1;$g1;${b1}m"
+                return "$ansi$Text$reset"
+            }
+
+            $result = [System.Text.StringBuilder]::new()
+            for ($i = 0; $i -lt $lineCount; $i++) {
+                $t = $i / ($lineCount - 1)
+                $r = [int][math]::Round($r1 + ($r2 - $r1) * $t)
+                $g = [int][math]::Round($g1 + ($g2 - $g1) * $t)
+                $b = [int][math]::Round($b1 + ($b2 - $b1) * $t)
+
+                $ansi = "$esc[38;2;$r;$g;${b}m"
+                [void]$result.AppendLine("$ansi$($lines[$i])$reset")
+            }
+            return $result.ToString().TrimEnd("`r`n")
+        }
+        else {
+            $chars = $Text.ToCharArray()
+            $charCount = $chars.Count
+            if ($charCount -le 1) {
+                $ansi = "$esc[38;2;$r1;$g1;${b1}m"
+                return "$ansi$Text$reset"
+            }
+
+            $sb = [System.Text.StringBuilder]::new()
+            for ($i = 0; $i -lt $charCount; $i++) {
+                $t = $i / ($charCount - 1)
+                $r = [int][math]::Round($r1 + ($r2 - $r1) * $t)
+                $g = [int][math]::Round($g1 + ($g2 - $g1) * $t)
+                $b = [int][math]::Round($b1 + ($b2 - $b1) * $t)
+
+                [void]$sb.Append("$esc[38;2;$r;$g;${b}m$($chars[$i])")
+            }
+            [void]$sb.Append($reset)
+            return $sb.ToString()
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Formats text as an OSC 8 terminal hyperlink with fallback for unsupported hosts.
+.PARAMETER Text
+    The link text to display.
+.PARAMETER Url
+    The target URL (e.g. https://github.com/tomytate/Win-Debloat).
+.PARAMETER PlainFallback
+    If set, appends the URL in parentheses in PlainText mode rather than returning just the text.
+.OUTPUTS
+    [string] OSC 8 hyperlink sequence or fallback string.
+#>
+function Format-WD7Hyperlink {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [AllowEmptyString()]
+        [AllowNull()]
+        [string]$Text,
+
+        [Parameter(Mandatory, Position = 1)]
+        [AllowEmptyString()]
+        [AllowNull()]
+        [string]$Url,
+
+        [switch]$PlainFallback
+    )
+
+    if ([string]::IsNullOrEmpty($Text)) { return "" }
+    if ([string]::IsNullOrEmpty($Url)) { return $Text }
+
+    $useAnsi = ($null -ne $PSStyle -and $PSStyle.OutputRendering -ne [System.Management.Automation.OutputRendering]::PlainText)
+    
+    if ($useAnsi) {
+        # Check if PSStyle has FormatHyperlink built-in (PS 7.2+)
+        if ($PSStyle.PSObject.Methods['FormatHyperlink']) {
+            try {
+                return $PSStyle.FormatHyperlink($Text, [System.Uri]$Url)
+            }
+            catch {
+                # Fall back to manual OSC 8 escape code if URI parsing fails
+            }
+        }
+
+        # Standard OSC 8 terminal hyperlink: ESC ] 8 ; ; URL ESC \ TEXT ESC ] 8 ; ; ESC \
+        $esc = [char]27
+        return "$esc]8;;$Url$esc\$Text$esc]8;;$esc\"
+    }
+    else {
+        if ($PlainFallback) {
+            return "$Text ($Url)"
+        }
+        return $Text
+    }
+}
+
+<#
+.SYNOPSIS
+    Displays the standard styled header banner.
 .PARAMETER Compact
-    Whether to render the compact single-box header.
+    Display compact single-line style.
 .OUTPUTS
     [void]
 #>
@@ -167,25 +328,48 @@ function Show-WD7Header {
     Clear-Host
     
     if ($Compact) {
-        # Compact Art
-        $lines = $Script:WD7HeaderCompact -split "`n"
-        foreach ($line in $lines) { Write-WD7Host $line -Color Primary }
+        # Compact Art with TrueColor Gradient
+        $gradientCompact = Get-WD7GradientText -Text $Script:WD7HeaderCompact -StartColor Primary -EndColor Secondary -LineByLine
+        Write-Host $gradientCompact
     }
     else {
-        $lines = $Script:WD7Header -split "`n"
+        $lines = $Script:WD7Header -split "\r?\n"
         
-        # Original gradient logic (approximate mapping)
-        # Top border -> Primary
-        # Logos -> Primary to Secondary gradient
-        # Bottom -> White/Info
+        # Linear TrueColor gradient across logo lines (lines 2 to 7)
+        # Border -> Info
+        # ASCII Logo -> Primary (#00D4FF) to Secondary (#7B2CBF) gradient
+        # Subtitle -> White
+        
+        $logoLines = [System.Collections.Generic.List[string]]::new()
+        for ($k = 2; $k -le 7; $k++) {
+            if ($k -lt $lines.Count) {
+                $logoLines.Add($lines[$k])
+            }
+        }
+        
+        $gradientLogo = (Get-WD7GradientText -Text ($logoLines -join "`n") -StartColor Primary -EndColor Secondary -LineByLine) -split "\r?\n"
         
         $i = 0
+        $logoIdx = 0
         foreach ($line in $lines) {
-            if ($i -eq 0) { Write-WD7Host $line -Color Info } # Top Border
-            elseif ($i -lt 5) { Write-WD7Host $line -Color Primary } # Top half logo
-            elseif ($i -lt 9) { Write-WD7Host $line -Color Secondary } # Bottom half logo
-            elseif ($i -lt 11) { Write-WD7Host $line -Color White } # Text
-            else { Write-WD7Host $line -Color Info } # Bottom Border
+            if ($i -eq 0 -or $i -eq 1) { 
+                Write-WD7Host $line -Color Info 
+            }
+            elseif ($i -ge 2 -and $i -le 7) { 
+                if ($logoIdx -lt $gradientLogo.Count) {
+                    Write-Host $gradientLogo[$logoIdx]
+                    $logoIdx++
+                }
+                else {
+                    Write-WD7Host $line -Color Primary
+                }
+            }
+            elseif ($i -lt 10) { 
+                Write-WD7Host $line -Color White 
+            }
+            else { 
+                Write-WD7Host $line -Color Info 
+            }
             $i++
         }
     }
@@ -220,7 +404,7 @@ function Show-WD7Separator {
     }
     else {
         # Centered visual separator
-        $padLen = [math]::Max(0, ($width - $Title.Length - 6) / 2)
+        $padLen = [int][math]::Max(0, [math]::Floor(($width - $Title.Length - 6) / 2))
         $padding = $lineChar * $padLen
         Write-WD7Host (" " * 2 + "$padding $Title $padding") -Color $Color
     }
@@ -248,8 +432,8 @@ function Show-WD7Progress {
         [string]$Label = ""
     )
     
-    $filled = [math]::Round($Width * $Percent / 100)
-    $empty = $Width - $filled
+    $filled = [int][math]::Round($Width * $Percent / 100)
+    $empty = [int]($Width - $filled)
     
     # Modern progress block
     $bar = "█" * $filled + "░" * $empty 
@@ -289,4 +473,23 @@ function Show-WD7StatusBadge {
     Write-WD7Host $Label -Color White
 }
 
-Export-ModuleMember -Function Write-WD7Host, Show-WD7Header, Show-WD7Separator, Show-WD7Progress, Show-WD7StatusBadge
+# Aliases for backward compatibility
+Set-Alias -Name 'Get-WinDebloatGradientText' -Value 'Get-WD7GradientText'
+Set-Alias -Name 'Get-WinDebloat7GradientText' -Value 'Get-WD7GradientText'
+Set-Alias -Name 'Format-WinDebloatHyperlink' -Value 'Format-WD7Hyperlink'
+Set-Alias -Name 'Format-WinDebloat7Hyperlink' -Value 'Format-WD7Hyperlink'
+Set-Alias -Name 'Format-WD7Link' -Value 'Format-WD7Hyperlink'
+
+Export-ModuleMember -Function Write-WD7Host,
+    Show-WD7Header,
+    Show-WD7Separator,
+    Show-WD7Progress,
+    Show-WD7StatusBadge,
+    Get-WD7AnsiColor,
+    Get-WD7GradientText,
+    Format-WD7Hyperlink `
+    -Alias Get-WinDebloatGradientText,
+    Get-WinDebloat7GradientText,
+    Format-WinDebloatHyperlink,
+    Format-WinDebloat7Hyperlink,
+    Format-WD7Link

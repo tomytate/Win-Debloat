@@ -1,12 +1,12 @@
-# Win-Debloat7 "Performance" Profile
+# Win-Debloat "Performance" Profile
 # Best for: Low-RAM systems (< 8GB), budget laptops, VMs, and lightweight installs.
-# Goal: Reclaim memory and maximize responsiveness.
+# Goal: Reclaim memory (Phi-Silica SLM) and maximize responsiveness.
 
 metadata:
   name: "Performance"
-  author: "Win-Debloat7 Team"
+  author: "Win-Debloat Team"
   description: "Optimized for low-RAM systems, VMs, and maximum responsiveness."
-  version: "1.5.0"
+  version: "1.6.0"
   target_os:
     - "Windows 10"
     - "Windows 11"
@@ -26,12 +26,16 @@ privacy:
   disable_location_tracking: true
   disable_copilot: true
   disable_recall: true
+  disable_click_to_do: true
+  disable_ai_fabric: true
 
 performance:
   power_plan: "Balanced"
   visual_effects: "Performance"
   disable_game_bar: true
   disable_background_apps: true
+  enable_directstorage_tuning: true
+  enable_thread_director: true
 
 network:
   dns_servers:

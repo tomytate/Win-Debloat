@@ -1,13 +1,25 @@
-# Win-Debloat Profile Schema
-# Defines the structure and valid values for configuration profiles
+# Win-Debloat Profile Schema v1.6.0
+# Defines the structure and valid values for declarative configuration profiles
+
+# Profile inheritance: single parent path or array of parent paths (max depth 10)
+extends: [ string, list<string> ]
 
 metadata:
   name: string
   version: string
   author: string
   description: string
-  target_os: [ "Windows 10", "Windows 11" ]
+  target_os: [ "Windows 10", "Windows 11", "Server 2022", "Server 2025" ]
   min_build: integer
+  max_build: integer
+
+# Conditional execution gates
+when:
+  min_build: integer
+  max_build: integer
+  target_os: [ "Windows 10", "Windows 11", "Server 2022", "Server 2025", list<string> ]
+  edition: [ "Home", "Pro", "Enterprise", "Education", "Server", list<string> ]
+  arch: [ "x64", "arm64" ]
 
 bloatware:
   removal_mode: [ "None", "Conservative", "Moderate", "Aggressive", "Custom" ]
@@ -21,19 +33,45 @@ privacy:
   disable_location_tracking: boolean
   disable_copilot: boolean
   disable_recall: boolean
+  disable_click_to_do: boolean
+  disable_ai_fabric: boolean
+  disable_copilot_feedback: boolean
+  disable_edge_ai: boolean
+  disable_lockscreen_widgets: boolean
+  disable_account_badges: boolean
+  disable_onesettings: boolean
+  block_telemetry_domains: boolean
+
+security:
+  enable_wpp: boolean
+  sudo_mode: [ "Disabled", "ForceNewWindow", "DisableInput", "Normal" ]
+  enable_bitlocker_xts256: boolean
+  enable_rpc_hardening: boolean
+  enable_smb_signing: boolean
+  enable_lsa_protection: boolean
+  enable_audit_logging: boolean
+  enable_dma_protection: boolean
 
 performance:
   power_plan: [ "Balanced", "HighPerformance", "Ultimate" ]
   visual_effects: [ "Appearance", "Performance", "Custom" ]
   disable_game_bar: boolean
   disable_background_apps: boolean
+  gaming_mode: boolean
+  enable_directstorage_tuning: boolean
+  enable_thread_director: boolean
+  enable_amd_x3d_safeguards: boolean
+  enable_hags_tdr_tuning: boolean
+  enable_directsr: boolean
+  disable_energy_saver_ac_throttling: boolean
 
 network:
   dns_servers: list<string>
   disable_ipv6: boolean
+  tcp_congestion_provider: [ "cubic", "bbr2", "newreno", "default" ]
+  disable_netadapter_rsc: boolean
 
-# System & QoL tweaks (v1.4). All keys are opt-in booleans; omit to skip.
-# Every tweak has an Enable-*/revert counterpart for per-tweak undo.
+# System & QoL tweaks (v1.4 - v1.6). All keys are opt-in booleans; omit to skip.
 system:
   disable_fast_startup: boolean
   prevent_auto_bitlocker: boolean
@@ -59,3 +97,20 @@ software:
   package_manager: [ "Winget", "Chocolatey", "Auto" ]
   install_list: list<string>
   uninstall_list: list<string>
+
+custom_registry:
+  list<object>:
+    path: string
+    name: string
+    value: [ integer, string, list<string>, binary ]
+    type: [ "DWord", "QWord", "String", "ExpandString", "MultiString", "Binary", "None" ]
+    action: [ "Set", "Remove", "RemoveKey", "EnsureNotExist" ]
+    when: object
+
+custom_services:
+  list<object>:
+    name: string
+    startup_type: [ "Automatic", "AutomaticDelayedStart", "Manual", "Disabled", "NoChange" ]
+    state: [ "Running", "Stopped", "Ignore" ]
+    action: [ "Configure", "Stop", "Start", "Disable" ]
+    when: object

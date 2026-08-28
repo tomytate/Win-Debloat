@@ -19,21 +19,31 @@ Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force
 
 #region Service Optimization
 
+# Fast startup type mapping dictionary (O(1) lookup, zero per-service hashtable recreation)
+$Script:ServiceStartupMapping = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+$Script:ServiceStartupMapping["Disabled"]              = "Disabled"
+$Script:ServiceStartupMapping["Manual"]                = "Manual"
+$Script:ServiceStartupMapping["Automatic"]             = "Automatic"
+$Script:ServiceStartupMapping["AutomaticDelayedStart"] = "AutomaticDelayedStart"
+
 function Set-WinDebloatServices {
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Optimizes Windows service startup types based on a preset.
-    
+
     .PARAMETER Preset
         The optimization preset: Privacy, Performance, Security, or Minimal.
-    
+
     .PARAMETER ConfigPath
         Optional path to services.json configuration file.
-    
+
+    .OUTPUTS
+        [void]
+
     .EXAMPLE
         Set-WinDebloatServices -Preset Privacy
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     [OutputType([void])]
     param(
@@ -64,30 +74,34 @@ function Set-WinDebloatServices {
         return
     }
 
-    $servicesToOptimize = $config.presets.$Preset
+    $servicesToOptimize = @($config.presets.$Preset)
     Write-Log -Message "Applying '$Preset' preset ($($servicesToOptimize.Count) services)..." -Level Info
     
     $successCount = 0
     $failCount = 0
 
-    # Optimized: Batch query all services first (O(1) lookup vs O(N) per service)
+    # Optimized: Batch query all services first with fast collection mapping (O(1) lookup vs O(N) per service)
     Write-Log -Message "Querying service states..." -Level Info
-    $validationList = @{}
+    $validationList = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::OrdinalIgnoreCase)
     try {
-        Get-Service -Name $servicesToOptimize -ErrorAction SilentlyContinue | ForEach-Object {
-            $validationList[$_.Name] = $_
-        }
+        $queriedServices = @(Get-Service -Name $servicesToOptimize -ErrorAction SilentlyContinue)
+        $queriedServices.ForEach({
+            if ($_) {
+                $validationList[$_.Name] = $_
+            }
+        })
     }
     catch {
         Write-Log -Message "Error querying services: $($_.Exception.Message)" -Level Warning
     }
 
-    foreach ($serviceName in $servicesToOptimize) {
+    $servicesToOptimize.ForEach({
+        $serviceName = $_
         $serviceConfig = $config.services.$serviceName
 
         if (-not $serviceConfig) {
             Write-Log -Message "Service config not found for: $serviceName" -Level Warning
-            continue
+            return
         }
 
         $targetStartup = $serviceConfig.StartupType
@@ -108,16 +122,12 @@ function Set-WinDebloatServices {
                     Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
                 }
 
-                # Map startup type strings to valid Set-Service values
-                $startupMapping = @{
-                    "Disabled"              = "Disabled"
-                    "Manual"                = "Manual"
-                    "Automatic"             = "Automatic"
-                    "AutomaticDelayedStart" = "AutomaticDelayedStart"
+                $mappedStartup = if ($Script:ServiceStartupMapping.ContainsKey($targetStartup)) {
+                    $Script:ServiceStartupMapping[$targetStartup]
                 }
-
-                $mappedStartup = $startupMapping[$targetStartup]
-                if (-not $mappedStartup) { $mappedStartup = "Manual" } # Default fallback
+                else {
+                    "Manual" # Default fallback
+                }
 
                 Set-Service -Name $serviceName -StartupType $mappedStartup -ErrorAction Stop
                 Write-Log -Message "Set $serviceName to $mappedStartup" -Level Success
@@ -128,34 +138,43 @@ function Set-WinDebloatServices {
                 $failCount++
             }
         }
-    }
+    })
 
     Write-Log -Message "Service optimization complete: $successCount succeeded, $failCount failed." -Level Info
 }
 
 function Get-WinDebloatServicePresets {
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Gets available service optimization presets.
-    
+
     .OUTPUTS
         [string[]] List of preset names.
+
+    .EXAMPLE
+        Get-WinDebloatServicePresets
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding()]
     [OutputType([string[]])]
     param()
 
-    return @("Privacy", "Performance", "Security", "Minimal", "Gaming")
+    return [string[]]@("Privacy", "Performance", "Security", "Minimal", "Gaming")
 }
 
 function Get-WinDebloatServiceStatus {
     <#
     .SYNOPSIS
         Gets the current status of optimizable services.
-    
+
+    .PARAMETER ConfigPath
+        Optional path to services.json configuration file.
+
     .OUTPUTS
         [psobject[]] Service status objects.
+
+    .EXAMPLE
+        Get-WinDebloatServiceStatus
     #>
     [CmdletBinding()]
     [OutputType([psobject[]])]
@@ -165,25 +184,29 @@ function Get-WinDebloatServiceStatus {
 
     if (-not (Test-Path $ConfigPath)) {
         Write-Log -Message "Services configuration not found: $ConfigPath" -Level Error
-        return @()
+        return [psobject[]]@()
     }
 
     $config = Get-Content $ConfigPath -Raw | ConvertFrom-Json
     $results = [System.Collections.Generic.List[psobject]]::new()
     $serviceNames = @($config.services.PSObject.Properties.Name)
 
-    # Batch query all target services in one call (O(1) lookup vs N sequential queries)
-    $serviceMap = @{}
+    # Batch query all target services in one call with fast collection mapping (O(1) lookup vs N sequential queries)
+    $serviceMap = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::OrdinalIgnoreCase)
     try {
-        Get-Service -Name $serviceNames -ErrorAction SilentlyContinue | ForEach-Object {
-            $serviceMap[$_.Name] = $_
-        }
+        $queriedServices = @(Get-Service -Name $serviceNames -ErrorAction SilentlyContinue)
+        $queriedServices.ForEach({
+            if ($_) {
+                $serviceMap[$_.Name] = $_
+            }
+        })
     }
     catch {
         Write-Log -Message "Error batch querying services: $($_.Exception.Message)" -Level Debug
     }
 
-    foreach ($serviceName in $serviceNames) {
+    $serviceNames.ForEach({
+        $serviceName = $_
         $serviceConfig = $config.services.$serviceName
 
         if ($serviceMap.ContainsKey($serviceName)) {
@@ -203,9 +226,9 @@ function Get-WinDebloatServiceStatus {
         else {
             Write-Verbose "Service $serviceName not found on this system."
         }
-    }
+    })
 
-    return $results.ToArray()
+    return [psobject[]]$results.ToArray()
 }
 
 #endregion

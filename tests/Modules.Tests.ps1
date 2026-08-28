@@ -164,11 +164,28 @@ Describe "Modules.Security" {
         (Get-Command "Disable-WinDebloat7PUAProtection" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
     }
 
+    It "Exports Enable-WinDebloatScriptBlockLogging, Disable-WinDebloatScriptBlockLogging and aliases" {
+        (Get-Command "Enable-WinDebloatScriptBlockLogging" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Enable-WinDebloat7ScriptBlockLogging" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Enable-WD7ScriptBlockLogging" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Disable-WinDebloatScriptBlockLogging" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Disable-WinDebloat7ScriptBlockLogging" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Disable-WD7ScriptBlockLogging" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+    }
+
+    It "Exports Get-WinDebloatLanguageMode and aliases" {
+        (Get-Command "Get-WinDebloatLanguageMode" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Get-WinDebloat7LanguageMode" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Get-WD7LanguageMode" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+    }
+
     It "Exports Get-WinDebloatSecurityStatus and Get-WinDebloat7SecurityStatus" {
         $status = Get-WinDebloatSecurityStatus
         $status | Should -Not -BeNullOrEmpty
         $status.PSObject.Properties['SMBv1Disabled'] | Should -Not -BeNullOrEmpty
         $status.PSObject.Properties['PUAProtectionEnabled'] | Should -Not -BeNullOrEmpty
+        $status.PSObject.Properties['ScriptBlockLoggingEnabled'] | Should -Not -BeNullOrEmpty
+        $status.PSObject.Properties['LanguageMode'] | Should -Not -BeNullOrEmpty
 
         $status7 = Get-WinDebloat7SecurityStatus
         $status7 | Should -Not -BeNullOrEmpty
@@ -256,6 +273,22 @@ Describe "Modules.Network" {
         (Get-Command "Get-WinDebloat7NetworkStatus" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
         (Get-Command "Set-WinDebloatNetwork" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
         (Get-Command "Set-WinDebloat7Network" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+    }
+
+    It "Exports Set-WinDebloatTcpCongestionProvider, Disable-WinDebloatNetAdapterRSC, Enable-WinDebloatNetAdapterRSC and aliases" {
+        (Get-Command "Set-WinDebloatTcpCongestionProvider" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Set-WinDebloat7TcpCongestionProvider" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Disable-WinDebloatNetAdapterRSC" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Disable-WinDebloat7NetAdapterRSC" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Enable-WinDebloatNetAdapterRSC" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        (Get-Command "Enable-WinDebloat7NetAdapterRSC" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+    }
+
+    It "Supports TCP congestion provider options (cubic, bbr2, newreno, default)" {
+        { Set-WinDebloatTcpCongestionProvider -Provider cubic -WhatIf } | Should -Not -Throw
+        { Set-WinDebloatTcpCongestionProvider -Provider bbr2 -WhatIf } | Should -Not -Throw
+        { Set-WinDebloatTcpCongestionProvider -Provider newreno -WhatIf } | Should -Not -Throw
+        { Set-WinDebloatTcpCongestionProvider -Provider default -WhatIf } | Should -Not -Throw
     }
 }
 

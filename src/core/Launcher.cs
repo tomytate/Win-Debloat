@@ -22,7 +22,7 @@ namespace WinDebloat
         const int MinMinor = 6;
 
         // Pinned fallback MSI release, used only when winget is unavailable or fails.
-        const string FallbackMsiVersion = "7.6.3";
+        const string FallbackMsiVersion = "7.6.5";
 
         static string DefaultPwshPath
         {
@@ -93,7 +93,7 @@ namespace WinDebloat
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine("Error: " + scriptName + " not found in the current directory.");
                         Console.WriteLine("Please ensure the exe is in the same folder as the script.");
-                        Console.ReadKey();
+                        SafeReadKey();
                         return;
                     }
                 }
@@ -105,14 +105,15 @@ namespace WinDebloat
                     Console.WriteLine("Could not install PowerShell " + MinMajor + "." + MinMinor + "+ automatically.");
                     Console.ResetColor();
                     Console.WriteLine("Press any key to open the download page...");
-                    Console.ReadKey();
+                    SafeReadKey();
                     Process.Start(new ProcessStartInfo("https://github.com/PowerShell/PowerShell/releases/latest") { UseShellExecute = true });
                     return;
                 }
 
+                string extraArgs = (args != null && args.Length > 0) ? " " + string.Join(" ", args) : "";
                 ProcessStartInfo startInfo = new ProcessStartInfo();
                 startInfo.FileName = pwshPath;
-                startInfo.Arguments = string.Format("-NoProfile -ExecutionPolicy Bypass -File \"{0}\"", scriptPath);
+                startInfo.Arguments = string.Format("-NoProfile -ExecutionPolicy Bypass -File \"{0}\"{1}", scriptPath, extraArgs);
                 startInfo.UseShellExecute = false;
 
                 Process p = Process.Start(startInfo);
@@ -121,8 +122,20 @@ namespace WinDebloat
             catch (Exception ex)
             {
                 Console.WriteLine("An unexpected error occurred: " + ex.Message);
-                Console.ReadKey();
+                SafeReadKey();
             }
+        }
+
+        static void SafeReadKey()
+        {
+            try
+            {
+                if (Environment.UserInteractive && !Console.IsInputRedirected)
+                {
+                    Console.ReadKey();
+                }
+            }
+            catch { /* Ignore when no interactive console is attached */ }
         }
 
         static string EnsurePowerShell()
@@ -167,10 +180,20 @@ namespace WinDebloat
             Version v = GetPwshVersion("pwsh.exe");
             if (IsSufficient(v)) return "pwsh.exe";
 
-            if (File.Exists(DefaultPwshPath))
+            string[] candidatePaths = new string[]
             {
-                v = GetPwshVersion(DefaultPwshPath);
-                if (IsSufficient(v)) return DefaultPwshPath;
+                DefaultPwshPath,
+                Environment.ExpandEnvironmentVariables(@"%ProgramW6432%\PowerShell\7\pwsh.exe"),
+                Environment.ExpandEnvironmentVariables(@"%LOCALAPPDATA%\Microsoft\PowerShell\7\pwsh.exe")
+            };
+
+            foreach (string candidate in candidatePaths)
+            {
+                if (!string.IsNullOrEmpty(candidate) && File.Exists(candidate))
+                {
+                    v = GetPwshVersion(candidate);
+                    if (IsSufficient(v)) return candidate;
+                }
             }
 
             return null;

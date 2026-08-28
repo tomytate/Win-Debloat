@@ -97,44 +97,66 @@ function Unregister-WinDebloatMaintenance {
     Called by the scheduled task.
 #>
 function Invoke-WinDebloatMaintenance {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     [OutputType([void])]
     param()
     
     Write-Log -Message "Starting Scheduled Maintenance (Deep Clean)..." -Level Info
     
-    # 1. Deep Disk Cleanup (cleanmgr /SAGERUN:777)
-    # Pre-select all cleanup options in Registry
-    Write-Log -Message "Configuring Deep Cleanup settings..." -Level Info
-    
-    $cleanmgrKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
-    $cleanOptions = @(
-        "Active Setup Temp Folders", "BranchCache", "D3D Shader Cache", "Delivery Optimization Files",
-        "Downloaded Program Files", "Internet Cache Files", "Language Pack", "Old ChkDsk Files",
-        "Recycle Bin", "Temporary Files", "Temporary Setup Files", "Thumbnail Cache", 
-        "Update Cleanup", "Windows Defender", "Windows Error Reporting Files"
-    )
-    
-    foreach ($opt in $cleanOptions) {
-        $path = "$cleanmgrKey\$opt"
-        if (Test-Path $path) {
-            # StateFlags0777 = 2 means selected for SAGERUN:777
-            Set-ItemProperty -Path $path -Name "StateFlags0777" -Value 2 -Type DWord -ErrorAction SilentlyContinue
+    if ($PSCmdlet.ShouldProcess("Windows System", "Execute scheduled maintenance (Deep disk cleanup + WinSxS component cleanup + Winget upgrades)")) {
+        # 1. Deep Disk Cleanup (cleanmgr /SAGERUN:777)
+        # Pre-select all cleanup options in Registry
+        Write-Log -Message "Configuring Deep Cleanup settings..." -Level Info
+        
+        $cleanmgrKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
+        $cleanOptions = @(
+            "Active Setup Temp Folders", "BranchCache", "D3D Shader Cache", "Delivery Optimization Files",
+            "Downloaded Program Files", "Internet Cache Files", "Language Pack", "Old ChkDsk Files",
+            "Recycle Bin", "Temporary Files", "Temporary Setup Files", "Thumbnail Cache", 
+            "Update Cleanup", "Windows Defender", "Windows Error Reporting Files"
+        )
+        
+        foreach ($opt in $cleanOptions) {
+            $path = "$cleanmgrKey\$opt"
+            if (Test-Path $path) {
+                # StateFlags0777 = 2 means selected for SAGERUN:777
+                Set-ItemProperty -Path $path -Name "StateFlags0777" -Value 2 -Type DWord -ErrorAction SilentlyContinue
+            }
         }
+        
+        Write-Log -Message "Running Deep Disk Cleanup..." -Level Info
+        try {
+            Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/SAGERUN:777" -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+        }
+        catch {
+            Write-Log -Message "Cleanmgr execution failed: $($_.Exception.Message)" -Level Warning
+        }
+        
+        # 2. Windows Update Component Cleanup (DISM)
+        Write-Log -Message "Running Component Store Cleanup..." -Level Info
+        try {
+            Start-Process -FilePath "dism.exe" -ArgumentList @("/Online", "/Cleanup-Image", "/StartComponentCleanup", "/NoRestart") -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+        }
+        catch {
+            Write-Log -Message "DISM cleanup execution failed: $($_.Exception.Message)" -Level Warning
+        }
+        
+        # 3. App Updates (Winget)
+        Write-Log -Message "Updating Applications..." -Level Info
+        if (Get-Command "winget.exe" -ErrorAction SilentlyContinue) {
+            try {
+                winget upgrade --all --accept-source-agreements --accept-package-agreements --silent --include-unknown 2>$null
+            }
+            catch {
+                Write-Log -Message "Winget package update failed: $($_.Exception.Message)" -Level Warning
+            }
+        }
+        else {
+            Write-Log -Message "Winget package manager not detected on system. Skipping application updates." -Level Debug
+        }
+        
+        Write-Log -Message "Maintenance completed." -Level Success
     }
-    
-    Write-Log -Message "Running Deep Disk Cleanup..." -Level Info
-    Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/SAGERUN:777" -Wait -WindowStyle Hidden
-    
-    # 2. Windows Update Component Cleanup (DISM)
-    Write-Log -Message "Running Component Store Cleanup..." -Level Info
-    Start-Process -FilePath "dism.exe" -ArgumentList "/Online /Cleanup-Image /StartComponentCleanup /NoRestart" -Wait -WindowStyle Hidden
-    
-    # 3. App Updates (Winget)
-    Write-Log -Message "Updating Applications..." -Level Info
-    winget upgrade --all --accept-source-agreements --accept-package-agreements --silent --include-unknown 2>$null
-    
-    Write-Log -Message "Maintenance completed." -Level Success
 }
 
 # Aliases for backward compatibility

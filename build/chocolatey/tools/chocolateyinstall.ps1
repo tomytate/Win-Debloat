@@ -1,7 +1,7 @@
 $packageName = 'win-debloat'
-$version     = '1.5.0'
+$version     = '1.6.0'
 $url = "https://github.com/tomytate/Win-Debloat/releases/download/v$version/Win-Debloat.exe"
-$checksum    = "FA85F54D02DBDBF79C22F65B98493EB1CE5E6C20EEF0010B886C4EE4135FA431" 
+$checksum    = "60545A6F5EF9E4B150107F6B9D635C09821638D68306D56075322EEAAA3A216B" 
 $toolsDir = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
 $exePath = Join-Path $toolsDir "Win-Debloat.exe"
 
@@ -30,6 +30,12 @@ Install-ChocolateyShortcut -ShortcutFilePath $shortcutPath `
     -WindowStyle Maximize
 
 Write-Host "Win-Debloat installed to $toolsDir"
+
+
+
+
+
+
 
 
 

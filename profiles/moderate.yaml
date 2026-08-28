@@ -1,7 +1,7 @@
 metadata:
   name: "Moderate"
   version: "1.0.0"
-  author: "Win-Debloat7 Team"
+  author: "Win-Debloat Team"
   description: "Recommended balance of performance and functionality. Removes obvious bloat but keeps useful apps."
   target_os: [ "Windows 10", "Windows 11" ]
   min_build: 19045

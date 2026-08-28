@@ -1,0 +1,631 @@
+====================================================================================================
+  WIN-DEBLOAT v1.5.0 "TOP G" — MASTER WEBSITE GENERATION PROMPT (THREE.JS + LENIS + GSAP + REACT)
+  ARCHITECTURE: TYPESCRIPT 7.0 (PROJECT CORSA NATIVE ENGINE) · ESLINT 10.8.1 · ZERO TECH DEBT
+====================================================================================================
+
+You are an Elite Principal Web Architect, Creative Technologist, and 3D Graphics Engineer tasked with 
+building the official, world-class landing page and interactive web application for:
+
+    Project: Win-Debloat (v1.5.0 "Top G")
+    Repository: https://github.com/tomytate/Win-Debloat
+    Tagline: The Ultimate Windows 10 & 11 Optimizer, Privacy Hardener & Debloating Framework
+    Website URL: https://win-debloat.com
+
+This document is your exhaustive, production-grade technical blueprint. You will implement a hyper-futuristic, 
+Cyber-OLED WebGL website featuring interactive 3D graphics (Three.js r172+), silky smooth momentum scrolling (Lenis 1.1+), 
+scrollytelling animation timelines (GSAP 3.12+ with ScrollTrigger, Flip, and SplitType), an interactive Visual Profile 
+Customizer with real-time Base64 PowerShell one-liner generation, a client-side Web Crypto SHA-256 hash verifier, 
+a procedural Web Audio synthesizer, and a live hardware benchmark simulator.
+
+====================================================================================================
+1. CORE TECH STACK & ZERO TECH DEBT MANIFEST (2026 CUTTING EDGE)
+====================================================================================================
+
+- Language & Compiler: TypeScript 7.0 (Project Corsa Native Engine, TS 7.0.2 LTS)
+  * Compiler Architecture: Reimplemented in native Go ("Project Corsa") with shared-memory multi-core parallelism (~10x faster type checking and declaration emit).
+  * Target Platform: ECMAScript 2026 (`target: "ES2026"` / `"ESNext"`)
+  * Module Architecture: ESNext (`module: "ESNext"`, `moduleResolution: "bundler"`, `verbatimModuleSyntax: true`)
+  * Modern Language Features Leveraged:
+    - Const Type Parameters (`<const T>` for deep literal inference on configuration schemas)
+    - `satisfies` Operator (Guarantees exact shape validation without widening object literal types)
+    - `isolatedDeclarations: true` (Zero-ambient-debt modular compilation and parallel DTS emit)
+    - Import Attributes (`import schema from './schema.json' with { type: 'json' }`)
+    - Discriminated Union Exhaustiveness Checking (`never` assertions in exhaustive switches)
+  * Strictness Level: ULTRA-STRICT (100% Zero-Debt Compiler Contract):
+    - `strict: true` (noImplicitAny, strictNullChecks, strictFunctionTypes, strictBindCallApply, strictPropertyInitialization, noImplicitThis, useUnknownInCatchVariables)
+    - `noUncheckedIndexedAccess: true` (Every array index and dictionary lookup is inferred as `T | undefined`)
+    - `exactOptionalPropertyTypes: true` (Disallows assigning `undefined` to optional fields unless explicitly typed)
+    - `noImplicitOverride: true`, `noImplicitReturns: true`, `noFallthroughCasesInSwitch: true`
+    - `noUnusedLocals: true`, `noUnusedParameters: true`
+    - `noPropertyAccessFromIndexSignature: true`
+  * Type Safety Guarantee: Zero `any`, zero `as unknown as T` escape hatches, 100% strongly-typed IPC and state contracts.
+
+- Linter & Code Quality: ESLint 10.8.1 (Flat Config `eslint.config.js`)
+  * Strict Zero-Warning Policy: All CI pipelines run with `--max-warnings 0`.
+  * TypeScript-ESLint: Strict type-checked ruleset (`strictTypeChecked`, `stylisticTypeChecked`) with `projectService: true`.
+  * React Hooks & Refresh: Native support for React 19 compiler primitives and Fast Refresh.
+
+- Frontend Framework: React 19.x (Official LTS) + TypeScript 7.0
+  * Modern Primitives: `useActionState`, `useOptimistic`, `<Suspense>`, Resource Preloading (`preload`, `preinit`, `preinitModule`, `preloadModule`)
+  * Component Architecture: Clean separation of pure immutable state logic from interactive WebGL/DOM rendering.
+  * Property Model: Direct `ref` prop passing (eliminated `forwardRef` boilerplate).
+
+- CSS Engine: Tailwind CSS v4.x (Oxide Rust Engine)
+  * Zero Config Files: Pure CSS-first `@theme` design tokens with Lightning CSS.
+  * Native OKLCH Color Space: Maximum gamut coverage for HDR & OLED displays (`oklch(86% 0.22 205)`).
+  * Modern CSS Primitives: CSS Houdini `@property --border-angle`, container queries, native View Transitions API.
+
+- 3D WebGL Graphics: Three.js (r172+) + Custom GLSL Shaders & Layer-Masked UnrealBloom
+  * Geometry Instancing: 4,000+ motherboard components rendered in 1 single draw call (`InstancedMesh`).
+  * Vertex Shader GPU Physics: 60,000 particles driven by 3D Curl Noise vector fields.
+  * Memory Management: Deterministic asset and geometry `.dispose()` hooks to eliminate WebGL memory leaks.
+
+- Smooth Scroll & Master Clock: Lenis 1.1+ & GSAP 3.12+ (ScrollTrigger, Flip, SplitType)
+  * Unified Master Clock: Strict single RAF ticker loop (`gsap.ticker.lagSmoothing(0)`).
+  * Zero-Jank Lifecycle: Automated `ScrollTrigger.kill()` and `ScrollTrigger.refresh()` disposal.
+
+- State Management & Virtualization:
+  * Zustand 5.x: Ultra-lightweight (1.2KB), slice-based modularization, selective re-renders without context overhead.
+  * @tanstack/react-virtual 3.x: Dynamic list virtualization for 175+ software package catalog & ANSI terminal streams.
+  * pako: Client-side Gzip + Unicode-safe Base64 payload encoding for PowerShell one-liner generation.
+
+- Audio Engine: Zero-dependency Web Audio API procedural sound synthesizer (30ms 440Hz blip, dual-frequency mechanical clicks, harmonic completion chimes).
+
+- Performance & Quality Budgets:
+  * Critical Path Initial Bundle: < 150 KB (Level 11 Brotli pre-compressed).
+  * Target Framerate: 60 FPS on mobile / 120 FPS on high-refresh desktop monitors.
+  * Lighthouse Metrics: 100/100 Performance, 100/100 Accessibility, 100/100 Best Practices, 100/100 SEO.
+  * Core Web Vitals: LCP < 0.9s, FCP < 0.6s, CLS = 0.000, INP < 40ms, TBT = 0ms.
+  * Accessibility: Strict WCAG 2.2 AAA Compliance (Contrast > 14:1, roving tabindex, ARIA live regions).
+  * Resilience: WebGL2 -> WebGL1 -> Canvas2D -> SSR SVG graceful fallback on Safari WebKit / context loss.
+
+====================================================================================================
+2. ZERO TECH DEBT CONFIGURATION BLUEPRINTS
+====================================================================================================
+
+----------------------------------------------------------------------------------------------------
+A. TSCONFIG CONFIGURATION (TYPESCRIPT 7.0 STRICT CONTRACT)
+----------------------------------------------------------------------------------------------------
+
+```json
+// tsconfig.json
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+```
+
+```json
+// tsconfig.app.json
+{
+  "compilerOptions": {
+    "target": "ES2026",
+    "useDefineForClassFields": true,
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode & TS 7.0 optimizations */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "resolvePackageJsonExports": true,
+    "resolvePackageJsonImports": true,
+    "isolatedDeclarations": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Ultra-Strict Type-Checking (Zero Tech Debt) */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "useUnknownInCatchVariables": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    /* Path Aliases */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src"]
+}
+```
+
+```json
+// tsconfig.node.json
+{
+  "compilerOptions": {
+    "target": "ES2026",
+    "lib": ["ESNext"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "isolatedDeclarations": true,
+    "noEmit": true
+  },
+  "include": ["vite.config.ts", "eslint.config.js"]
+}
+```
+
+----------------------------------------------------------------------------------------------------
+B. PACKAGE.JSON DEPENDENCY MANIFEST (2026 PRODUCTION VERSIONS)
+----------------------------------------------------------------------------------------------------
+
+```json
+{
+  "name": "win-debloat-web",
+  "private": true,
+  "version": "1.5.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
+    "typecheck": "tsc --noEmit --project tsconfig.app.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.13.0",
+    "clsx": "^2.1.1",
+    "gsap": "^3.12.7",
+    "js-yaml": "^4.1.0",
+    "lenis": "^1.1.20",
+    "lucide-react": "^0.475.0",
+    "pako": "^2.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "split-type": "^0.3.4",
+    "swr": "^2.3.2",
+    "tailwind-merge": "^3.0.1",
+    "three": "^0.172.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.8.1",
+    "@tailwindcss/vite": "^4.0.6",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.13.1",
+    "@types/pako": "^2.0.3",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@types/three": "^0.172.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^10.8.1",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "rollup-plugin-visualizer": "^5.14.0",
+    "tailwindcss": "^4.0.6",
+    "typescript": "^7.0.2",
+    "typescript-eslint": "^8.24.0",
+    "vite": "^6.2.0",
+    "vite-plugin-compression": "^0.5.1"
+  }
+}
+```
+
+----------------------------------------------------------------------------------------------------
+C. ESLINT 10.8.1 FLAT CONFIGURATION (ZERO WARNING POLICY)
+----------------------------------------------------------------------------------------------------
+
+```javascript
+// eslint.config.js
+import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+
+export default tseslint.config(
+  { ignores: ['dist', 'node_modules', 'public', '.vite'] },
+  {
+    extends: [
+      js.configs.recommended,
+      ...tseslint.configs.strictTypeChecked,
+      ...tseslint.configs.stylisticTypeChecked,
+    ],
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      ecmaVersion: 2026,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    plugins: {
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+    },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/await-thenable': 'error',
+      '@typescript-eslint/no-unnecessary-condition': 'error',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'error',
+      '@typescript-eslint/prefer-nullish-coalescing': 'error',
+      '@typescript-eslint/prefer-optional-chain': 'error',
+      '@typescript-eslint/strict-boolean-expressions': 'off',
+    },
+  }
+);
+```
+
+----------------------------------------------------------------------------------------------------
+D. VITE 6.X CONFIGURATION (`vite.config.ts`)
+----------------------------------------------------------------------------------------------------
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import viteCompression from 'vite-plugin-compression';
+import { visualizer } from 'rollup-plugin-visualizer';
+import path from 'node:path';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    tailwindcss(),
+    viteCompression({
+      algorithm: 'brotliCompress',
+      ext: '.br',
+      threshold: 1024,
+    }),
+    viteCompression({
+      algorithm: 'gzip',
+      ext: '.gz',
+      threshold: 1024,
+    }),
+    visualizer({
+      filename: 'dist/stats.html',
+      gzipSize: true,
+      brotliSize: true,
+      open: false,
+    }),
+  ],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    target: 'esnext',
+    minify: 'esbuild',
+    cssMinify: 'lightningcss',
+    modulePreload: {
+      polyfill: false,
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'three-core': ['three'],
+          'gsap-lenis': ['gsap', 'lenis', 'split-type'],
+          'react-vendor': ['react', 'react-dom', 'zustand'],
+          'tanstack-virtual': ['@tanstack/react-virtual'],
+          'yaml-pako': ['js-yaml', 'pako'],
+        },
+      },
+    },
+  },
+});
+```
+
+====================================================================================================
+3. COMPLETE PROJECT ARCHITECTURE & FILE HIERARCHY
+====================================================================================================
+
+win-debloat-web/
+├── public/
+│   ├── favicon.ico
+│   ├── manifest.webmanifest
+│   ├── sw.js
+│   ├── robots.txt
+│   ├── sitemap.xml
+│   └── assets/
+│       ├── logo.png
+│       ├── og-preview.png
+│       └── icons/ (icon-192x192.png, icon-512x512.png, icon.svg)
+├── src/
+│   ├── main.tsx
+│   ├── App.tsx
+│   ├── types/
+│   │   ├── index.ts                   # Core domain types (WinDebloatProfile, BloatwareItem, SystemTweak)
+│   │   ├── software.ts                # 175+ software package schema, categories, package managers
+│   │   ├── benchmark.ts               # Hardware specifications & simulated metrics schema
+│   │   ├── download-safety.ts         # Binary checksums, DPAPI metadata, 5-stage rollback contracts
+│   │   └── store.ts                   # Root Zustand 5 store contract & action interfaces
+│   ├── data/
+│   │   ├── bloatwareCatalog.ts        # 139-app categorized AppX removal definitions
+│   │   ├── softwareCatalog.ts         # 175+ curated apps with Winget/Choco/NPM IDs
+│   │   ├── tweaksCatalog.ts           # Privacy, AI, telemetry, gaming, power plan tweaks
+│   │   ├── releases.ts                # Release binaries, SHA-256 checksums, download mirrors
+│   │   └── cmdletsCatalog.ts          # Searchable database of all Win-Debloat cmdlets & aliases
+│   ├── styles/
+│   │   ├── app.css                    # Tailwind v4 @theme, Cyber-OLED tokens, glassmorphism
+│   │   ├── crt-scanlines.css          # SVG procedural scanlines, phosphor sweep, chromatic aberration
+│   │   └── glowing-borders.css        # Houdini @property animated laser borders & chamfered HUD
+│   ├── webgl/
+│   │   ├── WebGLCanvas.tsx            # Fullscreen fixed Three.js canvas container
+│   │   ├── SceneManager.ts            # Scene, Camera, Renderer, Postprocessing manager
+│   │   ├── MotherboardInstanced.ts    # 4,000+ SMD instanced mesh motherboard base (1 draw call)
+│   │   ├── WindowsHologram.ts         # Quad-segmented floating crystalline Windows logo + Fresnel GLSL
+│   │   ├── ParticleVortex.ts          # 60,000 GPU particles with 3D Curl Noise dissolution vertex shader
+│   │   ├── BloomCompositor.ts         # Selective layer-masked UnrealBloom (Layer 1) compositor
+│   │   ├── Shaders/
+│   │   │   ├── HologramFresnel.glsl   # Custom edge glow, scanline interpolation, subpixel glitch
+│   │   │   └── CurlNoiseParticles.glsl# GPU particle velocity vector field & scroll acceleration
+│   │   ├── PerformanceGovernor.ts     # Dynamic DPR clamp (1.5 max mobile), 30fps battery throttle
+│   │   └── ContextLossCoordinator.ts  # WebGL recovery engine & Canvas2D graceful fallback
+│   ├── animations/
+│   │   ├── MasterClock.ts             # Lenis + GSAP ticker synchronization engine
+│   │   ├── ScrollytellingTimeline.ts  # Pinned 300vh 4-stage optimization scrollytelling timeline
+│   │   ├── TextRevealAnimations.ts    # SplitType character/word reveals gated on document.fonts.ready
+│   │   └── ParallaxLayers.ts          # Multi-plane depth parallax & mobile gyroscope tilt controller
+│   ├── store/
+│   │   ├── index.ts                   # Zustand 5 root store with atomic selectors
+│   │   └── slices/
+│   │       ├── softwareSlice.ts       # 175+ App selection, multi-PM overrides, category filters
+│   │       ├── profileSlice.ts        # Bloatware selection, privacy hardeners, YAML/Base64 export
+│   │       ├── benchmarkSlice.ts      # Live hardware modeling & comparison curtain state
+│   │       └── terminalSlice.ts       # ANSI buffer stream, active step FSM, interactive keys
+│   ├── audio/
+│   │   └── ProceduralAudioSynth.ts    # Zero-asset Web Audio API synth (440Hz blip, click, chime)
+│   ├── hooks/
+│   │   ├── useResourcePreloader.ts    # React 19 preload/preinit resource orchestrator
+│   │   ├── useWebCryptoHash.ts        # Client-side streaming SHA-256 drag-and-drop verifier
+│   │   ├── useRollbackSimulator.ts    # 5-Stage deterministic rollback simulation state machine
+│   │   └── useHardwareModeler.ts      # Mathematical simulation equations (RAM, FPS, DPC latency)
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── Navbar.tsx             # Floating OLED acrylic navbar with live stars & quick install CTA
+│   │   │   ├── Footer.tsx             # Semantic footer with MIT license, GitHub, Discord, Sponsors
+│   │   │   └── MobileDrawer.tsx       # Touch-optimized slide-over navigation
+│   │   ├── hero/
+│   │   │   ├── HeroSection.tsx        # Punchy marketing hero with animated laser command bar
+│   │   │   └── OneLinerCommandBox.tsx # One-click copy `irm https://win-debloat.dev/run.ps1 | iex`
+│   │   ├── simulator/
+│   │   │   ├── LiveBenchmarkSim.tsx   # Interactive real-time simulator (RAM, Procs, FPS, DPC Latency)
+│   │   │   ├── PrivacyScoreDial.tsx   # Pure SVG animated radial gauge (100/100 Grade A)
+│   │   │   ├── BeforeAfterCurtain.tsx # Interactive draggable split-view comparison curtain
+│   │   │   └── FrametimeOscilloscope.tsx # 60 FPS live Canvas frametime/jitter graph
+│   │   ├── customizer/
+│   │   │   ├── ProfileCustomizer.tsx  # Interactive GUI for creating custom YAML/JSON profiles
+│   │   │   ├── BloatwarePicker.tsx    # 139 provisioned packages categorized with multi-select
+│   │   │   ├── PrivacyMatrix.tsx      # Granular telemetry toggles, Copilot/Recall hardeners
+│   │   │   ├── PerformanceTweaks.tsx  # Power schemes, MMCSS gaming scheduler, visual effects
+│   │   │   ├── SystemQoLTweaks.tsx    # Fast Startup, BitLocker, Modern Standby, Search debloat
+│   │   │   ├── SoftwareCatalogVirt.tsx# TanStack Virtualized 175+ curated apps with multi-PM override
+│   │   │   ├── DnsSelector.tsx        # 11 low-latency encrypted DNS providers (Cloudflare, Quad9)
+│   │   │   └── OutputCommandDock.tsx  # Live generated Base64 one-liner, YAML download, URL share
+│   │   ├── download/
+│   │   │   ├── DownloadMatrix.tsx     # Standard vs Extras edition cards, x64 vs ARM64 binaries
+│   │   │   ├── ChocoOneClick.tsx      # Chocolatey, Winget, Scoop, Web PowerShell one-click copy
+│   │   │   └── ClientHashVerifier.tsx # Drag-and-drop SHA-256 Web Crypto verification box
+│   │   ├── safety/
+│   │   │   ├── SafetyShowcase.tsx     # Master Safety section with snapshot visualizer
+│   │   │   ├── DPAPILockBadge.tsx     # Windows DPAPI CurrentUser cryptographic badge & modal
+│   │   │   ├── RollbackEngineSim.tsx  # 5-Stage interactive simulated rollback execution engine
+│   │   │   └── RegistryDiffModal.tsx  # Byte-level type-safe registry diff inspector
+│   │   ├── terminal/
+│   │   │   └── InteractiveTerminal.tsx# Canvas/DOM ANSI terminal simulator with typing animations
+│   │   └── common/
+│   │       ├── CyberSkeletonFallback.tsx # Suspense fallback skeletons with phosphor pulse
+│   │       ├── LaserButton.tsx        # Holographic animated button with Houdini border
+│   │       └── ToastContainer.tsx     # Non-blocking HUD status notification toast system
+│   └── utils/
+│       ├── commandGen.ts              # Tree-shaking minifier & Gzip-Base64 one-liner compiler
+│       ├── yamlSerializer.ts          # Deterministic YAML generator compliant with schema.yaml
+│       └── formatters.ts              # Number, byte, millisecond, and GUID formatting helpers
+```
+
+====================================================================================================
+4. MATHEMATICAL BENCHMARK SIMULATION FORMULAS
+====================================================================================================
+
+The interactive simulator models real-world hardware telemetry using deterministic mathematical functions:
+
+1. System RAM Freed (MB):
+   $$RAM_{freed} = 1420 + (	ext{AppX}_{selected} 	imes 18.4) + (	ext{Copilot}_{disabled} 	imes 380) + (	ext{Services}_{disabled} 	imes 42.5)$$
+
+2. Active Background Process Reduction:
+   $$Procs_{active} = \max(54, 	ext{Procs}_{stock} - (	ext{AppX}_{selected} 	imes 0.72) - (	ext{Telemetry}_{disabled} 	imes 14))$$
+
+3. Estimated 1% Low FPS Gain (%):
+   $$FPS_{gain} = \min(28.5, (	ext{DPC}_{improvement} 	imes 0.12) + (	ext{RAM}_{freed} / 1024 	imes 1.8) + (	ext{MMCSS}_{enabled} 	imes 5.2))$$
+
+4. DPC Latency Drop (microseconds):
+   $$DPC_{optimized} = \max(38.0, 	ext{DPC}_{stock} 	imes 0.32 - (	ext{NetworkThrottling}_{disabled} 	imes 15.0))$$
+
+5. Pure SVG Radial Score Gauge:
+   $$Score = 100 - (	ext{Telemetry}_{exposed} 	imes 25) - (	ext{Copilot}_{active} 	imes 20) - (	ext{Recall}_{active} 	imes 25) - (	ext{AdID}_{active} 	imes 15)$$
+
+====================================================================================================
+5. ZERO-ASSET PROCEDURAL WEB AUDIO SYNTHESIZER
+====================================================================================================
+
+```typescript
+// src/audio/ProceduralAudioSynth.ts
+export class ProceduralAudioSynth {
+  private ctx: AudioContext | null = null;
+  private isMuted = false;
+
+  private initContext(): void {
+    if (!this.ctx && typeof window !== 'undefined') {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      void this.ctx.resume();
+    }
+  }
+
+  public setMuted(muted: boolean): void {
+    this.isMuted = muted;
+  }
+
+  public playHoverBlip(): void {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const now = this.ctx.currentTime;
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.03);
+
+    gain.gain.setValueAtTime(0.04, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.03);
+  }
+
+  public playMechanicalClick(): void {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const now = this.ctx.currentTime;
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(200, now + 0.015);
+
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.015);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.015);
+  }
+
+  public playSuccessChime(): void {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const freqs = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+    const now = this.ctx.currentTime;
+
+    freqs.forEach((freq, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const startTime = now + i * 0.06;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0.05, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.35);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.35);
+    });
+  }
+}
+
+export const soundFx = new ProceduralAudioSynth();
+```
+
+====================================================================================================
+6. EDGE CDN & CLOUDFLARE HEADERS (`_headers`)
+====================================================================================================
+
+```http
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://api.github.com; worker-src 'self' blob:;
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+```
+
+====================================================================================================
+7. STEP-BY-STEP EXECUTION ROADMAP FOR THE AI AGENT
+====================================================================================================
+
+Follow this sequential execution plan without skipping steps:
+
+- Step 1: Initialize Project Scaffolding
+  * Configure `package.json`, `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`, `eslint.config.js`, and `vite.config.ts` using the exact configurations provided above.
+  * Install dependencies and verify that `npm run typecheck` and `npm run lint` execute cleanly with zero warnings (`--max-warnings 0`).
+
+- Step 2: Establish Tailwind CSS v4 & Cyber-OLED Design System
+  * Configure `src/styles/app.css`, `crt-scanlines.css`, and `glowing-borders.css` with native OKLCH tokens, laser borders, and CSS Houdini `@property --border-angle`.
+
+- Step 3: Implement WebGL 3D Three.js Engine & GLSL Shaders
+  * Build `SceneManager.ts`, `WindowsHologram.ts`, `MotherboardInstanced.ts` (1 draw call instancing), `ParticleVortex.ts` (60k particles with 3D Curl Noise vertex shader), `BloomCompositor.ts` (selective layer-masked UnrealBloom on Layer 1), and `PerformanceGovernor.ts`.
+  * Ensure WebGL2 gracefully degrades to Canvas2D on context loss or low-tier hardware.
+
+- Step 4: Implement Lenis Momentum Scroll & GSAP Master Clock
+  * Wire `MasterClock.ts` with `gsap.ticker.lagSmoothing(0)` driving `lenis.raf(time * 1000)`.
+  * Build the 300vh pinned scrollytelling optimization container and kinetic text reveals gated on `document.fonts.ready`.
+
+- Step 5: Implement Zustand 5 Slices & Complete Data Catalogs
+  * Build `softwareSlice.ts`, `profileSlice.ts`, `benchmarkSlice.ts`, `terminalSlice.ts`, and full 139-app bloatware and 175-app curated software catalogs.
+  * Implement `commandGen.ts` with tree-shaking minification and Pako Gzip/Base64 encoding.
+
+- Step 6: Implement Interactive Profile Customizer & Software Virtualizer
+  * Build `ProfileCustomizer.tsx` with all 6 tabbed HUDs and real-time YAML serializer matching `profiles/schema.yaml`.
+  * Build `SoftwareCatalogVirt.tsx` using `@tanstack/react-virtual` 3.x for 120 FPS windowed scrolling of 175+ apps with multi-package-manager selection.
+
+- Step 7: Implement Live Hardware Benchmark Simulator & Frametime Oscilloscope
+  * Build `LiveBenchmarkSim.tsx`, pure SVG `PrivacyScoreDial.tsx`, draggable `BeforeAfterCurtain.tsx`, and 60 FPS Canvas `FrametimeOscilloscope.tsx` modeling real-world RAM, process, FPS, and DPC latency improvements.
+
+- Step 8: Implement Download Hub, Web Crypto Verifier & DPAPI Safety Showcase
+  * Build `DownloadMatrix.tsx` (Standard vs Extras editions, x64 vs ARM64), `ChocoOneClick.tsx`, client-side `ClientHashVerifier.tsx` using `crypto.subtle.digest`, `DPAPILockBadge.tsx`, and interactive 5-stage `RollbackEngineSim.tsx`.
+
+- Step 9: Integrate Interactive ANSI Web Terminal Simulator
+  * Build `InteractiveTerminal.tsx` with Top G ASCII banner, interactive hotkeys (1, 2, 3, Q), ANSI color rendering, and simulated debloating execution progress.
+
+- Step 10: Final Verification & Production Bundle Audit
+  * Verify full TypeScript 7 typecheck (`npm run typecheck`), zero-warning ESLint 10 (`npm run lint`), build output (`npm run build`), and verify bundle footprint is < 150 KB Brotli.
+====================================================================================================

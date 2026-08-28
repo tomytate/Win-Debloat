@@ -10,12 +10,12 @@
 
 .NOTES
     Module: Win-Debloat.UI.GUI
-    Version: 1.5.0
+    Version: 1.6.0
 #>
 
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '', Justification = 'Event parameters required by signature')]
 
-$Script:Version = '1.5.0'
+$Script:Version = '1.6.0'
 
 # Import Backend Modules
 $scriptRoot = $PSScriptRoot
@@ -163,7 +163,7 @@ function Show-WinDebloatGUI {
         # Initialize lower-left sidebar version badge
         $txtSidebarVersion = & $getCtrl "txtSidebarVersion"
         if ($txtSidebarVersion) {
-            $verString = if ($Script:Version) { if ($Script:Version -like "v*") { $Script:Version } else { "v$Script:Version" } } else { "v1.5.0" }
+            $verString = if ($Script:Version) { if ($Script:Version -like "v*") { $Script:Version } else { "v$Script:Version" } } else { "v1.6.0" }
             $txtSidebarVersion.Text = "$verString `"Top G`" • PowerShell 7.6+"
         }
 
@@ -1547,4 +1547,4 @@ function Show-WinDebloatGUI {
 
 Set-Alias -Name 'Show-WinDebloat7GUI' -Value 'Show-WinDebloatGUI'
 
-Export-ModuleMember -Function Show-WinDebloatGUI, Show-WinDebloat7GUI -Alias Show-WinDebloat7GUI
+Export-ModuleMember -Function Show-WinDebloatGUI -Alias Show-WinDebloat7GUI

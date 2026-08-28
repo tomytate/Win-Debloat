@@ -4,7 +4,7 @@ Write-Host "== Win-Debloat7 Installer (Standard Edition) ==" -ForegroundColor Cy
 Write-Host "===============================================" -ForegroundColor Cyan
 
 # 1. Get Latest Release Info from GitHub API
-$Repo = "tomytate/Win-Debloat7"
+$Repo = "tomytate/Win-Debloat"
 $ApiUrl = "https://api.github.com/repos/$Repo/releases/latest"
 
 try {

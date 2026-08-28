@@ -99,7 +99,8 @@ function Get-WinDebloatVersionInfo {
     }
     else {
         $info.DisplayVersion =
-        if ($build -ge 26200) { "25H2" }
+        if ($build -ge 27600) { "26H1" }
+        elseif ($build -ge 26200) { "25H2" }
         elseif ($build -ge 26100) { "24H2" }
         elseif ($build -ge 22631) { "23H2" }
         elseif ($build -ge 22621) { "22H2" }
@@ -119,6 +120,8 @@ function Get-WinDebloatVersionInfo {
     elseif ($editionId -like "Professional*") { "Pro" }
     elseif ($editionId -like "Enterprise*") { "Enterprise" }
     elseif ($editionId -like "Education*") { "Education" }
+    elseif ($editionId -like "Server2025*" -or ($editionId -like "Server*" -and $build -ge 26100)) { "Server 2025" }
+    elseif ($editionId -like "Server2022*" -or ($editionId -like "Server*" -and $build -ge 20348)) { "Server 2022" }
     elseif ($editionId -like "ServerStandard*") { "Server Standard" }
     elseif ($editionId -like "ServerDatacenter*") { "Server Datacenter" }
     else {
@@ -158,7 +161,7 @@ function Test-WinDebloat11Version {
     [OutputType([bool])]
     param(
         [Parameter(Mandatory)]
-        [ValidateSet("21H2", "22H2", "23H2", "24H2", "25H2")]
+        [ValidateSet("21H2", "22H2", "23H2", "24H2", "25H2", "26H1", "26H2")]
         [string]$MinimumVersion,
         
         [psobject]$TestOS # For Unit Testing
@@ -173,6 +176,8 @@ function Test-WinDebloat11Version {
         "23H2" { 22631 }
         "24H2" { 26100 }
         "25H2" { 26200 }
+        "26H1" { 27600 }
+        "26H2" { 27800 }
     }
     
     return $current.BuildNumber -ge $minBuild

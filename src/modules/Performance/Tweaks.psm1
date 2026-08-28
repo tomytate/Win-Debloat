@@ -215,11 +215,20 @@ function Disable-WinDebloatDesktopSpotlight {
 }
 
 function Disable-WinDebloatSettings365Ads {
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     <#
     .SYNOPSIS
         Disables Microsoft 365 ads in Windows Settings.
+
+    .PARAMETER ApplyToDefaultUser
+        If specified, applies to Default User hive for Sysprep scenarios.
+
+    .OUTPUTS
+        [void]
+
+    .EXAMPLE
+        Disable-WinDebloatSettings365Ads
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding()]
     [OutputType([void])]
     param(
@@ -249,7 +258,6 @@ function Enable-WinDebloatUltimatePower {
         
     .DESCRIPTION
         Duplicates the hidden Ultimate Performance power scheme and sets it as active.
-        Source: winutil (ChrisTitusTech)
     #>
     [CmdletBinding()]
     [OutputType([void])]

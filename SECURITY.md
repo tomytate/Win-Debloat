@@ -6,9 +6,9 @@ Only the latest major version is actively supported with security updates.
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 1.6.x   | :white_check_mark: |
 | 1.5.x   | :white_check_mark: |
-| 1.4.x   | :x:                |
-| < 1.4   | :x:                |
+| < 1.5   | :x:                |
 
 ## 🚨 Antivirus & False Positives
 

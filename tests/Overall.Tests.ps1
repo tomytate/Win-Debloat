@@ -27,10 +27,10 @@ Describe "Win-Debloat Compliance" {
         }
 
         It "Set-RegistryKey should accept valid HKLM" {
-            # Mock Set-ItemProperty to avoid actual registry write
-            Mock Set-ItemProperty {}
-            # Mock Test-Path to simulate key existence
-            Mock Test-Path { return $true }
+            # Mock Set-ItemProperty, Test-Path, New-Item to avoid actual registry write
+            Mock -ModuleName Registry Set-ItemProperty {}
+            Mock -ModuleName Registry Test-Path { return $true }
+            Mock -ModuleName Registry New-Item {}
              
             # Should not throw
             { Set-RegistryKey -Path "HKLM:\Software\Test" -Name "TestVal" -Value 1 -Type DWord } | Should -Not -Throw

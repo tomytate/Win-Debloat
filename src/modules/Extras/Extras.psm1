@@ -1,4 +1,4 @@
-﻿#Requires -Version 7.6
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Extras
-    Version: 1.5.0
+    Version: 1.6.0
 #>
 
 using namespace System.Management.Automation

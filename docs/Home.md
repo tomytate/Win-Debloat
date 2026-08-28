@@ -15,8 +15,8 @@ Unlike other debloaters, Win-Debloat focuses on:
 ## 📚 Topics
 
 *   **[Installation Guide](Installation.md)** — Getting started (4 methods: Script, Chocolatey, EXE, Source).
-*   **[Features & Capabilities](Features.md)** — Deep dive into all 9 feature areas.
-*   **[Modules Reference](Modules.md)** — Complete reference for all 30 modules and 138 functions.
+*   **[Features & Capabilities](Features.md)** — Deep dive into all 10 feature areas.
+*   **[Modules Reference](Modules.md)** — Complete reference for all 30 modules and 227 functions.
 *   **[Profiles Explained](Profiles.md)** — How to customize, create, and share `.yaml` configurations.
 *   **[About](About.md)** — Philosophy, tech stack, and team.
 *   **[Troubleshooting](Troubleshooting.md)** — Restore points, logs, common fixes.

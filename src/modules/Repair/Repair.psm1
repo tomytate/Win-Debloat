@@ -55,8 +55,13 @@ function Repair-WinDebloatSystem {
         # Step 2: SFC First Pass
         Write-Log -Message "[2/4] Running SFC (first pass)..." -Level Info
         try {
-            Start-Process -FilePath "sfc.exe" -ArgumentList "/scannow" -Wait -NoNewWindow
-            Write-Log -Message "SFC first pass completed." -Level Success
+            $sfc = Start-Process -FilePath "sfc.exe" -ArgumentList "/scannow" -Wait -PassThru -NoNewWindow
+            if ($sfc.ExitCode -eq 0) {
+                Write-Log -Message "SFC first pass completed." -Level Success
+            }
+            else {
+                Write-Log -Message "SFC first pass returned exit code: $($sfc.ExitCode)" -Level Warning
+            }
         }
         catch {
             Write-Log -Message "SFC first pass failed: $($_.Exception.Message)" -Level Warning
@@ -80,8 +85,13 @@ function Repair-WinDebloatSystem {
         # Step 4: SFC Second Pass (uses repaired component store)
         Write-Log -Message "[4/4] Running SFC (second pass with repaired image)..." -Level Info
         try {
-            Start-Process -FilePath "sfc.exe" -ArgumentList "/scannow" -Wait -NoNewWindow
-            Write-Log -Message "SFC second pass completed." -Level Success
+            $sfc2 = Start-Process -FilePath "sfc.exe" -ArgumentList "/scannow" -Wait -PassThru -NoNewWindow
+            if ($sfc2.ExitCode -eq 0) {
+                Write-Log -Message "SFC second pass completed." -Level Success
+            }
+            else {
+                Write-Log -Message "SFC second pass returned exit code: $($sfc2.ExitCode)" -Level Warning
+            }
         }
         catch {
             Write-Log -Message "SFC second pass failed: $($_.Exception.Message)" -Level Warning
@@ -107,12 +117,13 @@ function Reset-WinDebloatNetwork {
     Write-Log -Message "Starting Network Reset..." -Level Info
 
     if ($PSCmdlet.ShouldProcess("Network Stack", "Reset (IP/DNS/Winsock)")) {
+        $tempDir = if ($env:TEMP) { $env:TEMP } else { [System.IO.Path]::GetTempPath() }
         $commands = @(
             "ipconfig /release",
             "ipconfig /flushdns",
             "ipconfig /renew",
             "netsh winsock reset",
-            "netsh int ip reset `"$env:TEMP\netsh_reset.log`""
+            "netsh int ip reset `"$tempDir\netsh_reset.log`""
         )
         
         foreach ($cmd in $commands) {
@@ -120,7 +131,15 @@ function Reset-WinDebloatNetwork {
             $parts = $cmd -split ' ', 2
             $exe = $parts[0]
             $procArgs = if ($parts.Count -gt 1) { $parts[1] } else { "" }
-            Start-Process -FilePath $exe -ArgumentList $procArgs -NoNewWindow -Wait
+            try {
+                $proc = Start-Process -FilePath $exe -ArgumentList $procArgs -NoNewWindow -Wait -PassThru -ErrorAction SilentlyContinue
+                if ($null -ne $proc -and $null -ne $proc.ExitCode -and $proc.ExitCode -ne 0) {
+                    Write-Log -Message "$cmd returned exit code: $($proc.ExitCode)" -Level Warning
+                }
+            }
+            catch {
+                Write-Log -Message "Execution notice for '$cmd': $($_.Exception.Message)" -Level Debug
+            }
         }
         
         Write-Log -Message "Network reset complete. You may need to restart." -Level Success
@@ -139,35 +158,278 @@ function Reset-WinDebloatUpdate {
     [OutputType([void])]
     param()
 
-    Write-Log -Message "Starting Windows Update Reset..." -Level Info
-    
-    if ($PSCmdlet.ShouldProcess("Windows Update", "Reset Components")) {
+    begin {
         $services = @("wuauserv", "cryptSvc", "bits", "dosvc", "msiserver")
+        $stoppedServices = [System.Collections.Generic.List[string]]::new()
+    }
+
+    process {
+        Write-Log -Message "Starting Windows Update Reset..." -Level Info
         
-        # Stop Services
-        foreach ($svc in $services) {
-            Stop-Service -Name $svc -Force -ErrorAction SilentlyContinue
+        if ($PSCmdlet.ShouldProcess("Windows Update", "Reset Components")) {
+            # Stop Services
+            foreach ($svc in $services) {
+                Stop-Service -Name $svc -Force -ErrorAction SilentlyContinue
+                $stoppedServices.Add($svc)
+            }
+            
+            # Wait a moment for file locks to release
+            Start-Sleep -Seconds 2
+            
+            # Rename Folders with leaf name to prevent path exception
+            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $folders = @("$env:systemroot\SoftwareDistribution", "$env:systemroot\System32\catroot2")
+            foreach ($folder in $folders) {
+                if (Test-Path $folder) {
+                    $leaf = Split-Path $folder -Leaf
+                    Rename-Item -Path $folder -NewName "$leaf.bak_$timestamp" -Force -ErrorAction SilentlyContinue
+                }
+            }
+            
+            Write-Log -Message "Windows Update components reset." -Level Success
         }
-        
-        # Wait a moment for file locks to release
-        Start-Sleep -Seconds 2
-        
-        # Rename Folders with leaf name to prevent path exception
-        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-        $folders = @("$env:systemroot\SoftwareDistribution", "$env:systemroot\System32\catroot2")
-        foreach ($folder in $folders) {
-            if (Test-Path $folder) {
-                $leaf = Split-Path $folder -Leaf
-                Rename-Item -Path $folder -NewName "$leaf.bak_$timestamp" -Force -ErrorAction SilentlyContinue
+    }
+
+    clean {
+        # Guarantee stopped services are restarted even if cancelled by user (Ctrl+C) or on terminating error
+        if ($stoppedServices -and $stoppedServices.Count -gt 0) {
+            foreach ($svc in $stoppedServices) {
+                Start-Service -Name $svc -ErrorAction SilentlyContinue
             }
         }
-        
-        # Start Services
-        foreach ($svc in $services) {
-            Start-Service -Name $svc -ErrorAction SilentlyContinue
+    }
+}
+
+#endregion
+
+#region Component Store & DISM Servicing
+
+<#
+.SYNOPSIS
+    Cleans up and compresses the Windows Component Store (WinSxS) with a strict 5-point safety gate.
+#>
+function Optimize-WinDebloatComponentStore {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+    [OutputType([void])]
+    param(
+        [switch]$ResetBase,
+        [switch]$Force
+    )
+
+    Write-Log -Message "Analyzing Windows Component Store (WinSxS)..." -Level Info
+
+    # 5-Point Safety Gate for -ResetBase (irreversible superseded package cleanup)
+    if ($ResetBase) {
+        Write-Log -Message "Evaluating 5-Point Safety Gate for /ResetBase..." -Level Info
+
+        # Gate 1: Pending Reboot Verification
+        $pendingReboot = (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") -or
+                         (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired")
+        if ($pendingReboot -and -not $Force) {
+            Write-Log -Message "Safety Gate 1 Failed: System has a pending reboot. Restart system before running /ResetBase." -Level Error
+            return
         }
-        
-        Write-Log -Message "Windows Update components reset." -Level Success
+
+        # Gate 2: Component Store Health Check
+        Write-Log -Message "Safety Gate 2: Checking Component Store health..." -Level Info
+        try {
+            dism.exe /Online /Cleanup-Image /CheckHealth 2> variable:dismErrors
+            if ($LASTEXITCODE -ne 0 -and -not $Force) {
+                $diag = if ($dismErrors) { " Diagnostics: $($dismErrors -join ' | ')" } else { "" }
+                Write-Log -Message "Safety Gate 2 Failed: Component Store has corruption.$diag Run Repair-WinDebloatSystem first." -Level Error
+                return
+            }
+        }
+        catch {
+            Write-Log -Message "Safety Gate 2 CheckHealth failed: $($_.Exception.Message)" -Level Error
+            if (-not $Force) { return }
+        }
+
+        # Gate 3: Free Disk Space Check (Minimum 5 GB on System Drive)
+        $sysDrive = [System.IO.DriveInfo]::new($env:SystemDrive)
+        $freeGB = $sysDrive.AvailableFreeSpace / 1GB
+        if ($freeGB -lt 5.0 -and -not $Force) {
+            Write-Log -Message "Safety Gate 3 Failed: Insufficient free disk space ($([math]::Round($freeGB, 2)) GB available, 5.0 GB required)." -Level Error
+            return
+        }
+
+        # Gate 4: LCU Grace Period Notice
+        Write-Log -Message "Safety Gate 4: /ResetBase makes current cumulative updates permanent (uninstallation will be disabled)." -Level Warning
+
+        # Gate 5: ShouldProcess Confirmation
+        if (-not $PSCmdlet.ShouldProcess("WinSxS Component Store", "Deep cleanup with /ResetBase (permanent superseded package purge)")) {
+            return
+        }
+
+        Write-Log -Message "Executing DISM /StartComponentCleanup /ResetBase..." -Level Info
+        try {
+            dism.exe /Online /Cleanup-Image /StartComponentCleanup /ResetBase 2> variable:dismErrors
+            if ($LASTEXITCODE -eq 0) {
+                Write-Log -Message "Component store /ResetBase optimization completed successfully." -Level Success
+            }
+            else {
+                $diag = if ($dismErrors) { " Diagnostics: $($dismErrors -join ' | ')" } else { "" }
+                Write-Log -Message "DISM /ResetBase returned exit code $LASTEXITCODE.$diag" -Level Warning
+            }
+        }
+        catch {
+            Write-Log -Message "DISM /ResetBase failed: $($_.Exception.Message)" -Level Error
+        }
+    }
+    else {
+        if ($PSCmdlet.ShouldProcess("WinSxS Component Store", "Standard component cleanup")) {
+            Write-Log -Message "Executing standard DISM /StartComponentCleanup..." -Level Info
+            try {
+                dism.exe /Online /Cleanup-Image /StartComponentCleanup 2> variable:dismErrors
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Log -Message "Standard component store cleanup completed successfully." -Level Success
+                }
+                else {
+                    $diag = if ($dismErrors) { " Diagnostics: $($dismErrors -join ' | ')" } else { "" }
+                    Write-Log -Message "DISM returned exit code $LASTEXITCODE.$diag" -Level Warning
+                }
+            }
+            catch {
+                Write-Log -Message "DISM cleanup failed: $($_.Exception.Message)" -Level Error
+            }
+        }
+    }
+}
+
+#endregion
+
+#region Shell & Icon Cache Reset
+
+<#
+.SYNOPSIS
+    Purges corrupted icon cache, thumbnail cache, and font cache files, restarting Explorer cleanly.
+#>
+function Reset-WinDebloatShellCache {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Resetting Explorer Shell, Icon, Thumbnail, and Font Caches..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Windows Explorer", "Terminate process, purge shell/icon/font caches, and restart Explorer")) {
+        # 1. Stop Explorer gracefully
+        Stop-Process -Name "explorer" -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 800
+
+        # 2. Delete icon and thumbnail caches
+        $explorerCacheDir = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Explorer"
+        if (Test-Path -LiteralPath $explorerCacheDir) {
+            Get-ChildItem -Path $explorerCacheDir -Filter "iconcache_*.db" -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+            Get-ChildItem -Path $explorerCacheDir -Filter "thumbcache_*.db" -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+        }
+
+        $legacyIconDb = Join-Path $env:LOCALAPPDATA "IconCache.db"
+        if (Test-Path -LiteralPath $legacyIconDb) {
+            Remove-Item -LiteralPath $legacyIconDb -Force -ErrorAction SilentlyContinue
+        }
+
+        # 3. Clear Font Cache
+        $fontCacheDir = Join-Path $env:LOCALAPPDATA "Microsoft\FontCache"
+        if (Test-Path -LiteralPath $fontCacheDir) {
+            Get-ChildItem -Path $fontCacheDir -Filter "*.dat" -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+        }
+
+        # 4. Restart Explorer
+        Start-Process -FilePath "$env:windir\explorer.exe" -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 500
+
+        # 5. Broadcast SHChangeNotify (with CLM guard and ie4uinit.exe fallback)
+        $isConstrainedLanguage = ($ExecutionContext.SessionState.LanguageMode -eq [System.Management.Automation.PSLanguageMode]::ConstrainedLanguage) -or ($ExecutionContext.SessionState.LanguageMode -eq 'ConstrainedLanguage')
+        if (-not $isConstrainedLanguage) {
+            try {
+                $type = 'WinDebloat.Native.ShellNotificationHelper' -as [type]
+                if (-not $type) {
+                    $type = Add-Type -MemberDefinition '[DllImport("shell32.dll")] public static extern void SHChangeNotify(int eventId, uint flags, IntPtr item1, IntPtr item2);' -Name "ShellNotificationHelper" -Namespace "WinDebloat.Native" -PassThru -ErrorAction SilentlyContinue
+                }
+                if ($type) {
+                    $type::SHChangeNotify(0x08000000, 0x0000, [System.IntPtr]::Zero, [System.IntPtr]::Zero) # SHCNE_ASSOCCHANGED, SHCNF_FLUSH
+                }
+                else {
+                    Start-Process -FilePath "ie4uinit.exe" -ArgumentList "-show" -NoNewWindow -Wait -ErrorAction SilentlyContinue
+                }
+            }
+            catch {
+                Write-Log -Message "Shell notification broadcast notice: $($_.Exception.Message)" -Level Debug
+                try {
+                    Start-Process -FilePath "ie4uinit.exe" -ArgumentList "-show" -NoNewWindow -Wait -ErrorAction SilentlyContinue
+                }
+                catch {
+                    Write-Log -Message "ie4uinit fallback notice: $($_.Exception.Message)" -Level Debug
+                }
+            }
+        }
+        else {
+            Write-Log -Message "ConstrainedLanguage mode detected. Using ie4uinit.exe fallback for shell notification." -Level Debug
+            try {
+                Start-Process -FilePath "ie4uinit.exe" -ArgumentList "-show" -NoNewWindow -Wait -ErrorAction SilentlyContinue
+            }
+            catch {
+                Write-Log -Message "ie4uinit fallback notice: $($_.Exception.Message)" -Level Debug
+            }
+        }
+
+        Write-Log -Message "Shell, Icon, and Font caches reset successfully." -Level Success
+    }
+}
+
+#endregion
+
+#region Windows Update Error Remediation
+
+<#
+.SYNOPSIS
+    Repairs common Windows Update error codes (0x80070002, 0x800f081f, 0x80073701).
+#>
+function Repair-WinDebloatUpdateError {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("0x80070002", "0x800f081f", "0x80073701", "Auto")]
+        [string]$ErrorCode = "Auto"
+    )
+
+    Write-Log -Message "Running Windows Update Error Remediation (Target: $ErrorCode)..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Windows Update Subsystem", "Remediate update and servicing state")) {
+        # 1. Reset services & distribution cache
+        Reset-WinDebloatUpdate
+
+        # 2. If payload missing error (0x800f081f / 0x80073701), execute component repair
+        if ($ErrorCode -in @("0x800f081f", "0x80073701", "Auto")) {
+            Write-Log -Message "Executing DISM image health restoration..." -Level Info
+            try {
+                dism.exe /Online /Cleanup-Image /RestoreHealth 2> variable:dismErrors
+                if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq 3010) {
+                    Write-Log -Message "DISM image health restoration completed successfully." -Level Success
+                }
+                else {
+                    $diag = if ($dismErrors) { " Diagnostics: $($dismErrors -join ' | ')" } else { "" }
+                    Write-Log -Message "DISM image health restoration returned exit code: $LASTEXITCODE.$diag" -Level Warning
+                }
+            }
+            catch {
+                Write-Log -Message "DISM image health restoration failed: $($_.Exception.Message)" -Level Error
+            }
+        }
+
+        # 3. Flush BITS queue
+        try {
+            $bitsProc = Start-Process -FilePath "bitsadmin.exe" -ArgumentList "/reset", "/allusers" -Wait -PassThru -NoNewWindow
+            if ($bitsProc.ExitCode -eq 0) {
+                Write-Log -Message "BITS transfer queue cleared." -Level Success
+            }
+        }
+        catch {
+            Write-Log -Message "BITS reset notice: $($_.Exception.Message)" -Level Debug
+        }
+
+        Write-Log -Message "Windows Update error remediation completed." -Level Success
     }
 }
 
@@ -179,15 +441,24 @@ Set-Alias -Name 'Reset-WinDebloat7Network' -Value 'Reset-WinDebloatNetwork'
 Set-Alias -Name 'Reset-WinDebloat7Update' -Value 'Reset-WinDebloatUpdate'
 Set-Alias -Name 'Reset-WinDebloatWindowsUpdate' -Value 'Reset-WinDebloatUpdate'
 Set-Alias -Name 'Reset-WinDebloat7WindowsUpdate' -Value 'Reset-WinDebloatUpdate'
+Set-Alias -Name 'Optimize-WinDebloat7ComponentStore' -Value 'Optimize-WinDebloatComponentStore'
+Set-Alias -Name 'Reset-WinDebloat7ShellCache' -Value 'Reset-WinDebloatShellCache'
+Set-Alias -Name 'Repair-WinDebloat7UpdateError' -Value 'Repair-WinDebloatUpdateError'
 
 Export-ModuleMember -Function @(
     'Repair-WinDebloatSystem',
     'Reset-WinDebloatNetwork',
-    'Reset-WinDebloatUpdate'
+    'Reset-WinDebloatUpdate',
+    'Optimize-WinDebloatComponentStore',
+    'Reset-WinDebloatShellCache',
+    'Repair-WinDebloatUpdateError'
 ) -Alias @(
     'Repair-WinDebloat7System',
     'Reset-WinDebloat7Network',
     'Reset-WinDebloat7Update',
     'Reset-WinDebloatWindowsUpdate',
-    'Reset-WinDebloat7WindowsUpdate'
+    'Reset-WinDebloat7WindowsUpdate',
+    'Optimize-WinDebloat7ComponentStore',
+    'Reset-WinDebloat7ShellCache',
+    'Repair-WinDebloat7UpdateError'
 )

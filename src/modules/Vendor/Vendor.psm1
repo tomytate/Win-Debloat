@@ -12,7 +12,6 @@
 .NOTES
     Module: Win-Debloat.Modules.Vendor
     Version: 2.0.0
-    Inspirations: Chris Titus Tech WinUtil, AtlasOS, Raphire Win11Debloat
 #>
 
 using namespace System.Management.Automation
@@ -227,22 +226,67 @@ function Remove-WinDebloatOemBloat {
 
 #endregion
 
+<#
+.SYNOPSIS
+    Restores GPU telemetry services and scheduled tasks to Windows defaults.
+#>
+function Enable-WinDebloatGpuTelemetry {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Restoring GPU telemetry services and tasks..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("System", "Restore GPU Telemetry (NVIDIA/AMD/Intel)")) {
+        # NVIDIA
+        if (Get-Service -Name "NvTelemetryContainer" -ErrorAction SilentlyContinue) {
+            Set-Service -Name "NvTelemetryContainer" -StartupType Automatic -ErrorAction SilentlyContinue
+            Start-Service -Name "NvTelemetryContainer" -ErrorAction SilentlyContinue
+        }
+        $nvTasks = @('NvTmMon_*', 'NvTmRep_*', 'NvTmRepOnLogon_*', 'NvNodeLauncher_*', 'NvDriverUpdateCheckDaily_*', 'NVIDIA GeForce Experience SelfUpdate_*')
+        foreach ($task in $nvTasks) {
+            Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue | ForEach-Object {
+                Enable-ScheduledTask -TaskName $_.TaskName -ErrorAction SilentlyContinue | Out-Null
+            }
+        }
+
+        # AMD
+        Get-ScheduledTask -TaskName "*AMD*Telemetry*" -ErrorAction SilentlyContinue | ForEach-Object {
+            Enable-ScheduledTask -TaskName $_.TaskName -ErrorAction SilentlyContinue | Out-Null
+        }
+        Get-ScheduledTask -TaskName "*AUEP*" -ErrorAction SilentlyContinue | ForEach-Object {
+            Enable-ScheduledTask -TaskName $_.TaskName -ErrorAction SilentlyContinue | Out-Null
+        }
+
+        # Intel
+        $intelServices = @("Intel(R) Telemetry Service", "ESRV_SVC_QUEENCREEK", "USER_ESRV_SVC_QUEENCREEK", "Intel-Cip")
+        foreach ($svc in $intelServices) {
+            if (Get-Service -Name $svc -ErrorAction SilentlyContinue) {
+                Set-Service -Name $svc -StartupType Manual -ErrorAction SilentlyContinue
+            }
+        }
+
+        Write-Log -Message "GPU telemetry services and tasks restored." -Level Success
+    }
+}
+
 # Aliases for backward compatibility
 Set-Alias -Name 'Disable-WinDebloat7GpuTelemetry' -Value 'Disable-WinDebloatGpuTelemetry'
-Set-Alias -Name 'Disable-WinDebloatGPUTelemetry' -Value 'Disable-WinDebloatGpuTelemetry'
 Set-Alias -Name 'Disable-WinDebloat7GPUTelemetry' -Value 'Disable-WinDebloatGpuTelemetry'
+Set-Alias -Name 'Enable-WinDebloat7GpuTelemetry' -Value 'Enable-WinDebloatGpuTelemetry'
+Set-Alias -Name 'Enable-WinDebloat7GPUTelemetry' -Value 'Enable-WinDebloatGpuTelemetry'
 Set-Alias -Name 'Remove-WinDebloat7OemBloat' -Value 'Remove-WinDebloatOemBloat'
-Set-Alias -Name 'Remove-WinDebloatOEMBloat' -Value 'Remove-WinDebloatOemBloat'
 Set-Alias -Name 'Remove-WinDebloat7OEMBloat' -Value 'Remove-WinDebloatOemBloat'
 
 Export-ModuleMember -Function @(
     'Disable-WinDebloatGpuTelemetry',
+    'Enable-WinDebloatGpuTelemetry',
     'Remove-WinDebloatOemBloat'
 ) -Alias @(
     'Disable-WinDebloat7GpuTelemetry',
-    'Disable-WinDebloatGPUTelemetry',
     'Disable-WinDebloat7GPUTelemetry',
+    'Enable-WinDebloat7GpuTelemetry',
+    'Enable-WinDebloat7GPUTelemetry',
     'Remove-WinDebloat7OemBloat',
-    'Remove-WinDebloatOEMBloat',
     'Remove-WinDebloat7OEMBloat'
 )

@@ -1,0 +1,63 @@
+# Win-Debloat Profile: Sysprep & OEM Image Deployment
+# Best for: Sysprep Audit Mode, Golden Master image generation, and headless deployment.
+
+metadata:
+  name: "Sysprep"
+  version: "1.6.0"
+  author: "Win-Debloat Team"
+  description: "Optimized for Sysprep Audit mode and enterprise image provisioning without breaking sysprep generalization."
+  target_os: [ "Windows 10", "Windows 11", "Server 2022", "Server 2025" ]
+  min_build: 19041
+
+when:
+  target_os: [ "Windows 10", "Windows 11", "Server 2022", "Server 2025" ]
+
+bloatware:
+  removal_mode: "Moderate"
+  exclude_list:
+    - "Microsoft.WindowsStore"
+    - "Microsoft.WindowsCalculator"
+    - "Microsoft.DesktopAppInstaller"
+    - "Microsoft.WindowsTerminal"
+
+privacy:
+  telemetry_level: "Security"
+  disable_advertising_id: true
+  disable_activity_history: true
+  disable_location_tracking: true
+  disable_copilot: true
+  disable_recall: true
+  disable_click_to_do: true
+  disable_ai_fabric: true
+  disable_lockscreen_widgets: true
+  block_telemetry_domains: true
+
+security:
+  enable_wpp: true
+  sudo_mode: "ForceNewWindow"
+  enable_bitlocker_xts256: true
+  enable_rpc_hardening: true
+  enable_smb_signing: true
+  enable_lsa_protection: true
+  enable_dma_protection: true
+
+performance:
+  power_plan: "Balanced"
+  visual_effects: "Appearance"
+  disable_game_bar: true
+  disable_background_apps: true
+  enable_directstorage_tuning: true
+
+system:
+  disable_fast_startup: true
+  prevent_auto_bitlocker: true
+  disable_delivery_optimization: true
+  no_auto_reboot_updates: true
+  no_early_updates: true
+  disable_suggestions: true
+  hide_settings_home: true
+  debloat_search: true
+
+software:
+  package_manager: "Auto"
+  install_list: []

@@ -1,4 +1,4 @@
-﻿#Requires -Version 7.6
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -10,7 +10,8 @@
     
 .NOTES
     Module: Win-Debloat.Core.Config
-    Version: 1.5.0
+    Version: 1.6.0
+    PowerShell: 7.6+ LTS
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
@@ -19,31 +20,63 @@ using namespace System.Management.Automation
 
 Import-Module "$PSScriptRoot\Logger.psm1" -Force
 
-# Schema definition for validation (SEC-004 fix)
+# Schema definition for validation (SEC-004 fix & v1.6.0 extensions)
 $Script:ProfileSchema = @{
-    Required             = @('metadata')
-    MetadataRequired     = @('name', 'version')
-    ValidSections        = @('metadata', 'bloatware', 'privacy', 'performance', 'network', 'system', 'software')
-    ValidTelemetryLevels = @('Security', 'Basic', 'Full')
-    ValidPowerPlans      = @('Balanced', 'HighPerformance', 'Ultimate')
-    ValidVisualEffects   = @('Appearance', 'Performance', 'Custom')
-    ValidRemovalModes    = @('None', 'Conservative', 'Moderate', 'Aggressive', 'Custom')
-    ValidPackageManagers = @('Winget', 'Chocolatey', 'Auto')
-    ValidTargetOS        = @('Windows 10', 'Windows 11')
+    Required                   = @('metadata')
+    MetadataRequired           = @('name', 'version')
+    ValidSections              = @('extends', 'metadata', 'when', 'bloatware', 'privacy', 'security', 'performance', 'network', 'system', 'software', 'custom_registry', 'custom_services')
+    ValidTelemetryLevels       = @('Security', 'Basic', 'Full')
+    ValidPowerPlans            = @('Balanced', 'HighPerformance', 'Ultimate')
+    ValidVisualEffects         = @('Appearance', 'Performance', 'Custom')
+    ValidRemovalModes          = @('None', 'Conservative', 'Moderate', 'Aggressive', 'Custom')
+    ValidPackageManagers       = @('Winget', 'Chocolatey', 'Auto')
+    ValidTargetOS              = @('Windows 10', 'Windows 11', 'Server 2022', 'Server 2025')
+    ValidSudoModes             = @('Disabled', 'ForceNewWindow', 'DisableInput', 'Normal')
+    ValidTcpCongestionProviders = @('cubic', 'bbr2', 'newreno', 'default')
 }
 
 # Static field definitions for performance (avoids repeated heap allocations during import)
 $Script:ConfigBooleanFields = @(
+    # Privacy
     @{ Section = 'privacy';     Field = 'disable_advertising_id' }
     @{ Section = 'privacy';     Field = 'disable_activity_history' }
     @{ Section = 'privacy';     Field = 'disable_location_tracking' }
     @{ Section = 'privacy';     Field = 'disable_copilot' }
     @{ Section = 'privacy';     Field = 'disable_recall' }
+    @{ Section = 'privacy';     Field = 'disable_click_to_do' }
+    @{ Section = 'privacy';     Field = 'disable_ai_fabric' }
+    @{ Section = 'privacy';     Field = 'disable_copilot_feedback' }
+    @{ Section = 'privacy';     Field = 'disable_edge_ai' }
+    @{ Section = 'privacy';     Field = 'disable_lockscreen_widgets' }
+    @{ Section = 'privacy';     Field = 'disable_account_badges' }
+    @{ Section = 'privacy';     Field = 'disable_onesettings' }
     @{ Section = 'privacy';     Field = 'block_telemetry_domains' }
+
+    # Security
+    @{ Section = 'security';    Field = 'enable_wpp' }
+    @{ Section = 'security';    Field = 'enable_bitlocker_xts256' }
+    @{ Section = 'security';    Field = 'enable_rpc_hardening' }
+    @{ Section = 'security';    Field = 'enable_smb_signing' }
+    @{ Section = 'security';    Field = 'enable_lsa_protection' }
+    @{ Section = 'security';    Field = 'enable_audit_logging' }
+    @{ Section = 'security';    Field = 'enable_dma_protection' }
+
+    # Performance & Gaming
     @{ Section = 'performance'; Field = 'disable_game_bar' }
     @{ Section = 'performance'; Field = 'disable_background_apps' }
     @{ Section = 'performance'; Field = 'gaming_mode' }
+    @{ Section = 'performance'; Field = 'enable_directstorage_tuning' }
+    @{ Section = 'performance'; Field = 'enable_thread_director' }
+    @{ Section = 'performance'; Field = 'enable_amd_x3d_safeguards' }
+    @{ Section = 'performance'; Field = 'enable_hags_tdr_tuning' }
+    @{ Section = 'performance'; Field = 'enable_directsr' }
+    @{ Section = 'performance'; Field = 'disable_energy_saver_ac_throttling' }
+
+    # Network
     @{ Section = 'network';     Field = 'disable_ipv6' }
+    @{ Section = 'network';     Field = 'disable_netadapter_rsc' }
+
+    # System & QoL (All 19 keys)
     @{ Section = 'system';      Field = 'disable_fast_startup' }
     @{ Section = 'system';      Field = 'prevent_auto_bitlocker' }
     @{ Section = 'system';      Field = 'disable_delivery_optimization' }
@@ -72,6 +105,7 @@ $Script:ConfigListFields = @(
     @{ Section = 'software';  Field = 'install_list' }
     @{ Section = 'software';  Field = 'uninstall_list' }
     @{ Section = 'metadata';  Field = 'target_os' }
+    @{ Section = 'extends';   Field = '$root' }
 )
 
 # Section Typo and Alias Map
@@ -749,6 +783,41 @@ function Import-WinDebloatConfig {
             }
         }
         
+        # 5h. Validate custom_registry and custom_services if present
+        $protectedHives = @('HKLM:\SAM', 'HKLM:\SECURITY', 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa', 'HKLM:\SYSTEM\Setup')
+        $criticalServices = @('RpcSs', 'RpcEptMapper', 'DcomLaunch', 'LsaSvc', 'Winmgmt', 'PlugPlay', 'Schedule', 'BrokerInfrastructure', 'Power', 'SecurityHealthService', 'MpsSvc')
+
+        if ($Config.custom_registry) {
+            foreach ($entry in @($Config.custom_registry)) {
+                if (-not $entry.path) {
+                    $validationErrors.Add("custom_registry item is missing required 'path' property.")
+                }
+                elseif ($protectedHives | Where-Object { $entry.path -like "$_*" }) {
+                    $validationErrors.Add("custom_registry item targets protected system hive: '$($entry.path)'.")
+                }
+                if ($entry.action -and $entry.action -notin @('Set', 'Remove', 'RemoveKey', 'EnsureNotExist')) {
+                    $validationErrors.Add("Invalid action '$($entry.action)' on custom_registry for path '$($entry.path)'.")
+                }
+            }
+        }
+
+        if ($Config.custom_services) {
+            foreach ($svc in @($Config.custom_services)) {
+                if (-not $svc.name) {
+                    $validationErrors.Add("custom_services item is missing required 'name' property.")
+                }
+                elseif ($svc.name -in $criticalServices -and $svc.startup_type -eq 'Disabled') {
+                    $validationErrors.Add("Cannot disable critical system service '$($svc.name)' in custom_services.")
+                }
+            }
+        }
+
+        # 6. Resolve Profile Inheritance (`extends`) if specified
+        if ($Config.extends) {
+            $baseDir = Split-Path -Parent (Resolve-Path $Path).Path
+            $Config = Resolve-WinDebloatProfileInheritance -ChildConfig $Config -ChildPath $Path -BaseDir $baseDir -VisitedPaths ([System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)) -CurrentDepth 0
+        }
+
         # Report validation errors
         if ($validationErrors.Count -gt 0) {
             foreach ($err in $validationErrors) {
@@ -764,6 +833,275 @@ function Import-WinDebloatConfig {
     catch {
         Write-Log -Message "Failed to load profile: $($_.Exception.Message)" -Level Error
         throw
+    }
+}
+
+<#
+.SYNOPSIS
+    Recursively merges inherited parent profiles into a child profile configuration.
+#>
+function Resolve-WinDebloatProfileInheritance {
+    [CmdletBinding()]
+    [OutputType([psobject])]
+    param(
+        [Parameter(Mandatory)]
+        [psobject]$ChildConfig,
+
+        [Parameter(Mandatory)]
+        [string]$ChildPath,
+
+        [Parameter(Mandatory)]
+        [string]$BaseDir,
+
+        [Parameter(Mandatory)]
+        [System.Collections.Generic.HashSet[string]]$VisitedPaths,
+
+        [int]$CurrentDepth = 0
+    )
+
+    if ($CurrentDepth -gt 10) {
+        throw "Maximum profile inheritance depth of 10 exceeded while resolving: $ChildPath"
+    }
+
+    $canonicalChild = (Resolve-Path $ChildPath -ErrorAction SilentlyContinue)?.Path ?? $ChildPath
+    if ($VisitedPaths.Contains($canonicalChild)) {
+        throw "Cyclic profile inheritance detected involving: $canonicalChild"
+    }
+    [void]$VisitedPaths.Add($canonicalChild)
+
+    $parentSpecs = @($ChildConfig.extends)
+    $merged = @{}
+
+    foreach ($pSpec in $parentSpecs) {
+        if ([string]::IsNullOrWhiteSpace($pSpec)) { continue }
+
+        # Resolve parent path
+        $pPath = Join-Path $BaseDir $pSpec
+        if (-not (Test-Path $pPath)) {
+            $pPath = Join-Path "$PSScriptRoot/../../profiles" $pSpec
+        }
+        if (-not (Test-Path $pPath)) {
+            throw "Inherited parent profile not found: '$pSpec' (referenced by $ChildPath)"
+        }
+
+        $parentConfig = Import-WinDebloatConfig -Path $pPath -SkipDependencyCheck
+
+        # Deep merge parent into accumulator
+        $merged = Merge-WinDebloatConfigDictionaries -BaseDict $merged -OverrideDict $parentConfig
+    }
+
+    # Child overrides the merged parents
+    $finalConfig = Merge-WinDebloatConfigDictionaries -BaseDict $merged -OverrideDict $ChildConfig
+    return $finalConfig
+}
+
+<#
+.SYNOPSIS
+    Deep merges two configuration dictionaries (Hashtables or PSCustomObjects).
+#>
+function Merge-WinDebloatConfigDictionaries {
+    param(
+        $BaseDict,
+        $OverrideDict
+    )
+
+    if ($null -eq $BaseDict) { return $OverrideDict }
+    if ($null -eq $OverrideDict) { return $BaseDict }
+
+    $result = [ordered]@{}
+
+    # Copy Base properties
+    if ($BaseDict -is [System.Collections.IDictionary]) {
+        foreach ($k in $BaseDict.Keys) { $result[$k] = $BaseDict[$k] }
+    }
+    elseif ($BaseDict -is [PSCustomObject]) {
+        foreach ($p in $BaseDict.PSObject.Properties) { $result[$p.Name] = $p.Value }
+    }
+
+    # Apply Override properties
+    if ($OverrideDict -is [System.Collections.IDictionary]) {
+        foreach ($k in $OverrideDict.Keys) {
+            $val = $OverrideDict[$k]
+            if ($result.Contains($k) -and $result[$k] -is [System.Collections.IDictionary] -and $val -is [System.Collections.IDictionary]) {
+                $result[$k] = Merge-WinDebloatConfigDictionaries -BaseDict $result[$k] -OverrideDict $val
+            }
+            elseif ($result.Contains($k) -and $result[$k] -is [Array] -and $val -is [Array]) {
+                # Ordered Set Union for list fields
+                $combined = [System.Collections.Generic.List[object]]::new()
+                foreach ($item in $result[$k]) { if (-not $combined.Contains($item)) { $combined.Add($item) } }
+                foreach ($item in $val) { if (-not $combined.Contains($item)) { $combined.Add($item) } }
+                $result[$k] = $combined.ToArray()
+            }
+            else {
+                $result[$k] = $val
+            }
+        }
+    }
+    elseif ($OverrideDict -is [PSCustomObject]) {
+        foreach ($p in $OverrideDict.PSObject.Properties) {
+            $k = $p.Name
+            $val = $p.Value
+            if ($result.Contains($k) -and ($result[$k] -is [PSCustomObject] -or $result[$k] -is [System.Collections.IDictionary]) -and ($val -is [PSCustomObject] -or $val -is [System.Collections.IDictionary])) {
+                $result[$k] = Merge-WinDebloatConfigDictionaries -BaseDict $result[$k] -OverrideDict $val
+            }
+            elseif ($result.Contains($k) -and $result[$k] -is [Array] -and $val -is [Array]) {
+                $combined = [System.Collections.Generic.List[object]]::new()
+                foreach ($item in $result[$k]) { if (-not $combined.Contains($item)) { $combined.Add($item) } }
+                foreach ($item in $val) { if (-not $combined.Contains($item)) { $combined.Add($item) } }
+                $result[$k] = $combined.ToArray()
+            }
+            else {
+                $result[$k] = $val
+            }
+        }
+    }
+
+    return [PSCustomObject]$result
+}
+
+<#
+.SYNOPSIS
+    Evaluates conditional execution gates (when: { min_build, max_build, target_os, edition, arch }).
+#>
+function Test-WinDebloatWhenGate {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory = $false)]
+        $WhenCondition,
+
+        [Parameter(Mandatory = $false)]
+        [int]$TargetBuild,
+
+        [Parameter(Mandatory = $false)]
+        [string]$TargetOS,
+
+        [Parameter(Mandatory = $false)]
+        [string]$TargetEdition,
+
+        [Parameter(Mandatory = $false)]
+        [string]$TargetArch
+    )
+
+    if ($null -eq $WhenCondition) { return $true }
+
+    # Current System Telemetry
+    $currentBuild = if ($TargetBuild -gt 0) { $TargetBuild } else { [System.Environment]::OSVersion.Version.Build }
+    $currentOS = if (-not [string]::IsNullOrWhiteSpace($TargetOS)) { $TargetOS } else {
+        $caption = (Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue)?.Caption
+        if ($caption -match 'Server 2025') { 'Server 2025' }
+        elseif ($caption -match 'Server 2022') { 'Server 2022' }
+        elseif ($caption -match 'Windows 11' -or $currentBuild -ge 22000) { 'Windows 11' }
+        else { 'Windows 10' }
+    }
+    $currentEdition = if (-not [string]::IsNullOrWhiteSpace($TargetEdition)) { $TargetEdition } else {
+        (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction SilentlyContinue)?.EditionID ?? 'Professional'
+    }
+    $currentArch = if (-not [string]::IsNullOrWhiteSpace($TargetArch)) { $TargetArch.ToLower() } else {
+        [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower()
+    }
+
+    # Min / Max Build Checks
+    if ($WhenCondition.min_build -and $currentBuild -lt [int]$WhenCondition.min_build) { return $false }
+    if ($WhenCondition.max_build -and $currentBuild -gt [int]$WhenCondition.max_build) { return $false }
+
+    # Target OS Check
+    if ($WhenCondition.target_os) {
+        $allowedOS = @($WhenCondition.target_os)
+        if ($currentOS -notin $allowedOS) { return $false }
+    }
+
+    # Edition Check
+    if ($WhenCondition.edition) {
+        $allowedEditions = @($WhenCondition.edition)
+        $match = $false
+        foreach ($ed in $allowedEditions) {
+            if ($currentEdition -like "*$ed*") { $match = $true; break }
+        }
+        if (-not $match) { return $false }
+    }
+
+    # Architecture Check
+    if ($WhenCondition.arch) {
+        $allowedArch = @($WhenCondition.arch | ForEach-Object { $_.ToString().ToLower() })
+        if ($currentArch -notin $allowedArch) { return $false }
+    }
+
+    return $true
+}
+
+<#
+.SYNOPSIS
+    Lints and validates YAML configuration profiles against Declarative Schema v1.6.0.
+#>
+function Test-WinDebloatProfile {
+    [CmdletBinding(DefaultParameterSetName = 'PathSet')]
+    [OutputType([bool], ParameterSetName = 'PathSet')]
+    [OutputType([PSCustomObject], ParameterSetName = 'DetailedSet')]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName, ParameterSetName = 'PathSet')]
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName, ParameterSetName = 'DetailedSet')]
+        [ValidateNotNullOrEmpty()]
+        [string[]]$Path,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$Strict,
+
+        [Parameter(Mandatory, ParameterSetName = 'DetailedSet')]
+        [switch]$Detailed,
+
+        [Parameter(Mandatory = $false)]
+        [int]$TargetBuild,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Windows 10', 'Windows 11', 'Server 2022', 'Server 2025')]
+        [string]$TargetOS,
+
+        [Parameter(Mandatory = $false)]
+        [string]$TargetEdition
+    )
+
+    process {
+        foreach ($p in $Path) {
+            $errors = [System.Collections.Generic.List[string]]::new()
+            $warnings = [System.Collections.Generic.List[string]]::new()
+            $loadedConfig = $null
+            $isValid = $true
+
+            if (-not (Test-Path $p -PathType Leaf)) {
+                $errors.Add("File not found: $p")
+                $isValid = $false
+            }
+            else {
+                try {
+                    $loadedConfig = Import-WinDebloatConfig -Path $p -SkipDependencyCheck
+                    $isValid = Test-WinDebloatConfig -Config $loadedConfig
+                }
+                catch {
+                    $errors.Add($_.Exception.Message)
+                    $isValid = $false
+                }
+            }
+
+            if ($Strict -and $warnings.Count -gt 0) {
+                $isValid = $false
+            }
+
+            if ($Detailed) {
+                [PSCustomObject]@{
+                    IsValid         = $isValid
+                    ProfilePath     = $p
+                    ProfileName     = $loadedConfig?.metadata?.name ?? 'Unknown'
+                    ProfileVersion  = $loadedConfig?.metadata?.version ?? 'Unknown'
+                    Errors          = $errors.ToArray()
+                    Warnings        = $warnings.ToArray()
+                    MergedConfig    = $loadedConfig
+                }
+            }
+            else {
+                $isValid
+            }
+        }
     }
 }
 
@@ -805,6 +1143,12 @@ function Test-WinDebloatConfig {
         }
         if ($Config.software -and $Config.software.package_manager) {
             if ($Config.software.package_manager -notin $Script:ProfileSchema.ValidPackageManagers) { return $false }
+        }
+        if ($Config.security -and $Config.security.sudo_mode) {
+            if ($Config.security.sudo_mode -notin $Script:ProfileSchema.ValidSudoModes) { return $false }
+        }
+        if ($Config.network -and $Config.network.tcp_congestion_provider) {
+            if ($Config.network.tcp_congestion_provider -notin $Script:ProfileSchema.ValidTcpCongestionProviders) { return $false }
         }
 
         return $true
@@ -921,6 +1265,21 @@ function Get-WinDebloatProfilePlan {
         if ($p.disable_location_tracking) { & $add 'Privacy' 'Disable location tracking' }
         if ($p.disable_copilot) { & $add 'Privacy' 'Disable Windows Copilot' }
         if ($p.disable_recall) { & $add 'Privacy' 'Disable Windows Recall snapshots' }
+        if ($p.disable_click_to_do) { & $add 'Privacy' 'Disable Click To Do screen AI analysis' }
+        if ($p.disable_ai_fabric) { & $add 'Privacy' 'Disable Phi-Silica SLM AI Fabric & reclaim 2-4GB RAM' }
+        if ($p.disable_edge_ai) { & $add 'Privacy' 'Disable Edge AI Copilot sidebar and generative themes' }
+        if ($p.disable_lockscreen_widgets) { & $add 'Privacy' 'Disable weather/finance lockscreen widgets' }
+    }
+
+    # ── Security ────────────────────────────────────────────────────────
+    if ($Config.security) {
+        $sec = $Config.security
+        if ($sec.enable_wpp) { & $add 'Security' 'Enable Windows Protected Print (driverless IPP spooler lockdown)' }
+        if ($sec.sudo_mode) { & $add 'Security' "Configure Sudo for Windows mode: $($sec.sudo_mode)" }
+        if ($sec.enable_bitlocker_xts256) { & $add 'Security' 'Enforce XTS-AES 256 software BitLocker cipher' }
+        if ($sec.enable_rpc_hardening) { & $add 'Security' 'Harden RPC Interface and Endpoint Mapper authentication' }
+        if ($sec.enable_smb_signing) { & $add 'Security' 'Enforce SMB Signing and authentication rate limiting' }
+        if ($sec.enable_lsa_protection) { & $add 'Security' 'Enable LSA Protection RunAsPPL with UEFI lock' }
     }
 
     # ── Performance ─────────────────────────────────────────────────────
@@ -930,15 +1289,20 @@ function Get-WinDebloatProfilePlan {
         if ($perf.visual_effects) { & $add 'Performance' "Set visual effects to '$($perf.visual_effects)'" }
         if ($perf.disable_game_bar) { & $add 'Performance' 'Disable Xbox Game Bar' }
         if ($perf.disable_background_apps) { & $add 'Performance' 'Restrict background apps' }
+        if ($perf.enable_directstorage_tuning) { & $add 'Performance' 'Optimize DirectStorage 1.2+ BypassIO and NTFS lookaside memory' }
+        if ($perf.enable_thread_director) { & $add 'Performance' 'Optimize Intel Thread Director / EPP scheduling' }
+        if ($perf.enable_amd_x3d_safeguards) { & $add 'Performance' 'Enable AMD Dual-CCD 3D V-Cache core parking safeguards' }
+        if ($perf.enable_hags_tdr_tuning) { & $add 'Performance' 'Enable HAGS 2.0 and TDR delay stability tuning' }
     }
 
     # ── Network ─────────────────────────────────────────────────────────
     if ($Config.network) {
         if ($Config.network.dns_servers) { & $add 'Network' "Set DNS servers to $($Config.network.dns_servers -join ', ')" }
         if ($Config.network.disable_ipv6) { & $add 'Network' 'Disable IPv6 bindings' }
+        if ($Config.network.tcp_congestion_provider) { & $add 'Network' "Set TCP congestion provider to '$($Config.network.tcp_congestion_provider)'" }
     }
 
-    # ── System & QoL (v1.4) ─────────────────────────────────────────────
+    # ── System & QoL (v1.4 - v1.6) ───────────────────────────────────────
     if ($Config.system) {
         $sysMap = [ordered]@{
             disable_fast_startup              = 'Disable Fast Startup (clean full shutdowns)'
@@ -985,9 +1349,31 @@ function Get-WinDebloatProfilePlan {
 
 Set-Alias -Name 'Import-WinDebloat7Config' -Value 'Import-WinDebloatConfig'
 Set-Alias -Name 'Test-WinDebloat7Config' -Value 'Test-WinDebloatConfig'
+Set-Alias -Name 'Test-WinDebloat7Profile' -Value 'Test-WinDebloatProfile'
+Set-Alias -Name 'Test-WinDebloat7WhenGate' -Value 'Test-WinDebloatWhenGate'
+Set-Alias -Name 'Resolve-WinDebloat7ProfileInheritance' -Value 'Resolve-WinDebloatProfileInheritance'
+Set-Alias -Name 'Merge-WinDebloat7ConfigDictionaries' -Value 'Merge-WinDebloatConfigDictionaries'
 Set-Alias -Name 'Get-WinDebloat7RecommendedProfile' -Value 'Get-WinDebloatRecommendedProfile'
 Set-Alias -Name 'Get-WinDebloat7ProfilePlan' -Value 'Get-WinDebloatProfilePlan'
 
-Export-ModuleMember -Function @('Import-WinDebloatConfig', 'Test-WinDebloatConfig', 'Get-WinDebloatRecommendedProfile', 'Get-WinDebloatProfilePlan') `
-                    -Alias @('Import-WinDebloat7Config', 'Test-WinDebloat7Config', 'Get-WinDebloat7RecommendedProfile', 'Get-WinDebloat7ProfilePlan') `
-                    -Variable @('ProfileSchema', 'SectionTypoMap', 'FieldTypoMap', 'typoMap')
+Export-ModuleMember -Function @(
+    'Import-WinDebloatConfig',
+    'Test-WinDebloatConfig',
+    'Test-WinDebloatProfile',
+    'Test-WinDebloatWhenGate',
+    'Resolve-WinDebloatProfileInheritance',
+    'Merge-WinDebloatConfigDictionaries',
+    'Get-WinDebloatRecommendedProfile',
+    'Get-WinDebloatProfilePlan'
+) `
+-Alias @(
+    'Import-WinDebloat7Config',
+    'Test-WinDebloat7Config',
+    'Test-WinDebloat7Profile',
+    'Test-WinDebloat7WhenGate',
+    'Resolve-WinDebloat7ProfileInheritance',
+    'Merge-WinDebloat7ConfigDictionaries',
+    'Get-WinDebloat7RecommendedProfile',
+    'Get-WinDebloat7ProfilePlan'
+) `
+-Variable @('ProfileSchema', 'SectionTypoMap', 'FieldTypoMap', 'typoMap')

@@ -1,7 +1,7 @@
 metadata:
   name: "Gaming"
-  version: "1.0.0"
-  author: "Win-Debloat7 Team"
+  version: "1.6.0"
+  author: "Win-Debloat Team"
   description: "Maximum performance for gamers. Aggressive bloatware removal with gaming-friendly settings."
   target_os: [ "Windows 10", "Windows 11" ]
   min_build: 19045
@@ -22,18 +22,27 @@ privacy:
   disable_location_tracking: true
   disable_copilot: true
   disable_recall: true
+  disable_click_to_do: true
+  disable_ai_fabric: true
 
 performance:
   power_plan: "Ultimate"
   visual_effects: "Performance"
-  disable_game_bar: false             # Keep Game Bar for recording
+  disable_game_bar: false             # Keep Game Bar for recording / AMD X3D
   disable_background_apps: true
+  enable_directstorage_tuning: true
+  enable_directsr: true
+  enable_amd_x3d_safeguards: true
+  enable_thread_director: true
+  enable_hags_tdr_tuning: true
 
 network:
   dns_servers: [ "1.1.1.1", "1.0.0.1" ]
   disable_ipv6: false
+  tcp_congestion_provider: "cubic"
+  disable_netadapter_rsc: true
 
-# System QoL (v1.4): performance + distraction-free gaming
+# System QoL: performance + distraction-free gaming
 system:
   disable_fast_startup: true            # clean driver state every boot
   disable_delivery_optimization: true   # no P2P upload while gaming

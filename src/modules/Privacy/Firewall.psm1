@@ -74,7 +74,50 @@ $Script:TelemetryDomains = @(
     "feedback.search.microsoft.com",
     "activity.windows.com",
     "edge.activity.windows.com",
-    "diagnostics.support.microsoft.com"
+    "diagnostics.support.microsoft.com",
+    "aimodels.microsoft.com",
+    "wdcp.microsoft.com",
+    "sydney.bing.com",
+    "copilot.microsoft.com",
+    "edgeservices.bing.com",
+    "clarity.ms",
+    "onesettings-public.azureedge.net",
+    "browser.pipe.aria.microsoft.com",
+    "pipe.aria.microsoft.com",
+    "mobile.pipe.aria.microsoft.com",
+    "us.pipe.aria.microsoft.com",
+    "eu.pipe.aria.microsoft.com",
+    "az.pipe.aria.microsoft.com",
+    "events.data.microsoft.com",
+    "self.events.data.microsoft.com",
+    "mobile.events.data.microsoft.com",
+    "v10.events.data.microsoft.com",
+    "v20.events.data.microsoft.com",
+    "v10c.events.data.microsoft.com",
+    "v20c.events.data.microsoft.com",
+    "eu-mobile.events.data.microsoft.com",
+    "eu-v10.events.data.microsoft.com",
+    "eu-v20.events.data.microsoft.com",
+    "v10.vortex-win.data.microsoft.com",
+    "vortex-sandbox.data.microsoft.com",
+    "vortex-win-sandbox.data.microsoft.com",
+    "web.vortex.data.microsoft.com",
+    "functional.events.data.microsoft.com",
+    "wdcp-ppe.microsoft.com",
+    "directml.microsoft.com",
+    "models.microsoft.com",
+    "aifabric.microsoft.com",
+    "ecs.office.com",
+    "ecs-edge.office.com",
+    "config.edge.skype.com",
+    "onesettings-bn2.azureedge.net",
+    "onesettings-co2.azureedge.net",
+    "widgetcdn.azureedge.net",
+    "shell.msn.com",
+    "assets.msn.com",
+    "watson.live.com",
+    "survey.watson.microsoft.com",
+    "nexusrules.office.com"
 )
 #endregion
 
@@ -147,10 +190,10 @@ function Add-WinDebloatFirewallBlock {
                 }
             }
             
-            # Wait up to 3 seconds max for all DNS queries to complete in parallel
+            # Wait up to 6 seconds max for all DNS queries to complete in parallel
             $allTasks = @($tasks | ForEach-Object { $_.Task })
             if ($allTasks.Count -gt 0) {
-                [System.Threading.Tasks.Task]::WaitAll($allTasks, 3000) | Out-Null
+                [System.Threading.Tasks.Task]::WaitAll($allTasks, 6000) | Out-Null
             }
             
             foreach ($t in $tasks) {

@@ -51,11 +51,31 @@ $Script:TelemetryTasks = @{
         # Cloud Experience
         @{ Path = "\Microsoft\Windows\CloudExperienceHost"; Name = "CreateObjectTask" }
         
-        # Windows 11 25H2 AI / Copilot+ Features
+        # User Choice Protection Driver (UCPD) Velocity
+        @{ Path = "\Microsoft\Windows\AppxDeploymentClient"; Name = "UcpdVelocity" }
+        
+        # Application Experience Extensions
+        @{ Path = "\Microsoft\Windows\Application Experience"; Name = "MareBackup" }
+        @{ Path = "\Microsoft\Windows\Application Experience"; Name = "PautoRequest" }
+        
+        # Windows 11 24H2/25H2/26H1 AI / Copilot+ / Flighting Tasks
         @{ Path = "\Microsoft\Windows\WindowsAI"; Name = "ClickToDo" }
         @{ Path = "\Microsoft\Windows\WindowsAI"; Name = "RecallSnapshot" }
+        @{ Path = "\Microsoft\Windows\WindowsAI"; Name = "ModelMaintenance" }
+        @{ Path = "\Microsoft\Windows\WindowsAI"; Name = "ModelDownloadTask" }
+        @{ Path = "\Microsoft\Windows\WindowsAI"; Name = "AIPlatformServiceTask" }
+        @{ Path = "\Microsoft\Windows\WindowsAI"; Name = "WorkloadsHostTask" }
         @{ Path = "\Microsoft\Windows\AISystem"; Name = "AIAnalyzer" }
+        @{ Path = "\Microsoft\Windows\AISystem"; Name = "ModelUpdateTask" }
+        @{ Path = "\Microsoft\Windows\AISystem"; Name = "SemanticIndexTask" }
         @{ Path = "\Microsoft\Windows\NarrativeFlows"; Name = "UserJourneyTracker" }
+        @{ Path = "\Microsoft\Windows\Flighting\OneSettings"; Name = "RefreshCache" }
+        @{ Path = "\Microsoft\Windows\Flighting\OneSettings"; Name = "QuerySettings" }
+        @{ Path = "\Microsoft\Windows\Flighting\FeatureConfig"; Name = "UsageDataReporting" }
+        @{ Path = "\Microsoft\Windows\Flighting\FeatureConfig"; Name = "ReconcileFeatures" }
+        @{ Path = "\Microsoft\Windows\UNP"; Name = "RunCampaignManager" }
+        @{ Path = "\Microsoft\Windows\Setup"; Name = "EOSNotify" }
+        @{ Path = "\Microsoft\Windows\Setup"; Name = "EOSNotify2" }
     )
     
     # Aggressive - may impact some features
@@ -72,6 +92,7 @@ $Script:TelemetryTasks = @{
         
         # Maintenance (may impact Windows maintenance)
         @{ Path = "\Microsoft\Windows\Diagnosis"; Name = "Scheduled" }
+        @{ Path = "\Microsoft\Windows\Maintenance"; Name = "WinSAT" }
         
         # PI (Privacy Intelligence)
         @{ Path = "\Microsoft\Windows\PI"; Name = "Sqm-Tasks" }
@@ -81,6 +102,10 @@ $Script:TelemetryTasks = @{
         
         # Power Efficiency Diagnostics
         @{ Path = "\Microsoft\Windows\Power Efficiency Diagnostics"; Name = "AnalyzeSystem" }
+        
+        # SettingSync & Speech
+        @{ Path = "\Microsoft\Windows\SettingSync"; Name = "BackgroundUploadTask" }
+        @{ Path = "\Microsoft\Windows\Speech"; Name = "SpeechModelDownloadTask" }
         
         # Shell (some edge cases)
         @{ Path = "\Microsoft\Windows\Shell"; Name = "FamilySafetyMonitor" }

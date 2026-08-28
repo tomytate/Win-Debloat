@@ -543,7 +543,7 @@
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Win-Debloat" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text="v1.5.0 &quot;Top G&quot; • Ultimate Optimizer" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
+                            <TextBlock Text="v1.6.0 &quot;Apex&quot; • Ultimate Optimizer" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
@@ -594,9 +594,9 @@
                 <!-- Sidebar Footer Status Pill -->
                 <Border Grid.Row="2" Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="14" CornerRadius="10" Margin="14,0,14,16">
                     <StackPanel>
-                        <TextBlock Name="txtSidebarVersion" Text="v1.5.0 &quot;Top G&quot; • PowerShell 7.6+" FontSize="11" FontWeight="SemiBold"
+                        <TextBlock Name="txtSidebarVersion" Text="v1.6.0 &quot;Apex&quot; • PowerShell 7.6+" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Windows 11 25H2 Ready" FontSize="10" FontWeight="Bold"
+                        <TextBlock Text="Windows 11 26H1 Ready" FontSize="10" FontWeight="Bold"
                                    Foreground="{StaticResource SuccessBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
@@ -1199,9 +1199,9 @@
                                             <Image Name="imgAboutLogo" Width="48" Height="48" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
                                         </Border>
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="Win-Debloat v1.5.0 &quot;Top G&quot; — Ultimate System Optimizer &amp; Toolbox" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                            <TextBlock Text="Created by Tomy Tolledo • Licensed under MIT" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,4"/>
-                                            <TextBlock Text="Engine: PowerShell 7.6+ • Windows 11 25H2 / 24H2 / 23H2 &amp; Windows 10 Ready" FontSize="12" Foreground="{StaticResource AccentBrush}"/>
+                                            <TextBlock Text="Win-Debloat v1.6.0 &quot;Apex&quot; — Ultimate System Optimizer &amp; Toolbox" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Created by tomytate • Licensed under MIT" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,4"/>
+                                            <TextBlock Text="Engine: PowerShell 7.6+ • Windows 11 26H1 / 25H2 / 24H2 / 23H2 &amp; Windows 10 Ready" FontSize="12" Foreground="{StaticResource AccentBrush}"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>

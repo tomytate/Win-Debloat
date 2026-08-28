@@ -1,4 +1,4 @@
-﻿#Requires -Version 7.6
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -9,8 +9,8 @@
     curated essentials list. Supports both package managers with auto-detection.
     
 .NOTES
-    Module: Win-Debloat7.Modules.Software
-    Version: 1.5.0
+    Module: Win-Debloat.Modules.Software
+    Version: 1.6.0
 .LINK
     https://learn.microsoft.com/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
@@ -37,7 +37,7 @@ function Test-PackageManager {
     [OutputType([bool])]
     param(
         [Parameter(Mandatory)]
-        [ValidateSet("Winget", "Chocolatey", "Npm", "Msstore")]
+        [ValidateSet("Winget", "Chocolatey", "Npm", "Msstore", "PSResourceGet")]
         [string]$Name
     )
 
@@ -69,6 +69,15 @@ function Test-PackageManager {
             # Microsoft Store installs ride the winget CLI (--source msstore)
             return [bool](Get-Command winget -ErrorAction SilentlyContinue)
         }
+        "PSResourceGet" {
+            try {
+                $null = Get-Command Install-PSResource -ErrorAction Stop
+                return $true
+            }
+            catch {
+                return $false
+            }
+        }
     }
     return $false
 }
@@ -78,7 +87,7 @@ function Test-PackageManager {
     Installs a package manager if not present.
     
 .PARAMETER Name
-    Package manager to install: Winget, Chocolatey, or Npm (installs Node.js LTS).
+    Package manager to install: Winget, Chocolatey, Npm (installs Node.js LTS), or PSResourceGet.
 
 .PARAMETER Force
     Skip confirmation prompt.
@@ -88,7 +97,7 @@ function Install-PackageManager {
     [OutputType([bool])]
     param(
         [Parameter(Mandatory)]
-        [ValidateSet("Winget", "Chocolatey", "Npm", "Msstore")]
+        [ValidateSet("Winget", "Chocolatey", "Npm", "Msstore", "PSResourceGet")]
         [string]$Name,
 
         [switch]$Force
@@ -173,6 +182,20 @@ function Install-PackageManager {
             }
             catch {
                 Write-Log -Message "Failed to install Node.js: $($_.Exception.Message)" -Level Error
+                return $false
+            }
+        }
+        "PSResourceGet" {
+            Write-Log -Message "Installing PSResourceGet..." -Level Info
+            try {
+                if ($PSCmdlet.ShouldProcess("PSResourceGet", "Install via Install-Module")) {
+                    Install-Module -Name Microsoft.PowerShell.PSResourceGet -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
+                    Write-Log -Message "PSResourceGet installed successfully." -Level Success
+                    return $true
+                }
+            }
+            catch {
+                Write-Log -Message "Failed to install PSResourceGet: $($_.Exception.Message)" -Level Error
                 return $false
             }
         }
@@ -349,6 +372,12 @@ $Script:EssentialsApps = @{
             @{ Name = "Rust (rustup)"; Winget = "Rustlang.Rustup"; Choco = "rustup.install" }
             @{ Name = "Insomnia"; Winget = "Insomnia.Insomnia"; Choco = "insomnia-rest-api-client" }
             @{ Name = "Cursor"; Winget = "Anysphere.Cursor"; Choco = "" }
+            @{ Name = "Windsurf"; Winget = "Codeium.Windsurf"; Choco = "" }
+            @{ Name = "uv (Fast Python)"; Winget = "astral-sh.uv"; Choco = "uv" }
+            @{ Name = "Bun (JS Runtime)"; Winget = "Oven-sh.Bun"; Choco = "bun" }
+            @{ Name = "Deno 2"; Winget = "DenoLand.Deno"; Choco = "deno" }
+            @{ Name = "OpenTofu"; Winget = "OpenTofu.OpenTofu"; Choco = "opentofu" }
+            @{ Name = "Podman Desktop"; Winget = "RedHat.PodmanDesktop"; Choco = "podman-desktop" }
         )
     }
     
@@ -463,7 +492,7 @@ $Script:EssentialsApps = @{
 .OUTPUTS
     [hashtable] The essentials app dictionary.
 #>
-function Get-WinDebloat7EssentialsList {
+function Get-WinDebloatEssentialsList {
     [CmdletBinding()]
     [OutputType([hashtable])]
     param()
@@ -477,17 +506,18 @@ function Get-WinDebloat7EssentialsList {
 
 <#
 .SYNOPSIS
-    Runs a single package install via Winget or Chocolatey. (Internal helper)
+    Runs a single package install via Winget, Chocolatey, Npm, Msstore, or PSResourceGet. (Internal helper)
 
 .OUTPUTS
     [int] The installer process exit code (0 = success).
 #>
 function Invoke-WD7PackageInstall {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '', Justification = 'Dual-scope LastPackageError handling for caller scripts')]
     [CmdletBinding()]
     [OutputType([int])]
     param(
         [Parameter(Mandatory)]
-        [ValidateSet("Winget", "Chocolatey", "Npm", "Msstore")]
+        [ValidateSet("Winget", "Chocolatey", "Npm", "Msstore", "PSResourceGet")]
         [string]$Provider,
 
         [Parameter(Mandatory)]
@@ -497,39 +527,104 @@ function Invoke-WD7PackageInstall {
         [switch]$Quiet
     )
 
+    $Script:LastPackageError = $null
+    $pkgError = $null
+    $exitCode = 0
+
     switch ($Provider) {
         "Winget" {
-            $exe = "winget"
             $cmdArgs = @("install", "--id", $PackageId, "--source", "winget", "--accept-source-agreements", "--accept-package-agreements", "--disable-interactivity")
             if ($Quiet) { $cmdArgs += "--silent" }
+            try {
+                $null = & winget @cmdArgs 2> variable:pkgError
+                $exitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+            }
+            catch {
+                $pkgError = $_.Exception.Message
+                $exitCode = 1
+            }
         }
         "Chocolatey" {
-            $exe = "choco"
             $cmdArgs = @("install", $PackageId, "-y")
             if ($Quiet) { $cmdArgs += "--no-progress" }
+            try {
+                $null = & choco @cmdArgs 2> variable:pkgError
+                $exitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+            }
+            catch {
+                $pkgError = $_.Exception.Message
+                $exitCode = 1
+            }
         }
         "Npm" {
             # Resolve npm even when PATH is stale right after a Node.js install
             $npmCmd = Get-Command npm -ErrorAction SilentlyContinue
             $exe = if ($npmCmd) { $npmCmd.Source } else { Join-Path $env:ProgramFiles "nodejs\npm.cmd" }
             $cmdArgs = @("install", "--global", $PackageId)
-            if ($Quiet) { $cmdArgs += "--no-fund", "--no-audit" }
+            if ($Quiet) { $cmdArgs += @("--no-fund", "--no-audit") }
+            try {
+                $null = & $exe @cmdArgs 2> variable:pkgError
+                $exitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+            }
+            catch {
+                $pkgError = $_.Exception.Message
+                $exitCode = 1
+            }
         }
         "Msstore" {
             # Official Microsoft Store channel via winget (free apps install
             # without a Microsoft account)
-            $exe = "winget"
             $cmdArgs = @("install", "--id", $PackageId, "--source", "msstore", "--accept-source-agreements", "--accept-package-agreements", "--disable-interactivity")
+            if ($Quiet) { $cmdArgs += "--silent" }
+            try {
+                $null = & winget @cmdArgs 2> variable:pkgError
+                $exitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+            }
+            catch {
+                $pkgError = $_.Exception.Message
+                $exitCode = 1
+            }
+        }
+        "PSResourceGet" {
+            try {
+                $null = Install-PSResource -Name $PackageId -TrustRepository -Quiet:$Quiet -Scope CurrentUser -ErrorAction Stop
+                $exitCode = 0
+            }
+            catch {
+                $installError = $_.Exception.Message
+                try {
+                    $null = Update-PSResource -Name $PackageId -TrustRepository -Quiet:$Quiet -Scope CurrentUser -ErrorAction Stop
+                    $exitCode = 0
+                }
+                catch {
+                    $updateError = $_.Exception.Message
+                    $pkgError = "Install-PSResource failed: $installError; Update-PSResource failed: $updateError"
+                    Write-Log -Message "PSResourceGet install failed for '$PackageId': $pkgError" -Level Error
+                    $exitCode = 1
+                }
+            }
         }
     }
 
-    $p = Start-Process -FilePath $exe -ArgumentList $cmdArgs -NoNewWindow -Wait -PassThru
-    return $p.ExitCode
+    if ($pkgError) {
+        $errorStr = ($pkgError | Out-String).Trim()
+        $Script:LastPackageError = $errorStr
+        $global:LastPackageError = $errorStr
+        if ($exitCode -ne 0) {
+            Write-Log -Message "Installer error output for '$PackageId' via $Provider`: $errorStr" -Level Warning
+        }
+    }
+    else {
+        $Script:LastPackageError = $null
+        $global:LastPackageError = $null
+    }
+
+    return $exitCode
 }
 
 <#
 .SYNOPSIS
-    Installs software packages using Winget or Chocolatey.
+    Installs software packages using Winget, Chocolatey, or PSResourceGet.
     
 .PARAMETER Packages
     Array of package IDs to install (Winget format: "Publisher.Package").
@@ -543,8 +638,9 @@ function Invoke-WD7PackageInstall {
 .OUTPUTS
     [psobject] Installation results summary.
 #>
-function Install-WinDebloat7Software {
+function Install-WinDebloatSoftware {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console output')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '', Justification = 'Dual-scope LastPackageError handling for caller scripts')]
     [CmdletBinding(DefaultParameterSetName = "ById", SupportsShouldProcess, ConfirmImpact = 'Medium')]
     [OutputType([psobject])]
     param(
@@ -556,7 +652,7 @@ function Install-WinDebloat7Software {
         [ValidateNotNullOrEmpty()]
         [hashtable[]]$Apps,
         
-        [ValidateSet("Winget", "Chocolatey", "Auto")]
+        [ValidateSet("Winget", "Chocolatey", "PSResourceGet", "Auto")]
         [string]$PackageManager = "Auto",
         
         [switch]$Quiet
@@ -569,6 +665,9 @@ function Install-WinDebloat7Software {
         }
         elseif (Test-PackageManager -Name "Chocolatey") {
             $PackageManager = "Chocolatey"
+        }
+        elseif (Test-PackageManager -Name "PSResourceGet") {
+            $PackageManager = "PSResourceGet"
         }
         else {
             Write-Log -Message "No package manager found. Installing Winget..." -Level Warning
@@ -602,23 +701,35 @@ function Install-WinDebloat7Software {
     }
     else {
         # ByObject: each app hashtable carries provider IDs (keys: Winget / Choco /
-        # Msstore / Npm). Candidates are ordered by session preference; the Microsoft
-        # Store (official channel for apps like ChatGPT) and npm (AI CLIs published
-        # only to the registry) act as last resorts in that order.
+        # Msstore / Npm / PSResourceGet). Candidates are ordered by session preference;
+        # the Microsoft Store and npm act as last resorts.
         foreach ($app in $Apps) {
             $wingetId = [string]$app["Winget"]
             $chocoId = [string]$app["Choco"]
             $msstoreId = [string]$app["Msstore"]
             $npmId = [string]$app["Npm"]
+            $psresourceId = [string]($app["PSResourceGet"] ?? $app["PSResource"])
 
             $candidates = [List[object]]::new()
             if ($PackageManager -eq "Winget") {
                 if (-not [string]::IsNullOrWhiteSpace($wingetId)) { $candidates.Add(@("Winget", $wingetId)) }
                 if (-not [string]::IsNullOrWhiteSpace($chocoId)) { $candidates.Add(@("Chocolatey", $chocoId)) }
+                if (-not [string]::IsNullOrWhiteSpace($psresourceId)) { $candidates.Add(@("PSResourceGet", $psresourceId)) }
             }
-            else {
+            elseif ($PackageManager -eq "Chocolatey") {
                 if (-not [string]::IsNullOrWhiteSpace($chocoId)) { $candidates.Add(@("Chocolatey", $chocoId)) }
                 if (-not [string]::IsNullOrWhiteSpace($wingetId)) { $candidates.Add(@("Winget", $wingetId)) }
+                if (-not [string]::IsNullOrWhiteSpace($psresourceId)) { $candidates.Add(@("PSResourceGet", $psresourceId)) }
+            }
+            elseif ($PackageManager -eq "PSResourceGet") {
+                if (-not [string]::IsNullOrWhiteSpace($psresourceId)) { $candidates.Add(@("PSResourceGet", $psresourceId)) }
+                if (-not [string]::IsNullOrWhiteSpace($wingetId)) { $candidates.Add(@("Winget", $wingetId)) }
+                if (-not [string]::IsNullOrWhiteSpace($chocoId)) { $candidates.Add(@("Chocolatey", $chocoId)) }
+            }
+            else {
+                if (-not [string]::IsNullOrWhiteSpace($wingetId)) { $candidates.Add(@("Winget", $wingetId)) }
+                if (-not [string]::IsNullOrWhiteSpace($chocoId)) { $candidates.Add(@("Chocolatey", $chocoId)) }
+                if (-not [string]::IsNullOrWhiteSpace($psresourceId)) { $candidates.Add(@("PSResourceGet", $psresourceId)) }
             }
             if (-not [string]::IsNullOrWhiteSpace($msstoreId)) { $candidates.Add(@("Msstore", $msstoreId)) }
             if (-not [string]::IsNullOrWhiteSpace($npmId)) { $candidates.Add(@("Npm", $npmId)) }
@@ -669,6 +780,8 @@ function Install-WinDebloat7Software {
                     $null = Install-PackageManager -Name $currentProv -Force
                 }
 
+                $Script:LastPackageError = $null
+                $global:LastPackageError = $null
                 $attemptExitCode = Invoke-WD7PackageInstall -Provider $currentProv -PackageId $pkgId -Quiet:$Quiet
 
                 if ($attemptExitCode -eq 0) {
@@ -677,6 +790,7 @@ function Install-WinDebloat7Software {
                     $results.Details += @{ Package = $pkgName; Id = $pkgId; Status = "Success"; Provider = $currentProv }
                 }
                 elseif ($item.FallbackID -and $item.FallbackProvider -and $item.FallbackProvider -ne $currentProv) {
+                    $primaryError = $Script:LastPackageError ?? $global:LastPackageError
                     Write-Log -Message "Failed to install '$pkgName' via $currentProv (Exit: $attemptExitCode). Attempting fallback to $($item.FallbackProvider)..." -Level Warning
 
                     # Ensure fallback provider is installed
@@ -685,6 +799,8 @@ function Install-WinDebloat7Software {
                     }
 
                     if (Test-PackageManager -Name $item.FallbackProvider) {
+                        $Script:LastPackageError = $null
+                        $global:LastPackageError = $null
                         $fbExitCode = Invoke-WD7PackageInstall -Provider $item.FallbackProvider -PackageId $item.FallbackID -Quiet:$Quiet
 
                         if ($fbExitCode -eq 0) {
@@ -695,26 +811,61 @@ function Install-WinDebloat7Software {
                         else {
                             Write-Log -Message "Failed to install '$pkgName' via fallback ($($item.FallbackProvider)). Exit: $fbExitCode" -Level Error
                             $results.Failed++
-                            $results.Details += @{ Package = $pkgName; Id = $pkgId; Status = "Failed"; Error = "Primary and Fallback failed" }
+                            $fbError = $Script:LastPackageError ?? $global:LastPackageError
+                            $combinedErrMsg = if ($fbError) { $fbError } elseif ($primaryError) { $primaryError } else { "Primary and Fallback failed" }
+                            $detailObj = @{
+                                Package     = $pkgName
+                                Id          = $pkgId
+                                Status      = "Failed"
+                                ExitCode    = $fbExitCode
+                                Provider    = $item.FallbackProvider
+                                Error       = $combinedErrMsg
+                                ErrorReason = $combinedErrMsg
+                            }
+                            $results.Details += $detailObj
                         }
                     }
                     else {
                         Write-Log -Message "Fallback provider unavailable." -Level Error
                         $results.Failed++
-                        $results.Details += @{ Package = $pkgName; Id = $pkgId; Status = "Failed"; Error = "Primary failed, Fallback provider unavailable" }
+                        $detailObj = @{
+                            Package     = $pkgName
+                            Id          = $pkgId
+                            Status      = "Failed"
+                            Provider    = $item.FallbackProvider
+                            Error       = "Primary failed, Fallback provider unavailable"
+                            ErrorReason = if ($primaryError) { $primaryError } else { "Primary failed, Fallback provider unavailable" }
+                        }
+                        $results.Details += $detailObj
                     }
                 }
                 else {
                     Write-Log -Message "Failed to install: $pkgName - Exit code: $attemptExitCode" -Level Error
                     $results.Failed++
-                    $results.Details += @{ Package = $pkgName; Id = $pkgId; Status = "Failed"; ExitCode = $attemptExitCode }
+                    $detailObj = @{
+                        Package  = $pkgName
+                        Id       = $pkgId
+                        Status   = "Failed"
+                        ExitCode = $attemptExitCode
+                        Provider = $currentProv
+                    }
+                    $errText = $Script:LastPackageError ?? $global:LastPackageError
+                    if ($errText) {
+                        $detailObj.Error = $errText
+                        $detailObj.ErrorReason = $errText
+                    }
+                    else {
+                        $detailObj.Error = "Exit code: $attemptExitCode"
+                        $detailObj.ErrorReason = "Exit code: $attemptExitCode"
+                    }
+                    $results.Details += $detailObj
                 }
             }
         }
         catch {
             Write-Log -Message "Exception installing $pkgName`: $($_.Exception.Message)" -Level Error
             $results.Failed++
-            $results.Details += @{ Package = $pkgName; Status = "Error"; Error = $_.Exception.Message }
+            $results.Details += @{ Package = $pkgName; Status = "Error"; Error = $_.Exception.Message; ErrorReason = $_.Exception.Message }
         }
     }
     
@@ -724,7 +875,6 @@ function Install-WinDebloat7Software {
     
     return [pscustomobject]$results
 }
-
 <#
 .SYNOPSIS
     Installs essential apps by category with interactive selection.
@@ -744,9 +894,8 @@ function Install-WinDebloat7Software {
 .EXAMPLE
     Install-WinDebloat7Essentials -InstallAll
 #>
-function Install-WinDebloat7Essentials {
+function Install-WinDebloatEssentials {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console output')]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Standard framework cmdlet')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
@@ -755,7 +904,7 @@ function Install-WinDebloat7Essentials {
             "Security", "DevTools", "Gaming", "Productivity", "Network", "Drivers", "AITools")]
         [string[]]$Categories,
         
-        [ValidateSet("Winget", "Chocolatey", "Auto")]
+        [ValidateSet("Winget", "Chocolatey", "PSResourceGet", "Auto")]
         [string]$PackageManager = "Auto",
         
         [switch]$InstallAll
@@ -765,7 +914,7 @@ function Install-WinDebloat7Essentials {
     
     # Determine package manager
     if ($PackageManager -eq "Auto") {
-        $PackageManager = if (Test-PackageManager -Name "Winget") { "Winget" } else { "Chocolatey" }
+        $PackageManager = if (Test-PackageManager -Name "Winget") { "Winget" } elseif (Test-PackageManager -Name "Chocolatey") { "Chocolatey" } else { "PSResourceGet" }
     }
     
     # If no categories specified, show interactive menu
@@ -862,7 +1011,7 @@ function Install-WinDebloat7Essentials {
     
     Write-Host "`nInstalling $($appsToInstall.Count) packages..." -ForegroundColor Cyan
     
-    $result = Install-WinDebloat7Software -Apps $appsToInstall -PackageManager $PackageManager -Quiet
+    $result = Install-WinDebloatSoftware -Apps $appsToInstall -PackageManager $PackageManager -Quiet
     
     Write-Host "`n╔══════════════════════════════════════════╗" -ForegroundColor Green
     Write-Host "║         Installation Complete             ║" -ForegroundColor Green
@@ -879,7 +1028,7 @@ function Install-WinDebloat7Essentials {
 .PARAMETER Config
     The configuration object loaded from a YAML profile.
 #>
-function Install-WinDebloat7ProfileSoftware {
+function Install-WinDebloatProfileSoftware {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param(
@@ -903,24 +1052,33 @@ function Install-WinDebloat7ProfileSoftware {
 
     if ($installList.Count -gt 0) {
         Write-Log -Message "Installing profile software via $pkgMgr..." -Level Info
-        Install-WinDebloat7Software -Packages $installList -PackageManager $pkgMgr
+        Install-WinDebloatSoftware -Packages $installList -PackageManager $pkgMgr
     }
 
     foreach ($pkg in $uninstallList) {
         if ($PSCmdlet.ShouldProcess($pkg, "Uninstall via $pkgMgr")) {
             try {
+                $pkgError = $null
+                $uninstExitCode = 0
                 if ($pkgMgr -eq "Chocolatey") {
-                    $p = Start-Process -FilePath "choco" -ArgumentList @("uninstall", $pkg, "-y") -NoNewWindow -Wait -PassThru
+                    & choco uninstall $pkg -y 2> variable:pkgError
+                    $uninstExitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+                }
+                elseif ($pkgMgr -eq "PSResourceGet") {
+                    Uninstall-PSResource -Name $pkg -Quiet -ErrorAction Stop
+                    $uninstExitCode = 0
                 }
                 else {
-                    $p = Start-Process -FilePath "winget" -ArgumentList @("uninstall", "--id", $pkg, "--silent", "--accept-source-agreements", "--disable-interactivity") -NoNewWindow -Wait -PassThru
+                    & winget uninstall --id $pkg --silent --accept-source-agreements --disable-interactivity 2> variable:pkgError
+                    $uninstExitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
                 }
 
-                if ($p.ExitCode -eq 0) {
+                if ($uninstExitCode -eq 0) {
                     Write-Log -Message "Uninstalled: $pkg" -Level Success
                 }
                 else {
-                    Write-Log -Message "Uninstall skipped or failed for '$pkg' (Exit: $($p.ExitCode) - may not be installed)" -Level Warning
+                    $errDetail = if ($pkgError) { ": " + ($pkgError | Out-String).Trim() } else { "" }
+                    Write-Log -Message "Uninstall skipped or failed for '$pkg' (Exit: $($uninstExitCode)$errDetail - may not be installed)" -Level Warning
                 }
             }
             catch {
@@ -936,12 +1094,12 @@ function Install-WinDebloat7ProfileSoftware {
 
 <#
 .SYNOPSIS
-    Updates all installed packages using Winget.
+    Updates all installed packages using Winget, Chocolatey, or PSResourceGet.
     
 .DESCRIPTION
-    Runs 'winget upgrade --all' to update all software packages.
+    Runs 'winget upgrade --all', 'choco upgrade all', and 'Update-PSResource' to update software packages.
 #>
-function Update-WinDebloat7Software {
+function Update-WinDebloatSoftware {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console output')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
@@ -949,8 +1107,9 @@ function Update-WinDebloat7Software {
     
     $hasWinget = Test-PackageManager -Name "Winget"
     $hasChoco = Test-PackageManager -Name "Chocolatey"
+    $hasPSResource = Test-PackageManager -Name "PSResourceGet"
     
-    if (-not $hasWinget -and -not $hasChoco) {
+    if (-not $hasWinget -and -not $hasChoco -and -not $hasPSResource) {
         Write-Log -Message "No package managers installed." -Level Warning
         return
     }
@@ -962,8 +1121,11 @@ function Update-WinDebloat7Software {
         if ($PSCmdlet.ShouldProcess("All Packages", "Update via Winget")) {
             try {
                 Write-Log -Message "Running Winget upgrade..." -Level Info
-                # Include --include-unknown to catch legacy apps if possible, but --all is standard
-                Start-Process -FilePath "winget" -ArgumentList "upgrade", "--all", "--source", "winget", "--accept-source-agreements", "--accept-package-agreements" -Wait -NoNewWindow
+                $pkgError = $null
+                & winget upgrade --all --source winget --accept-source-agreements --accept-package-agreements 2> variable:pkgError
+                if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0 -and $pkgError) {
+                    Write-Log -Message "Winget upgrade completed with exit code $LASTEXITCODE`: $(($pkgError | Out-String).Trim())" -Level Warning
+                }
             }
             catch {
                 Write-Log -Message "Winget update failed: $($_.Exception.Message)" -Level Error
@@ -976,7 +1138,11 @@ function Update-WinDebloat7Software {
         if ($PSCmdlet.ShouldProcess("All Packages", "Update via Chocolatey")) {
             try {
                 Write-Log -Message "Running Chocolatey upgrade..." -Level Info
-                Start-Process -FilePath "choco" -ArgumentList "upgrade", "all", "-y" -Wait -NoNewWindow
+                $pkgError = $null
+                & choco upgrade all -y 2> variable:pkgError
+                if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0 -and $pkgError) {
+                    Write-Log -Message "Chocolatey upgrade completed with exit code $LASTEXITCODE`: $(($pkgError | Out-String).Trim())" -Level Warning
+                }
             }
             catch {
                 Write-Log -Message "Chocolatey update failed: $($_.Exception.Message)" -Level Error
@@ -984,28 +1150,126 @@ function Update-WinDebloat7Software {
         }
     }
     
+    # 3. PSResourceGet Update
+    if ($hasPSResource) {
+        if ($PSCmdlet.ShouldProcess("All PSResources", "Update via PSResourceGet")) {
+            try {
+                Write-Log -Message "Running PSResourceGet upgrade..." -Level Info
+                Update-PSResource -TrustRepository -Quiet -ErrorAction SilentlyContinue
+            }
+            catch {
+                Write-Log -Message "PSResourceGet update failed: $($_.Exception.Message)" -Level Error
+            }
+        }
+    }
+    
     Write-Log -Message "Software update process finished." -Level Success
 }
 
+#endregion
+
+#region WinGet Optimization
+
+<#
+.SYNOPSIS
+    Optimizes WinGet client settings by deploying wininet downloader and disabling telemetry.
+#>
+function Optimize-WinDebloatWinGetSettings {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Optimizing WinGet settings (wininet downloader & telemetry disable)..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("WinGet Configuration", "Deploy optimized settings.json")) {
+        $settingsDir = Join-Path $env:LOCALAPPDATA "Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState"
+        if (-not (Test-Path -LiteralPath $settingsDir)) {
+            New-Item -Path $settingsDir -ItemType Directory -Force | Out-Null
+        }
+
+        $settingsPath = Join-Path $settingsDir "settings.json"
+        $settingsObj = [ordered]@{
+            "`$schema" = "https://aka.ms/winget-settings.schema.json"
+            "source"   = [ordered]@{
+                "autoUpdateIntervalInMinutes" = 720
+            }
+            "visual"   = [ordered]@{
+                "progressBar" = "rainbow"
+            }
+            "installBehavior" = [ordered]@{
+                "preferences" = [ordered]@{
+                    "scope" = "user"
+                }
+                "portablePackageUserRoot" = "%LOCALAPPDATA%\Microsoft\WinGet\Packages"
+            }
+            "network" = [ordered]@{
+                "downloader" = "wininet"
+            }
+            "telemetry" = [ordered]@{
+                "disable" = $true
+            }
+            "experimentalFeatures" = [ordered]@{
+                "localManifestFiles" = $true
+            }
+        }
+
+        try {
+            $json = $settingsObj | ConvertTo-Json -Depth 5
+            Set-Content -LiteralPath $settingsPath -Value $json -Encoding UTF8 -Force
+            Write-Log -Message "WinGet settings.json optimized successfully." -Level Success
+        }
+        catch {
+            Write-Log -Message "Failed to write WinGet settings: $($_.Exception.Message)" -Level Error
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores default WinGet client settings.
+#>
+function Reset-WinDebloatWinGetSettings {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("WinGet Configuration", "Reset settings.json to default")) {
+        $settingsPath = Join-Path $env:LOCALAPPDATA "Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\settings.json"
+        if (Test-Path -LiteralPath $settingsPath) {
+            Remove-Item -LiteralPath $settingsPath -Force -ErrorAction SilentlyContinue
+            Write-Log -Message "WinGet settings.json reset to default." -Level Success
+        }
+    }
+}
+
+#endregion
+
 # Aliases for backward compatibility and rebranding
-Set-Alias -Name 'Get-WinDebloatEssentialsList' -Value 'Get-WinDebloat7EssentialsList'
-Set-Alias -Name 'Install-WinDebloatSoftware' -Value 'Install-WinDebloat7Software'
-Set-Alias -Name 'Update-WinDebloatSoftware' -Value 'Update-WinDebloat7Software'
-Set-Alias -Name 'Install-WinDebloatEssentials' -Value 'Install-WinDebloat7Essentials'
-Set-Alias -Name 'Install-WinDebloatProfileSoftware' -Value 'Install-WinDebloat7ProfileSoftware'
+Set-Alias -Name 'Get-WinDebloat7EssentialsList' -Value 'Get-WinDebloatEssentialsList'
+Set-Alias -Name 'Install-WinDebloat7Software' -Value 'Install-WinDebloatSoftware'
+Set-Alias -Name 'Update-WinDebloat7Software' -Value 'Update-WinDebloatSoftware'
+Set-Alias -Name 'Install-WinDebloat7Essentials' -Value 'Install-WinDebloatEssentials'
+Set-Alias -Name 'Install-WinDebloat7ProfileSoftware' -Value 'Install-WinDebloatProfileSoftware'
+Set-Alias -Name 'Optimize-WinDebloat7WinGetSettings' -Value 'Optimize-WinDebloatWinGetSettings'
+Set-Alias -Name 'Reset-WinDebloat7WinGetSettings' -Value 'Reset-WinDebloatWinGetSettings'
 
 Export-ModuleMember -Function @(
     'Test-PackageManager',
     'Install-PackageManager',
-    'Get-WinDebloat7EssentialsList',
-    'Install-WinDebloat7Software',
-    'Update-WinDebloat7Software',
-    'Install-WinDebloat7Essentials',
-    'Install-WinDebloat7ProfileSoftware'
-) -Alias @(
+    'Invoke-WD7PackageInstall',
     'Get-WinDebloatEssentialsList',
     'Install-WinDebloatSoftware',
     'Update-WinDebloatSoftware',
     'Install-WinDebloatEssentials',
-    'Install-WinDebloatProfileSoftware'
+    'Install-WinDebloatProfileSoftware',
+    'Optimize-WinDebloatWinGetSettings',
+    'Reset-WinDebloatWinGetSettings'
+) -Alias @(
+    'Get-WinDebloat7EssentialsList',
+    'Install-WinDebloat7Software',
+    'Update-WinDebloat7Software',
+    'Install-WinDebloat7Essentials',
+    'Install-WinDebloat7ProfileSoftware',
+    'Optimize-WinDebloat7WinGetSettings',
+    'Reset-WinDebloat7WinGetSettings'
 )

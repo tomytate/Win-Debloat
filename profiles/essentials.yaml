@@ -1,10 +1,10 @@
-# Win-Debloat7 Essentials Profile
+# Win-Debloat Essentials Profile
 # One-click installation of recommended apps after debloating
 
 metadata:
   name: "Essentials"
   version: "1.0.0"
-  author: "Win-Debloat7 Team"
+  author: "Win-Debloat Team"
   description: "Post-debloat essentials installer. Installs recommended browsers, runtimes, utilities, and drivers."
   target_os: [ "Windows 10", "Windows 11" ]
   min_build: 19045

@@ -8,46 +8,73 @@ on:
 
 jobs:
   test:
-    name: Test on ${{ matrix.os }}
+    name: Test on ${{ matrix.os }} (${{ matrix.ps }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest]
+        os: [windows-2025, windows-2022]
+        ps: [pwsh7, powershell5]
 
     steps:
     - uses: actions/checkout@v4
 
-    # The project requires PowerShell 7.6+ (#Requires -Version 7.6). The runner
-    # image may ship an older pwsh, so install the latest stable as a dotnet
-    # global tool and run everything through it.
-    - name: Install PowerShell 7.6+ (dotnet tool)
+    - name: Run AST 5-Way Parity Verification
       shell: pwsh
       run: |
-        dotnet tool install --global PowerShell
-        $pwsh76 = Join-Path $env:USERPROFILE '.dotnet\tools\pwsh.exe'
-        & $pwsh76 -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
+        & ./tests/AST/Test-WinDebloatAstExportParity.ps1
 
-    - name: Run Pester Tests
+    - name: Run Test Suite (PowerShell 7.6+)
+      if: matrix.ps == 'pwsh7'
       shell: pwsh
       run: |
-        $pwsh76 = Join-Path $env:USERPROFILE '.dotnet\tools\pwsh.exe'
-        & $pwsh76 -NoProfile -Command 'if (-not (Get-Module -ListAvailable Pester | Where-Object { $_.Version -ge [version]"5.0" })) { Install-Module Pester -Force -SkipPublisherCheck -Scope CurrentUser }; $r = Invoke-Pester -Path tests/Unit -PassThru -Output Detailed; if ($r.FailedCount -gt 0) { exit 1 }'
-        exit $LASTEXITCODE
+        if (-not (Get-Module -ListAvailable Pester | Where-Object { $_.Version -ge [version]"5.5" })) {
+            Install-Module Pester -Force -SkipPublisherCheck -Scope CurrentUser
+        }
+        & ./tests/Run-AllTests.ps1 -Suite All -Output Detailed -CI -CodeCoverage
 
-    - name: Verify Build Process
+    - name: Run Test Suite (Windows PowerShell 5.1)
+      if: matrix.ps == 'powershell5'
+      shell: powershell
+      run: |
+        if (-not (Get-Module -ListAvailable Pester | Where-Object { $_.Version -ge [version]"5.5" })) {
+            Install-Module Pester -Force -SkipPublisherCheck -Scope CurrentUser
+        }
+        & ./tests/Run-AllTests.ps1 -Suite Unit -Output Detailed -CI
+
+    - name: Verify Dual Release Build Process
+      if: matrix.ps == 'pwsh7' && matrix.os == 'windows-2025'
       shell: pwsh
       run: |
-        $pwsh76 = Join-Path $env:USERPROFILE '.dotnet\tools\pwsh.exe'
-        & $pwsh76 -NoProfile -File ./build/Build-DualRelease.ps1 -Version "0.0.0-CI" -OutputDir dist
+        & ./build/Build-DualRelease.ps1 -Version "0.0.0-CI" -OutputDir dist -Platform all
         if (-not (Test-Path "dist/Win-Debloat.exe")) {
-            Write-Error "Build verification failed: Standard executable missing."
+            Write-Error "Build verification failed: Standard x64 executable missing."
+        }
+        if (-not (Test-Path "dist/Win-Debloat-arm64.exe")) {
+            Write-Error "Build verification failed: Standard ARM64 executable missing."
         }
         if (-not (Test-Path "dist/Win-Debloat-Extras.exe")) {
-            Write-Error "Build verification failed: Extras executable missing."
+            Write-Error "Build verification failed: Extras x64 executable missing."
+        }
+        if (-not (Test-Path "dist/Win-Debloat-Extras-arm64.exe")) {
+            Write-Error "Build verification failed: Extras ARM64 executable missing."
+        }
+        if (-not (Test-Path "dist/win-debloat-sbom.spdx.json")) {
+            Write-Error "Build verification failed: SPDX SBOM missing."
         }
 
+    - name: Upload Test & Coverage Artifacts
+      if: always() && matrix.ps == 'pwsh7'
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-artifacts-${{ matrix.os }}
+        path: |
+          tests/TestResults.xml
+          tests/Coverage.xml
+        if-no-files-found: ignore
+
   lint:
-    name: Lint Code
+    name: Lint & Static Code Analysis
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
@@ -64,8 +91,10 @@ jobs:
         # Scope to first-party code (vendored powershell-yaml is excluded)
         $results = @(Invoke-ScriptAnalyzer -Path src -Recurse -Severity Error |
             Where-Object { $_.ScriptPath -notlike '*\Vendor\*' })
+        $results += @(Invoke-ScriptAnalyzer -Path Win-Debloat.ps1 -Severity Error)
         $results += @(Invoke-ScriptAnalyzer -Path Win-Debloat7.ps1 -Severity Error)
         if ($results.Count -gt 0) {
-            $results | Format-Table
+            $results | Format-Table -AutoSize
             exit 1
         }
+        Write-Host "✅ Zero PSScriptAnalyzer errors detected." -ForegroundColor Green

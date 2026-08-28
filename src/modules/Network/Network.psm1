@@ -1,13 +1,13 @@
-#Requires -Version 7.6
+﻿#Requires -Version 7.6
 
 <#
 .SYNOPSIS
     Network configuration module for Win-Debloat
-    
+
 .DESCRIPTION
     Handles DNS configuration, IPv6 management, and network privacy settings.
     Supports multiple DNS providers with easy switching.
-    
+
 .NOTES
     Module: Win-Debloat.Modules.Network
     Version: 2.0.0
@@ -153,7 +153,7 @@ if (Test-Path -LiteralPath $jsonPath) {
 <#
 .SYNOPSIS
     Sets custom DNS servers for all active network adapters.
-    
+
 .DESCRIPTION
     Configures DNS servers on all enabled and connected network adapters.
     Supports popular secure DNS providers (Cloudflare, Google, Quad9, AdGuard)
@@ -171,7 +171,7 @@ function Set-WinDebloatDNS {
             "NextDNS", "Custom", "Reset", "DHCP", "Default"
         )]
         [string]$Provider,
-        
+
         [string]$CustomPrimary,
         [string]$CustomSecondary,
         [switch]$IncludeIPv6,
@@ -225,11 +225,11 @@ function Set-WinDebloatDNS {
         $providerName = $dns.Name
         $dohTemplate = $dns.DoHTemplate
     }
-    
+
     $dnsServers = @($primary)
     if ($secondary) { $dnsServers += $secondary }
-    
-    # Configure native Windows 11 DoH if available (CTT WinUtil pattern)
+
+    # Configure native Windows 11 DoH if available
     $hasDoHCmdlet = Get-Command "Add-DnsClientDohServerAddress" -ErrorAction SilentlyContinue
     if ($hasDoHCmdlet -and $dohTemplate -and ($EnableDoH.IsPresent -or -not $PSBoundParameters.ContainsKey("EnableDoH"))) {
         try {
@@ -255,7 +255,7 @@ function Set-WinDebloatDNS {
             try {
                 Set-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -ServerAddresses $dnsServers
                 Write-Log -Message "Set DNS on $($adapter.Name) to $providerName ($($dnsServers -join ', '))" -Level Success
-                
+
                 # IPv6 if requested
                 if ($IncludeIPv6 -and $Provider -ne "Custom") {
                     $dns = $Script:DNSProviders[$Provider]
@@ -276,7 +276,7 @@ function Set-WinDebloatDNS {
             }
         }
     }
-    
+
     # Flush DNS cache
     Write-Log -Message "Flushing DNS cache..." -Level Info
     Clear-DnsClientCache
@@ -292,7 +292,7 @@ function Get-WinDebloatDNSProviders {
     [CmdletBinding()]
     [OutputType([hashtable])]
     param()
-    
+
     return $Script:DNSProviders
 }
 
@@ -308,9 +308,9 @@ function Disable-WinDebloatIPv6 {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     [OutputType([void])]
     param()
-    
+
     Write-Log -Message "Configuring system to prefer IPv4 over IPv6 (Microsoft standard 0x20)..." -Level Info
-    
+
     if ($PSCmdlet.ShouldProcess("TCP/IP Stack", "Prefer IPv4 over IPv6")) {
         # Value 0x20 (decimal 32) configures IPv4 as preferred over IPv6 in RFC 3484 prefix policies
         # without unbinding adapter components (which breaks WSL2, UWP localhost, and VPNs)
@@ -327,12 +327,12 @@ function Enable-WinDebloatIPv6 {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([void])]
     param()
-    
+
     Write-Log -Message "Restoring standard IPv6 behavior..." -Level Info
-    
+
     if ($PSCmdlet.ShouldProcess("TCP/IP Stack", "Enable Default IPv6")) {
         Remove-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters" -Name "DisabledComponents"
-        
+
         # Ensure all adapters have ms_tcpip6 bound
         Get-NetAdapter -ErrorAction SilentlyContinue | ForEach-Object {
             Enable-NetAdapterBinding -Name $_.Name -ComponentID ms_tcpip6 -ErrorAction SilentlyContinue
@@ -450,7 +450,7 @@ function Get-WinDebloatNetBIOSStatus {
 <#
 .SYNOPSIS
     Gets the current network configuration status.
-    
+
     .OUTPUTS
         [psobject[]] Network adapter status objects.
 #>
@@ -458,13 +458,13 @@ function Get-WinDebloatNetworkStatus {
     [CmdletBinding()]
     [OutputType([psobject[]])]
     param()
-    
+
     $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Up" }
-    
+
     $results = foreach ($adapter in $adapters) {
         $dnsServers = (Get-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue).ServerAddresses
         $ipv6Enabled = (Get-NetAdapterBinding -Name $adapter.Name -ComponentID ms_tcpip6 -ErrorAction SilentlyContinue).Enabled
-        
+
         # Try to identify DNS provider
         $provider = "Unknown"
         foreach ($providerName in $Script:DNSProviders.Keys) {
@@ -475,7 +475,7 @@ function Get-WinDebloatNetworkStatus {
             }
         }
         if (-not $dnsServers -or $dnsServers.Count -eq 0) { $provider = "DHCP" }
-        
+
         [pscustomobject]@{
             Adapter     = $adapter.Name
             Status      = $adapter.Status
@@ -483,7 +483,7 @@ function Get-WinDebloatNetworkStatus {
             DNSProvider = $provider
             IPv6Enabled = [bool]$ipv6Enabled
         }
-        
+
         Write-Log -Message "Adapter '$($adapter.Name)': DNS provider detected as $provider ($($dnsServers -join ', '))" -Level Debug
     }
 
@@ -493,7 +493,7 @@ function Get-WinDebloatNetworkStatus {
 <#
 .SYNOPSIS
     Applies network settings from a profile configuration.
-    
+
 .PARAMETER Config
     The configuration object loaded from a YAML profile.
 #>
@@ -504,17 +504,17 @@ function Set-WinDebloatNetwork {
         [Parameter(Mandatory)]
         [psobject]$Config
     )
-    
+
     if (-not $Config.network) {
         Write-Log -Message "No network configuration in profile." -Level Info
         return
     }
-    
+
     # DNS Configuration
     if ($Config.network.dns_servers -and $Config.network.dns_servers.Count -gt 0) {
         $primary = $Config.network.dns_servers[0]
         $secondary = if ($Config.network.dns_servers.Count -gt 1) { $Config.network.dns_servers[1] } else { $null }
-        
+
         # Check if it matches a known provider
         $matchedProvider = $null
         foreach ($providerName in $Script:DNSProviders.Keys) {
@@ -523,7 +523,7 @@ function Set-WinDebloatNetwork {
                 break
             }
         }
-        
+
         if ($matchedProvider) {
             Set-WinDebloatDNS -Provider $matchedProvider
         }
@@ -531,7 +531,7 @@ function Set-WinDebloatNetwork {
             Set-WinDebloatDNS -Provider Custom -CustomPrimary $primary -CustomSecondary $secondary
         }
     }
-    
+
     # IPv6
     if ($Config.network.disable_ipv6 -eq $true) {
         Disable-WinDebloatIPv6
@@ -541,28 +541,130 @@ function Set-WinDebloatNetwork {
     if ($Config.network.disable_netbios -eq $true) {
         Disable-WinDebloatNetBIOS
     }
+
+    # TCP Congestion Provider
+    if ($Config.network.tcp_congestion_provider) {
+        Set-WinDebloatTcpCongestionProvider -Provider $Config.network.tcp_congestion_provider
+    }
+
+    # NetAdapter RSC
+    if ($Config.network.disable_netadapter_rsc -eq $true) {
+        Disable-WinDebloatNetAdapterRSC
+    }
+}
+
+#endregion
+
+#region TCP Congestion & Hardware Offload Tuning
+
+<#
+.SYNOPSIS
+    Configures modern Windows TCP Congestion Control Provider (CUBIC / BBR2).
+#>
+function Set-WinDebloatTcpCongestionProvider {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param(
+        [Parameter(Position = 0)]
+        [ValidateSet("cubic", "bbr2", "newreno", "default")]
+        [string]$Provider = "cubic"
+    )
+
+    Write-Log -Message "Configuring TCP Congestion Provider: $Provider..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("TCP/IP Stack", "Set congestion control provider to $Provider")) {
+        try {
+            $proc = Start-Process -FilePath "netsh.exe" -ArgumentList "int tcp set supplemental template=custom congestionprovider=$Provider" -Wait -NoNewWindow -PassThru
+            if ($proc.ExitCode -eq 0) {
+                # Apply custom template globally
+                Start-Process -FilePath "netsh.exe" -ArgumentList "int tcp set supplemental custom" -Wait -NoNewWindow | Out-Null
+
+                # If BBR2 is chosen, disable loopback large MTU to avoid local RPC hangs
+                if ($Provider -eq "bbr2") {
+                    Start-Process -FilePath "netsh.exe" -ArgumentList "int ip set global loopbacklargemtu=disable" -Wait -NoNewWindow | Out-Null
+                }
+                else {
+                    Start-Process -FilePath "netsh.exe" -ArgumentList "int ip set global loopbacklargemtu=enable" -Wait -NoNewWindow | Out-Null
+                }
+                Write-Log -Message "TCP Congestion Provider successfully set to '$Provider'." -Level Success
+            }
+            else {
+                Write-Log -Message "Notice: netsh congestion provider returned exit code $($proc.ExitCode) (provider might require Windows 11 24H2+ / Server 2022+)." -Level Warning
+            }
+        }
+        catch {
+            Write-Log -Message "Failed to set TCP congestion provider: $($_.Exception.Message)" -Level Error
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Disables Receive Segment Coalescing (RSC) on gaming network adapters to eliminate packet coalescing jitter.
+#>
+function Disable-WinDebloatNetAdapterRSC {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Disabling Receive Segment Coalescing (RSC) on active network adapters..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Network Adapters", "Disable RSC for low gaming latency")) {
+        $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Up" }
+        foreach ($adapter in $adapters) {
+            try {
+                if (Get-Command Disable-NetAdapterRsc -ErrorAction SilentlyContinue) {
+                    Disable-NetAdapterRsc -Name $adapter.Name -IPv4 -IPv6 -Confirm:$false -ErrorAction SilentlyContinue
+                    Write-Log -Message "Disabled RSC on adapter: $($adapter.Name)" -Level Success
+                }
+            }
+            catch {
+                Write-Log -Message "Notice: Could not modify RSC on $($adapter.Name): $($_.Exception.Message)" -Level Debug
+            }
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Enables Receive Segment Coalescing (RSC) on active network adapters.
+#>
+function Enable-WinDebloatNetAdapterRSC {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Network Adapters", "Enable default RSC")) {
+        $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Up" }
+        foreach ($adapter in $adapters) {
+            try {
+                if (Get-Command Enable-NetAdapterRsc -ErrorAction SilentlyContinue) {
+                    Enable-NetAdapterRsc -Name $adapter.Name -IPv4 -IPv6 -Confirm:$false -ErrorAction SilentlyContinue
+                    Write-Log -Message "Restored RSC on adapter: $($adapter.Name)" -Level Success
+                }
+            }
+            catch {
+                Write-Log -Message "Notice: Could not enable RSC on $($adapter.Name): $($_.Exception.Message)" -Level Debug
+            }
+        }
+    }
 }
 
 #endregion
 
 # Aliases for backward compatibility
 Set-Alias -Name 'Set-WinDebloat7DNS' -Value 'Set-WinDebloatDNS'
-Set-Alias -Name 'Set-WinDebloatDns' -Value 'Set-WinDebloatDNS'
-Set-Alias -Name 'Set-WinDebloat7Dns' -Value 'Set-WinDebloatDNS'
-Set-Alias -Name 'Get-WinDebloatDNSProviders' -Value 'Get-WinDebloatDNSProviders'
 Set-Alias -Name 'Get-WinDebloat7DNSProviders' -Value 'Get-WinDebloatDNSProviders'
-Set-Alias -Name 'Get-WinDebloatDnsProviders' -Value 'Get-WinDebloatDNSProviders'
-Set-Alias -Name 'Get-WinDebloat7DnsProviders' -Value 'Get-WinDebloatDNSProviders'
 Set-Alias -Name 'Disable-WinDebloat7IPv6' -Value 'Disable-WinDebloatIPv6'
 Set-Alias -Name 'Enable-WinDebloat7IPv6' -Value 'Enable-WinDebloatIPv6'
-Set-Alias -Name 'Disable-WinDebloatNetBIOS' -Value 'Disable-WinDebloatNetBIOS'
 Set-Alias -Name 'Disable-WinDebloat7NetBIOS' -Value 'Disable-WinDebloatNetBIOS'
-Set-Alias -Name 'Enable-WinDebloatNetBIOS' -Value 'Enable-WinDebloatNetBIOS'
 Set-Alias -Name 'Enable-WinDebloat7NetBIOS' -Value 'Enable-WinDebloatNetBIOS'
-Set-Alias -Name 'Get-WinDebloatNetBIOSStatus' -Value 'Get-WinDebloatNetBIOSStatus'
 Set-Alias -Name 'Get-WinDebloat7NetBIOSStatus' -Value 'Get-WinDebloatNetBIOSStatus'
 Set-Alias -Name 'Get-WinDebloat7NetworkStatus' -Value 'Get-WinDebloatNetworkStatus'
 Set-Alias -Name 'Set-WinDebloat7Network' -Value 'Set-WinDebloatNetwork'
+Set-Alias -Name 'Set-WinDebloat7TcpCongestionProvider' -Value 'Set-WinDebloatTcpCongestionProvider'
+Set-Alias -Name 'Disable-WinDebloat7NetAdapterRSC' -Value 'Disable-WinDebloatNetAdapterRSC'
+Set-Alias -Name 'Enable-WinDebloat7NetAdapterRSC' -Value 'Enable-WinDebloatNetAdapterRSC'
 
 Export-ModuleMember -Function @(
     'Set-WinDebloatDNS',
@@ -573,19 +675,21 @@ Export-ModuleMember -Function @(
     'Enable-WinDebloatNetBIOS',
     'Get-WinDebloatNetBIOSStatus',
     'Get-WinDebloatNetworkStatus',
-    'Set-WinDebloatNetwork'
+    'Set-WinDebloatNetwork',
+    'Set-WinDebloatTcpCongestionProvider',
+    'Disable-WinDebloatNetAdapterRSC',
+    'Enable-WinDebloatNetAdapterRSC'
 ) -Alias @(
     'Set-WinDebloat7DNS',
-    'Set-WinDebloatDns',
-    'Set-WinDebloat7Dns',
     'Get-WinDebloat7DNSProviders',
-    'Get-WinDebloatDnsProviders',
-    'Get-WinDebloat7DnsProviders',
     'Disable-WinDebloat7IPv6',
     'Enable-WinDebloat7IPv6',
     'Disable-WinDebloat7NetBIOS',
     'Enable-WinDebloat7NetBIOS',
     'Get-WinDebloat7NetBIOSStatus',
     'Get-WinDebloat7NetworkStatus',
-    'Set-WinDebloat7Network'
+    'Set-WinDebloat7Network',
+    'Set-WinDebloat7TcpCongestionProvider',
+    'Disable-WinDebloat7NetAdapterRSC',
+    'Enable-WinDebloat7NetAdapterRSC'
 )

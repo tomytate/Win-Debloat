@@ -1,4 +1,4 @@
-﻿#Requires -Version 7.6
+#Requires -Version 7.6
 
 $sutSystemState = "$PSScriptRoot/../../src/core/SystemState.psm1"
 $sutState = "$PSScriptRoot/../../src/core/State.psm1"
@@ -43,14 +43,17 @@ Describe "SystemState Module" {
     }
 
     Context "Get-WinDebloatPrivacyScore and Get-WinDebloat7PrivacyScore" {
-        It "Scores 100 with Grade A when all privacy risks are hardened (cmdlet and alias)" {
+        It "Scores 100 with Grade A when all 11 privacy vectors are hardened (cmdlet and alias)" {
             $hardenedState = [PSCustomObject]@{
                 Telemetry        = $false
                 Recall           = $false
-                AdvertisingId    = $false
                 Copilot          = $false
-                ActivityHistory  = $false
+                StartAds         = $false
+                AdvertisingId    = $false
                 Location         = $false
+                ActivityHistory  = $false
+                AIFabric         = $false
+                SudoUnsafe       = $false
                 BackgroundApps   = $false
                 ClipboardHistory = $false
             }
@@ -59,6 +62,7 @@ Describe "SystemState Module" {
             $score1.Score | Should -Be 100
             $score1.Grade | Should -Be 'A'
             $score1.Rating | Should -Be 'Excellent'
+            $score1.Breakdown.Count | Should -Be 11
             ($score1.Breakdown | Measure-Object -Property Lost -Sum).Sum | Should -Be 0
 
             $score2 = Get-WinDebloat7PrivacyScore -State $hardenedState
@@ -66,14 +70,17 @@ Describe "SystemState Module" {
             $score2.Grade | Should -Be 'A'
         }
 
-        It "Scores 0 with Grade F when all privacy risks are active" {
+        It "Scores 0 with Grade F when all 11 privacy vectors are exposed" {
             $exposedState = [PSCustomObject]@{
                 Telemetry        = $true
                 Recall           = $true
-                AdvertisingId    = $true
                 Copilot          = $true
-                ActivityHistory  = $true
+                StartAds         = $true
+                AdvertisingId    = $true
                 Location         = $true
+                ActivityHistory  = $true
+                AIFabric         = $true
+                SudoUnsafe       = $true
                 BackgroundApps   = $true
                 ClipboardHistory = $true
             }
@@ -82,36 +89,42 @@ Describe "SystemState Module" {
             $score.Score | Should -Be 0
             $score.Grade | Should -Be 'F'
             $score.Rating | Should -Be 'At Risk'
+            $score.Breakdown.Count | Should -Be 11
             ($score.Breakdown | Measure-Object -Property Lost -Sum).Sum | Should -Be 100
         }
 
-        It "Correctly deducts weighted points for partial hardening" {
-            # Only Telemetry (22) and Recall (16) active = 38 lost -> Score 62 (Grade C)
+        It "Correctly deducts weighted points for partial hardening (Telemetry 18 + Recall 14 = 32 lost -> 68 Grade C)" {
             $partialState = [PSCustomObject]@{
-                Telemetry        = $true
-                Recall           = $true
-                AdvertisingId    = $false
+                Telemetry        = $true   # 18 pts lost
+                Recall           = $true   # 14 pts lost
                 Copilot          = $false
-                ActivityHistory  = $false
+                StartAds         = $false
+                AdvertisingId    = $false
                 Location         = $false
+                ActivityHistory  = $false
+                AIFabric         = $false
+                SudoUnsafe       = $false
                 BackgroundApps   = $false
                 ClipboardHistory = $false
             }
 
             $score = Get-WinDebloat7PrivacyScore -State $partialState
-            $score.Score | Should -Be 62
+            $score.Score | Should -Be 68
             $score.Grade | Should -Be 'C'
             $score.Rating | Should -Be 'Fair'
         }
 
-        It "Handles hashtable state input" {
+        It "Handles hashtable state input across all 11 vectors" {
             $hashState = @{
                 Telemetry        = $false
                 Recall           = $false
-                AdvertisingId    = $false
                 Copilot          = $false
-                ActivityHistory  = $false
+                StartAds         = $false
+                AdvertisingId    = $false
                 Location         = $false
+                ActivityHistory  = $false
+                AIFabric         = $false
+                SudoUnsafe       = $false
                 BackgroundApps   = $false
                 ClipboardHistory = $false
             }
@@ -119,6 +132,7 @@ Describe "SystemState Module" {
             $score = Get-WinDebloat7PrivacyScore -State $hashState
             $score.Score | Should -Be 100
             $score.Grade | Should -Be 'A'
+            $score.Breakdown.Count | Should -Be 11
         }
 
         It "Auto-fetches state when -State parameter is omitted" {
@@ -128,7 +142,7 @@ Describe "SystemState Module" {
 
             $score = Get-WinDebloat7PrivacyScore
             $score.Score | Should -BeOfType [int]
-            $score.Breakdown.Count | Should -Be 8
+            $score.Breakdown.Count | Should -Be 11
         }
     }
 }

@@ -369,7 +369,6 @@ function Update-WinDebloatDrivers {
 # Aliases for backward compatibility
 Set-Alias -Name 'Get-WinDebloat7DriverStatus' -Value 'Get-WinDebloatDriverStatus'
 Set-Alias -Name 'Get-WinDebloat7GPUInfo' -Value 'Get-WinDebloatGPUInfo'
-Set-Alias -Name 'Get-WinDebloatGpuInfo' -Value 'Get-WinDebloatGPUInfo'
 Set-Alias -Name 'Get-WinDebloat7GpuInfo' -Value 'Get-WinDebloatGPUInfo'
 Set-Alias -Name 'Update-WinDebloat7Drivers' -Value 'Update-WinDebloatDrivers'
 Set-Alias -Name 'Update-WinDebloatDriver' -Value 'Update-WinDebloatDrivers'
@@ -378,11 +377,13 @@ Set-Alias -Name 'Update-WinDebloat7Driver' -Value 'Update-WinDebloatDrivers'
 Export-ModuleMember -Function @(
     'Get-WinDebloatDriverStatus',
     'Get-WinDebloatGPUInfo',
-    'Update-WinDebloatDrivers'
+    'Update-WinDebloatDrivers',
+    'Start-SnappyDriverInstaller',
+    'Update-DriversViaWindowsUpdate',
+    'Update-GPUDriverViaWinget'
 ) -Alias @(
     'Get-WinDebloat7DriverStatus',
     'Get-WinDebloat7GPUInfo',
-    'Get-WinDebloatGpuInfo',
     'Get-WinDebloat7GpuInfo',
     'Update-WinDebloat7Drivers',
     'Update-WinDebloatDriver',

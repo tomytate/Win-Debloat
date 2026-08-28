@@ -89,7 +89,7 @@ function Optimize-WinDebloatPerformance {
                 }
             }
             "Ultimate" {
-                # Check for laptop / battery presence (AtlasOS / CTT best practice)
+                # Check for laptop / battery presence
                 $battery = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue
                 if ($battery) {
                     Write-Log -Message "Laptop detected: Ultimate Performance power plan causes severe battery drain and thermal throttling. Using High Performance scheme." -Level Warning
@@ -251,15 +251,44 @@ function Optimize-WinDebloatPerformance {
         $failCount += ($results | Where-Object { -not $_ }).Count
     }
     
-    # 6. Network Throttling
-    $currentStep++
-    Write-Progress -Activity "Applying Performance Settings" -Status "Disabling Network Throttling" -PercentComplete (($currentStep / $totalSteps) * 100)
-    Write-Log -Message "Disabling Network Throttling" -Level Info
-    if (Set-RegistryKey -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -Value 0xffffffff -Type DWord) {
+    # 7. DirectStorage & Storage Subsystem
+    if ($Config.performance.enable_directstorage_tuning) {
+        $currentStep++
+        Write-Progress -Activity "Applying Performance Settings" -Status "Optimizing DirectStorage & NTFS" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Optimize-WinDebloatDirectStorage
         $successCount++
     }
-    else {
-        $failCount++
+
+    # 8. Intel Thread Director / EPP Tuning
+    if ($Config.performance.enable_thread_director) {
+        $currentStep++
+        Write-Progress -Activity "Applying Performance Settings" -Status "Optimizing CPU Thread Scheduling" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Optimize-WinDebloatThreadDirector
+        $successCount++
+    }
+
+    # 9. AMD 3D V-Cache Dual-CCD Core Parking Safeguards
+    if ($Config.performance.enable_amd_x3d_safeguards) {
+        $currentStep++
+        Write-Progress -Activity "Applying Performance Settings" -Status "Enforcing AMD 3D V-Cache Safeguards" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Protect-WinDebloatAMDX3D
+        $successCount++
+    }
+
+    # 10. DirectSR & Windowed VRR Optimization
+    if ($Config.performance.enable_directsr) {
+        $currentStep++
+        Write-Progress -Activity "Applying Performance Settings" -Status "Enabling DirectSR & Windowed VRR" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Enable-WinDebloatDirectSR
+        $successCount++
+    }
+
+    # 11. HAGS 2.0 & GPU Driver TDR Stability
+    if ($Config.performance.enable_hags_tdr_tuning) {
+        $currentStep++
+        Write-Progress -Activity "Applying Performance Settings" -Status "Configuring HAGS & TDR Stability" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Set-WinDebloatHAGSTDR
+        $successCount++
     }
     
     Write-Progress -Activity "Applying Performance Settings" -Completed
@@ -268,15 +297,129 @@ function Optimize-WinDebloatPerformance {
     Write-Log -Message "Performance settings applied: $successCount succeeded, $failCount failed" -Level $(if ($failCount -eq 0) { "Success" } else { "Warning" })
 }
 
+<#
+.SYNOPSIS
+    Optimizes DirectStorage 1.2+ BypassIO and kernel NTFS lookaside memory allocation.
+#>
+function Optimize-WinDebloatDirectStorage {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Optimizing DirectStorage 1.2+ and NTFS memory pools..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("FileSystem & DirectStorage", "Enable NTFS lookaside memory expansion and BypassIO optimizations")) {
+        $results = @(
+            # NTFS lookaside memory pool expansion (2 = high memory usage)
+            (Set-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "NtfsMemoryUsage" -Value 2 -Type DWord),
+            # Disable 8.3 short name creation overhead on non-OS volumes
+            (Set-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "NtfsDisable8dot3NameCreation" -Value 1 -Type DWord),
+            # Disable last access timestamp update overhead
+            (Set-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "NtfsDisableLastAccessUpdate" -Value 1 -Type DWord),
+            # Enable Win32 Long Paths
+            (Set-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord),
+            # Tune system cache mode for SSD / NVMe
+            (Set-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "LargeSystemCache" -Value 0 -Type DWord)
+        )
+        $appliedCount = ($results | Where-Object { $_ }).Count
+        Write-Log -Message "DirectStorage 1.2+ NTFS memory pool tuning applied ($appliedCount settings configured)." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores DirectStorage and FileSystem registry values to Windows defaults.
+#>
+function Reset-WinDebloatDirectStorage {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("FileSystem & DirectStorage", "Restore default NTFS memory pool settings")) {
+        Remove-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "NtfsMemoryUsage"
+        Remove-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "NtfsDisable8dot3NameCreation"
+        Remove-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "NtfsDisableLastAccessUpdate"
+        Remove-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled"
+        Remove-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "LargeSystemCache"
+        Write-Log -Message "DirectStorage FileSystem settings restored to defaults." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Optimizes CPU scheduling and Energy Performance Preference (EPP) for hybrid and high-core architectures.
+#>
+function Optimize-WinDebloatThreadDirector {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Optimizing CPU scheduling policy & Energy Performance Preference..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Processor Power Policy", "Optimize Thread Director and EPP for maximum responsiveness")) {
+        try {
+            # Prefer performant cores (P-cores) for thread scheduling (SCHEDPOLICY 1 = Performant processors)
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SCHEDPOLICY 1 2>$null
+            # Autonomous mode performance bias (EPP 0% = Max Performance)
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFEPP 0 2>$null
+            # Apply changes
+            & powercfg /setactive SCHEME_CURRENT 2>$null
+            Write-Log -Message "CPU scheduling (P-core preference) and EPP optimization applied." -Level Success
+        }
+        catch {
+            Write-Log -Message "Could not apply powercfg scheduling: $($_.Exception.Message)" -Level Warning
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores CPU scheduling and Energy Performance Preference (EPP) to Windows defaults.
+#>
+function Reset-WinDebloatThreadDirector {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Restoring CPU scheduling policy and EPP to Windows defaults..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Processor Power Policy", "Restore default CPU scheduling and EPP")) {
+        try {
+            # Reset SCHEDPOLICY to 3 (Automatic / Windows Default)
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SCHEDPOLICY 3 2>$null
+            # Reset EPP to 50% (Balanced default)
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFEPP 50 2>$null
+            # Apply changes
+            & powercfg /setactive SCHEME_CURRENT 2>$null
+            Write-Log -Message "CPU scheduling and EPP restored to default." -Level Success
+        }
+        catch {
+            Write-Log -Message "Could not restore powercfg scheduling: $($_.Exception.Message)" -Level Warning
+        }
+    }
+}
+
 # Aliases for backward compatibility
 Set-Alias -Name 'Set-WinDebloatPerformance' -Value 'Optimize-WinDebloatPerformance'
 Set-Alias -Name 'Set-WinDebloat7Performance' -Value 'Optimize-WinDebloatPerformance'
 Set-Alias -Name 'Optimize-WinDebloat7Performance' -Value 'Optimize-WinDebloatPerformance'
+Set-Alias -Name 'Optimize-WinDebloat7DirectStorage' -Value 'Optimize-WinDebloatDirectStorage'
+Set-Alias -Name 'Reset-WinDebloat7DirectStorage' -Value 'Reset-WinDebloatDirectStorage'
+Set-Alias -Name 'Optimize-WinDebloat7ThreadDirector' -Value 'Optimize-WinDebloatThreadDirector'
+Set-Alias -Name 'Reset-WinDebloat7ThreadDirector' -Value 'Reset-WinDebloatThreadDirector'
 
 Export-ModuleMember -Function @(
-    'Optimize-WinDebloatPerformance'
+    'Optimize-WinDebloatPerformance',
+    'Optimize-WinDebloatDirectStorage',
+    'Reset-WinDebloatDirectStorage',
+    'Optimize-WinDebloatThreadDirector',
+    'Reset-WinDebloatThreadDirector'
 ) -Alias @(
     'Set-WinDebloatPerformance',
     'Set-WinDebloat7Performance',
-    'Optimize-WinDebloat7Performance'
+    'Optimize-WinDebloat7Performance',
+    'Optimize-WinDebloat7DirectStorage',
+    'Reset-WinDebloat7DirectStorage',
+    'Optimize-WinDebloat7ThreadDirector',
+    'Reset-WinDebloat7ThreadDirector'
 )

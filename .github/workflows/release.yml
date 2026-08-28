@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build & Release
+    name: Build & Release Single-File Executables
     runs-on: windows-latest
     
     steps:
@@ -18,22 +18,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Build scripts require PowerShell 7.6+; install the latest stable as a
-      # dotnet global tool in case the runner image ships an older pwsh.
-      - name: Install PowerShell 7.6+ (dotnet tool)
-        shell: pwsh
-        run: dotnet tool install --global PowerShell
-
-      - name: Build Dual Release
+      - name: Build Dual Release with SPDX 2.3 SBOM
         shell: pwsh
         run: |
-          $pwsh76 = Join-Path $env:USERPROFILE '.dotnet\tools\pwsh.exe'
           $tag = "${{ github.ref_name }}"
           $version = $tag.TrimStart('v')
-          & $pwsh76 -NoProfile -File ./build/Build-DualRelease.ps1 -Version $version -OutputDir dist
+          & ./build/Build-DualRelease.ps1 -Version $version -OutputDir dist -Platform all
 
-      - name: Publish Release
-        uses: softprops/action-gh-release@v1
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
@@ -41,6 +34,7 @@ jobs:
             dist/Win-Debloat-arm64.exe
             dist/Win-Debloat-Extras.exe
             dist/Win-Debloat-Extras-arm64.exe
+            dist/win-debloat-sbom.spdx.json
             dist/SHA256SUMS.txt
           body_path: dist/RELEASE_NOTES.md
           draft: false

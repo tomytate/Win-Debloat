@@ -1,10 +1,10 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Win-Debloat7 - The Power User's Windows Optimization Platform
+    Win-Debloat - The Power User's Windows Optimization Platform
     
 .DESCRIPTION
-    Entry point for the Win-Debloat7 framework.
+    Entry point for the Win-Debloat framework.
     Loads core modules and launches the interactive TUI or applies profiles in CLI mode.
     
 .PARAMETER ProfileFile
@@ -17,25 +17,25 @@
     Enables verbose output for debugging.
     
 .EXAMPLE
-    ./Win-Debloat7.ps1
+    ./Win-Debloat.ps1
     Launches the interactive menu.
     
 .EXAMPLE
-    ./Win-Debloat7.ps1 -ProfileFile profiles/gaming.yaml
+    ./Win-Debloat.ps1 -ProfileFile profiles/gaming.yaml
     Applies the gaming profile with confirmation prompts.
     
 .EXAMPLE
-    ./Win-Debloat7.ps1 -ProfileFile profiles/moderate.yaml -Unattended
+    ./Win-Debloat.ps1 -ProfileFile profiles/moderate.yaml -Unattended
     Applies the moderate profile without prompts (for automation).
     
 .NOTES
-    Version: 1.5.0
+    Version: 1.6.0
     Author: tomytate
     License: MIT
     Requires: PowerShell 7.6+, Administrator privileges
     
 .LINK
-    https://github.com/tomytate/Win-Debloat7
+    https://github.com/tomytate/Win-Debloat
 #>
 
 #Requires -Version 7.6
@@ -193,6 +193,7 @@ if ($ProfileFile) {
     # Apply modules (all profile sections)
     Remove-WinDebloat7Bloatware -Config $config -Confirm:$false
     Set-WinDebloat7Privacy -Config $config -Confirm:$false
+    Set-WinDebloat7Security -Config $config -Confirm:$false
     Set-WinDebloat7Performance -Config $config -Confirm:$false
     Set-WinDebloat7Network -Config $config -Confirm:$false
     Set-WinDebloat7SystemTweaks -Config $config -Confirm:$false

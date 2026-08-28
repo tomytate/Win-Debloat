@@ -17,6 +17,7 @@
 
 using namespace System.Management.Automation
 using namespace System.Collections.Generic
+using namespace System.Text.RegularExpressions
 
 Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force
 Import-Module "$PSScriptRoot\..\..\core\Registry.psm1" -Force
@@ -195,12 +196,16 @@ function Remove-WinDebloatBloatware {
     
     # Protected immutable system whitelist
     $immutableWhitelistRegex = '^(Microsoft\.(WindowsStore|DesktopAppInstaller|StorePurchaseApp|SecHealthUI|WindowsTerminal|Windows\.ShellExperienceHost|Windows\.StartMenuExperienceHost|Windows\.AccountsControl|AAD\.BrokerPlugin|Windows\.CloudExperienceHost|Windows\.Search|VCLibs|NET\.Native|UI\.Xaml|Services\.Store\.Engagement|WindowsAppRuntime|DirectX|HEIFImageExtension|VP9VideoExtensions|WebMediaExtensions|WebpImageExtension|RawImageExtension|AV1VideoExtension|Windows\.Apprep\.ChxApp|Windows\.CapturePicker))'
+    $whitelistCompiled = [regex]::new($immutableWhitelistRegex, [RegexOptions]::Compiled -bor [RegexOptions]::IgnoreCase)
 
-    # Helper scriptblock to convert glob patterns (*, ?) to regex patterns
+    # Pre-compiled regex options
+    $regexOptions = [RegexOptions]::Compiled -bor [RegexOptions]::IgnoreCase
+
+    # Helper scriptblock to convert glob patterns (*, ?) to pre-compiled regex objects
     $convertGlobToRegex = {
         param([string[]]$Patterns)
         if (-not $Patterns -or $Patterns.Count -eq 0) { return $null }
-        return ($Patterns | ForEach-Object { 
+        $patternStr = ($Patterns | ForEach-Object { 
             if ($_ -match '\*|\?') {
                 [regex]::Escape($_).Replace('\*', '.*').Replace('\?', '.')
             }
@@ -208,10 +213,11 @@ function Remove-WinDebloatBloatware {
                 [regex]::Escape($_)
             }
         }) -join '|'
+        return [regex]::new($patternStr, $regexOptions)
     }
 
-    # Build regex patterns for matching with glob support
-    $excludePattern = & $convertGlobToRegex $excludeList
+    # Build pre-compiled regex patterns for matching with glob support
+    $excludeRegex = & $convertGlobToRegex $excludeList
     $targetsRegex = & $convertGlobToRegex $targetApps
     if (-not $targetsRegex) { return }
 
@@ -221,13 +227,13 @@ function Remove-WinDebloatBloatware {
         if ($current % 50 -eq 0) { Write-Progress -Activity "Removing Bloatware" -Status "Scanning $($pkg.Name)" -PercentComplete ([math]::Round(($current / $total) * 100)) }
 
         # Check immutable whitelist first
-        if ($pkg.Name -match $immutableWhitelistRegex) {
+        if ($pkg.Name -and $whitelistCompiled.IsMatch($pkg.Name)) {
             continue
         }
 
-        if ($pkg.Name -match $targetsRegex) {
+        if ($pkg.Name -and $targetsRegex.IsMatch($pkg.Name)) {
             # Double check exclusion pattern
-            if ($excludePattern -and $pkg.Name -match $excludePattern) {
+            if ($excludeRegex -and $excludeRegex.IsMatch($pkg.Name)) {
                 $skippedCount++
                 continue
             }
@@ -255,12 +261,12 @@ function Remove-WinDebloatBloatware {
         }
 
         # Check immutable whitelist first
-        if ($dispName -match $immutableWhitelistRegex -or $pkg.PackageName -match $immutableWhitelistRegex) {
+        if (($dispName -and $whitelistCompiled.IsMatch($dispName)) -or ($pkg.PackageName -and $whitelistCompiled.IsMatch($pkg.PackageName))) {
             continue
         }
 
-        if ($dispName -match $targetsRegex -or $pkg.PackageName -match $targetsRegex) {
-            if ($excludePattern -and ($dispName -match $excludePattern -or $pkg.PackageName -match $excludePattern)) {
+        if (($dispName -and $targetsRegex.IsMatch($dispName)) -or ($pkg.PackageName -and $targetsRegex.IsMatch($pkg.PackageName))) {
+            if ($excludeRegex -and (($dispName -and $excludeRegex.IsMatch($dispName)) -or ($pkg.PackageName -and $excludeRegex.IsMatch($pkg.PackageName)))) {
                 $skippedCount++
                 continue
             }
@@ -288,7 +294,6 @@ function Remove-WinDebloatBloatware {
 <#
 .SYNOPSIS
     Removes OneDrive completely and safely without deleting user files.
-    Adapted from Win-Debloat-Tools.
 #>
 function Uninstall-WinDebloatOneDrive {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
@@ -335,7 +340,6 @@ function Uninstall-WinDebloatOneDrive {
 <#
 .SYNOPSIS
     Removes Microsoft Edge (Advanced/Risky).
-    Adapted from Win-Debloat-Tools.
 #>
 function Uninstall-WinDebloatEdge {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
@@ -392,19 +396,25 @@ function Uninstall-WinDebloatXbox {
             "*XboxApp*", "*XboxGameOverlay*", "*XboxGamingOverlay*", "*XboxSpeechToTextOverlay*", 
             "*GamingApp*", "*GamingServices*", "*XboxIdentityProvider*"
         )
-        foreach ($app in $apps) {
-            Get-AppxPackage -AllUsers $app | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+        $xboxRegexOptions = [RegexOptions]::Compiled -bor [RegexOptions]::IgnoreCase
+        $xboxPattern = ($apps | ForEach-Object { [regex]::Escape($_).Replace('\*', '.*') }) -join '|'
+        $xboxRegex = [regex]::new($xboxPattern, $xboxRegexOptions)
+
+        # Single batched query instead of per-app loop
+        $installedPackages = Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+        if ($installedPackages) {
+            $installedPackages | Where-Object { $_.Name -and $xboxRegex.IsMatch($_.Name) } | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
         }
 
         # 3. Deprovision
         try {
             $provisioned = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
             if ($provisioned) {
-                foreach ($app in $apps) {
-                    $pattern = [regex]::Escape($app).Replace('\*', '.*')
-                    $provisioned | Where-Object { $_.PackageName -match $pattern -or $_.DisplayName -match $pattern } | ForEach-Object {
-                        Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction SilentlyContinue | Out-Null
-                    }
+                $provisioned | Where-Object { 
+                    ($_.PackageName -and $xboxRegex.IsMatch($_.PackageName)) -or 
+                    ($_.DisplayName -and $xboxRegex.IsMatch($_.DisplayName)) 
+                } | ForEach-Object {
+                    Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction SilentlyContinue | Out-Null
                 }
             }
         }

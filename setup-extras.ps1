@@ -7,7 +7,7 @@ Write-Host "    Please disable Real-Time Protection locally if installation fail
 Start-Sleep -Seconds 3
 
 # 1. Get Latest Release Info from GitHub API
-$Repo = "tomytate/Win-Debloat7"
+$Repo = "tomytate/Win-Debloat"
 $ApiUrl = "https://api.github.com/repos/$Repo/releases/latest"
 
 try {

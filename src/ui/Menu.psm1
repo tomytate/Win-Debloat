@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.UI.Menu
-    Version: 1.5.0
+    Version: 1.6.0
 #>
 
 using namespace System.Management.Automation
@@ -155,7 +155,7 @@ function Show-MainMenu {
             "1" {
                 Invoke-Profile "$PSScriptRoot\..\..\profiles\moderate.yaml"
             }
-            "2" {
+            { $_ -in "2", "G", "GUI" } {
                 try {
                     Import-Module "$PSScriptRoot\gui\GUI.psm1" -Force
                     Show-WinDebloat7GUI
@@ -165,10 +165,10 @@ function Show-MainMenu {
                     Start-Sleep -Seconds 2
                 }
             }
-            "3" {
+            { $_ -in "3", "P", "PROFILE", "PROFILES" } {
                 Show-ProfileSelection
             }
-            "4" {
+            { $_ -in "4", "E", "ESSENTIALS" } {
                 try {
                     Install-WinDebloat7Essentials
                 }
@@ -189,10 +189,10 @@ function Show-MainMenu {
             "6" {
                 Show-NetworkPrivacyMenu
             }
-            "7" {
+            { $_ -in "7", "BENCHMARK" } {
                 Invoke-WinDebloat7Benchmark
             }
-            "8" {
+            { $_ -in "8", "I", "INFO" } {
                 Show-SystemInfo
             }
             "9" {
@@ -252,7 +252,7 @@ function Show-MainMenu {
                     Start-Sleep -Seconds 2
                 }
             }
-            "0" {
+            { $_ -in "0", "M", "MAINTENANCE" } {
                 try {
                     Register-WinDebloat7Maintenance
                     Show-WD7ActionResult -Title "Weekly maintenance registered successfully." -Status Success
@@ -805,7 +805,7 @@ function Show-ServicesMenu {
 .OUTPUTS
     [pscustomobject]
 #>
-function Get-WinDebloat7ProfileSummary {
+function Get-WinDebloatProfileSummary {
     [CmdletBinding()]
     param([string]$FilePath)
     
@@ -1090,7 +1090,7 @@ function Show-SystemInfo {
 .OUTPUTS
     [void]
 #>
-function Invoke-WinDebloat7Benchmark {
+function Invoke-WinDebloatBenchmark {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Interactive TUI')]
     [CmdletBinding()]
     [OutputType([void])]
@@ -1565,8 +1565,11 @@ function Show-IntegrationsMenu {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Module Exports
+# Aliases & Module Exports
 # ─────────────────────────────────────────────────────────────────────────────
+
+Set-Alias -Name 'Get-WinDebloat7ProfileSummary' -Value 'Get-WinDebloatProfileSummary'
+Set-Alias -Name 'Invoke-WinDebloat7Benchmark' -Value 'Invoke-WinDebloatBenchmark'
 
 Export-ModuleMember -Function Show-MainMenu,
     Show-TweaksMenu,
@@ -1581,10 +1584,12 @@ Export-ModuleMember -Function Show-MainMenu,
     Show-SystemInfo,
     Show-SnapshotMenu,
     Show-NetworkPrivacyMenu,
-    Invoke-WinDebloat7Benchmark,
+    Invoke-WinDebloatBenchmark,
+    Get-WinDebloatProfileSummary,
     Show-RepairMenu,
     Show-FeaturesMenu,
     Show-IntegrationsMenu,
     Show-WD7Breadcrumb,
     Wait-WD7UserPrompt,
-    Show-WD7ActionResult
+    Show-WD7ActionResult `
+    -Alias Get-WinDebloat7ProfileSummary, Invoke-WinDebloat7Benchmark

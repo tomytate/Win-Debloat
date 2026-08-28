@@ -1,0 +1,71 @@
+# Win-Debloat Profile: Enterprise Security Baseline
+# Best for: Active Directory domain joined PCs, Intune/SCCM managed devices, and regulated workstations.
+
+metadata:
+  name: "Enterprise Security"
+  version: "1.6.0"
+  author: "Win-Debloat Team"
+  description: "Applies 2026 enterprise security baselines including RPC hardening, SMB signing, LSA protection, and Protected Print."
+  target_os: [ "Windows 10", "Windows 11", "Server 2022", "Server 2025" ]
+  min_build: 19041
+
+when:
+  edition: [ "Enterprise", "Pro", "Education", "Server" ]
+
+bloatware:
+  removal_mode: "Conservative"
+  exclude_list:
+    - "Microsoft.WindowsStore"
+    - "Microsoft.WindowsCalculator"
+    - "Microsoft.CompanyPortal"
+    - "Microsoft.WindowsTerminal"
+
+privacy:
+  telemetry_level: "Security"
+  disable_advertising_id: true
+  disable_activity_history: true
+  disable_location_tracking: false
+  disable_copilot: true
+  disable_recall: true
+  disable_click_to_do: true
+  disable_ai_fabric: true
+  disable_edge_ai: true
+  disable_lockscreen_widgets: true
+  disable_account_badges: true
+  disable_onesettings: true
+  block_telemetry_domains: true
+
+security:
+  enable_wpp: true
+  sudo_mode: "ForceNewWindow"
+  enable_bitlocker_xts256: true
+  enable_rpc_hardening: true
+  enable_smb_signing: true
+  enable_lsa_protection: true
+  enable_audit_logging: true
+  enable_dma_protection: true
+
+performance:
+  power_plan: "Balanced"
+  visual_effects: "Appearance"
+  disable_game_bar: true
+  disable_background_apps: false
+
+network:
+  dns_servers: []
+  disable_ipv6: false
+
+system:
+  disable_fast_startup: false
+  prevent_auto_bitlocker: false
+  disable_delivery_optimization: false
+  no_auto_reboot_updates: true
+  no_early_updates: true
+  disable_sticky_keys_shortcut: true
+  disable_suggestions: true
+  hide_settings_home: false
+  debloat_search: true
+
+software:
+  package_manager: "Auto"
+  install_list: []
