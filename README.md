@@ -99,7 +99,7 @@ Unlike legacy debloat scripts that blindly delete registry keys, Win-Debloat tre
 | 🚀 **Hardware Acceleration** | **Next-Gen CPU/GPU** | **AMD 3D V-Cache**, **Intel Thread Director**, **DirectStorage 1.2**, **BBR2/CUBIC TCP** |
 | 🏢 **Enterprise Ready** | **Hardening Standards** | **Windows Protected Print (RFC 8011)**, **Sudo Isolation**, **BitLocker XTS-256** |
 | 🔐 **Supply Chain** | **Provenance & Integrity** | **SPDX 2.3 JSON SBOM** + **Dual-Layer Authenticode Code Signing** |
-| 🪟 **Target Environments** | **Operating Systems** | **Windows 11 (24H2/25H2/26H1)**, **Windows 10 (22H2)**, **Windows Server 2025** |
+| 🪟 **Target Environments** | **Operating Systems** | **Windows 11 (24H2/25H2/26H1/26H2)**, **Windows 10 (22H2)**, **Windows Server 2025** |
 
 ---
 
@@ -163,10 +163,10 @@ Win-Debloat provides self-contained, native single-file launchers compiled with 
 
 | Edition | Architecture | Binary Name | SHA-256 Checksum | Direct Download |
 | :--- | :--- | :--- | :--- | :--- |
-| **Standard** | **x64** (Intel/AMD) | `Win-Debloat.exe` | `60545A6F5EF9E4B150107F6B9D635C09821638D68306D56075322EEAAA3A216B` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat.exe) |
-| **Standard** | **ARM64** (Snapdragon/Surface) | `Win-Debloat-arm64.exe` | `2C72BCB161880C45D99CD09AD4D9FDDC4DA43AE1390B7CD8A2BB7C8D1FB6B2E2` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-arm64.exe) |
-| **Extras** ⚠️ | **x64** (Intel/AMD) | `Win-Debloat-Extras.exe` | `2E2C10D06DBD0051C1902AF428C08DD9BBF6C774DF5BB5C68FCF0ADF6C341564` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-Extras.exe) |
-| **Extras** ⚠️ | **ARM64** (Snapdragon/Surface) | `Win-Debloat-Extras-arm64.exe` | `6D87B756B46F3ADD3CFFC24992386AE05C0CF83B7D80511D335A776CFB00B014` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-Extras-arm64.exe) |
+| **Standard** | **x64** (Intel/AMD) | `Win-Debloat.exe` | `FFD2FABD772E94C85598B48B17912EBB449AC989D43FFC1F3CE16AE2E2492697` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat.exe) |
+| **Standard** | **ARM64** (Snapdragon/Surface) | `Win-Debloat-arm64.exe` | `74541F63A5EB1033E976521E23534F9AD6BF2D43B279DFE1C2157C39AC4A9CF7` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-arm64.exe) |
+| **Extras** ⚠️ | **x64** (Intel/AMD) | `Win-Debloat-Extras.exe` | `BA19F3B71F5B758B03530C2297CC7A98EE7879C60E0BBE237D0828DC0DF5818E` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-Extras.exe) |
+| **Extras** ⚠️ | **ARM64** (Snapdragon/Surface) | `Win-Debloat-Extras-arm64.exe` | `914ED748F77CA1232944AE4C34305DE89F51C0B9F159B8B0479C9AE2649FB298` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-Extras-arm64.exe) |
 
 #### ⚡ Automatic PowerShell 7.6 LTS Bootstrap
 When running any standalone `.exe` binary:
@@ -457,7 +457,7 @@ Win-Debloat features a high-throughput **single-pass inventory pipeline** and **
 
 ### 🤖 AI Fabric & Phi-Silica 3.3B SLM RAM Reclaim (2.0–4.5 GB)
 
-Windows 11 24H2/25H2/26H1 pre-warms on-device Small Language Models (**Microsoft Phi-Silica 3.3B**) and DirectML hosts at startup, permanently consuming **2.0 GB to 4.5 GB RAM**.
+Windows 11 24H2/25H2/26H1/26H2 pre-warms on-device Small Language Models (**Microsoft Phi-Silica 3.3B**) and DirectML hosts at startup, permanently consuming **2.0 GB to 4.5 GB RAM**.
 
 Win-Debloat's `Disable-WinDebloatAIFabric`:
 1. Terminates idle AI hosts (`WorkloadsSessionHost.exe`, `AIFabricHost.exe`, `DirectMLHost.exe`).
@@ -626,7 +626,7 @@ Antivirus vendors classify these tools as `HackTool:PowerShell/DefenderRemover` 
 <summary><b>Does Win-Debloat work on Windows 10?</b></summary>
 <br>
 
-**Yes, Win-Debloat fully supports Windows 10 (version 22H2 build 19045+) and Windows 11 (21H2 through 26H1).**
+**Yes, Win-Debloat fully supports Windows 10 (version 22H2 build 19045+) and Windows 11 (21H2 through 26H2).**
 The framework includes dynamic OS-level feature detection. Windows 11–only features (such as Copilot/Recall disablement, Taskbar alignment, modern context menu tweaks, and Windows Protected Print) will automatically adapt or cleanly skip when run on Windows 10 without throwing errors.
 </details>
 
