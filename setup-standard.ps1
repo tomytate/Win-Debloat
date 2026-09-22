@@ -18,7 +18,18 @@ catch {
 }
 
 # 2. Find the Standard Edition Asset (Single-File EXE)
-$Asset = $Release.assets | Where-Object { $_.name -eq "Win-Debloat7.exe" } | Select-Object -First 1
+$isArm64 = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64
+$preferredNames = if ($isArm64) {
+    @("Win-Debloat-arm64.exe", "Win-Debloat.exe", "Win-Debloat7.exe")
+} else {
+    @("Win-Debloat.exe", "Win-Debloat7.exe", "Win-Debloat-arm64.exe")
+}
+
+$Asset = $null
+foreach ($name in $preferredNames) {
+    $Asset = $Release.assets | Where-Object { $_.name -eq $name } | Select-Object -First 1
+    if ($Asset) { break }
+}
 
 if (-not $Asset) {
     throw "Could not find a valid release asset for Standard Edition."
@@ -67,9 +78,13 @@ if ($ZipPath.EndsWith(".exe")) {
 }
 else {
     Write-Host " -> Extracting..." -ForegroundColor Yellow
-    Expand-Archive -Path $ZipPath -DestinationPath "$env:ProgramFiles\Win-Debloat7" -Force
+    $destDir = "$env:ProgramFiles\Win-Debloat"
+    Expand-Archive -Path $ZipPath -DestinationPath $destDir -Force
 
-    $Launcher = "$env:ProgramFiles\Win-Debloat7\Win-Debloat7.ps1"
+    $Launcher = "$destDir\Win-Debloat.ps1"
+    if (-not (Test-Path $Launcher)) {
+        $Launcher = "$destDir\Win-Debloat7.ps1"
+    }
     if (Test-Path $Launcher) {
         Write-Host " -> Installation Complete. Running..." -ForegroundColor Green
         Start-Process pwsh -ArgumentList "-ExecutionPolicy Bypass -File `"$Launcher`"" -Verb RunAs

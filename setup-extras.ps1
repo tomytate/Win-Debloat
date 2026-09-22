@@ -21,7 +21,18 @@ catch {
 }
 
 # 2. Find the Extras Edition Asset
-$Asset = $Release.assets | Where-Object { $_.name -eq "Win-Debloat7-Extras.exe" } | Select-Object -First 1
+$isArm64 = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64
+$preferredNames = if ($isArm64) {
+    @("Win-Debloat-Extras-arm64.exe", "Win-Debloat-Extras.exe", "Win-Debloat7-Extras.exe")
+} else {
+    @("Win-Debloat-Extras.exe", "Win-Debloat7-Extras.exe", "Win-Debloat-Extras-arm64.exe")
+}
+
+$Asset = $null
+foreach ($name in $preferredNames) {
+    $Asset = $Release.assets | Where-Object { $_.name -eq $name } | Select-Object -First 1
+    if ($Asset) { break }
+}
 
 if (-not $Asset) {
     throw "Could not find a valid release asset for Extras Edition."
@@ -29,7 +40,7 @@ if (-not $Asset) {
 
 # 3. Download to Temp
 $DownloadUrl = $Asset.browser_download_url
-$TempDir = "$env:TEMP\Win-Debloat7-Extras-Install"
+$TempDir = "$env:TEMP\Win-Debloat-Extras-Install"
 $ZipPath = "$TempDir\$($Asset.name)"
 
 if (Test-Path $TempDir) { Remove-Item $TempDir -Recurse -Force }
@@ -45,9 +56,13 @@ if ($ZipPath.EndsWith(".exe")) {
 }
 else {
     Write-Host " -> Extracting..." -ForegroundColor Yellow
-    Expand-Archive -Path $ZipPath -DestinationPath "$env:ProgramFiles\Win-Debloat7-Extras" -Force
+    $destDir = "$env:ProgramFiles\Win-Debloat-Extras"
+    Expand-Archive -Path $ZipPath -DestinationPath $destDir -Force
 
-    $Launcher = "$env:ProgramFiles\Win-Debloat7-Extras\Win-Debloat7.ps1"
+    $Launcher = "$destDir\Win-Debloat.ps1"
+    if (-not (Test-Path $Launcher)) {
+        $Launcher = "$destDir\Win-Debloat7.ps1"
+    }
     if (Test-Path $Launcher) {
         Write-Host " -> Installation Complete. Running..." -ForegroundColor Green
         Start-Process pwsh -ArgumentList "-ExecutionPolicy Bypass -File `"$Launcher`"" -Verb RunAs
