@@ -99,7 +99,8 @@ function Get-WinDebloatVersionInfo {
     }
     else {
         $info.DisplayVersion =
-        if ($build -ge 27600) { "26H1" }
+        if ($build -ge 27800 -or ($build -ge 26300 -and $build -lt 27000)) { "26H2" }
+        elseif ($build -ge 27600) { "26H1" }
         elseif ($build -ge 26200) { "25H2" }
         elseif ($build -ge 26100) { "24H2" }
         elseif ($build -ge 22631) { "23H2" }
@@ -177,7 +178,7 @@ function Test-WinDebloat11Version {
         "24H2" { 26100 }
         "25H2" { 26200 }
         "26H1" { 27600 }
-        "26H2" { 27800 }
+        "26H2" { if ($current.BuildNumber -ge 27000) { 27800 } else { 26300 } }
     }
     
     return $current.BuildNumber -ge $minBuild

@@ -42,6 +42,36 @@ function Disable-WinDebloatAIRecall {
             Name  = "AllowRecallEnablement"
             Type  = "DWord"
             Value = 0
+        },
+        @{
+            Path  = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
+            Name  = "TurnOffSavingSnapshots"
+            Type  = "DWord"
+            Value = 1
+        },
+        @{
+            Path  = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
+            Name  = "DisableScreenSemanticAnalysis"
+            Type  = "DWord"
+            Value = 1
+        },
+        @{
+            Path  = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Recall"
+            Name  = "AllowRecallEnablement"
+            Type  = "DWord"
+            Value = 0
+        },
+        @{
+            Path  = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Recall"
+            Name  = "Enabled"
+            Type  = "DWord"
+            Value = 0
+        },
+        @{
+            Path  = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Recall"
+            Name  = "IsRecallAllowed"
+            Type  = "DWord"
+            Value = 0
         }
     )
 
@@ -104,11 +134,17 @@ function Disable-WinDebloatClickToDo {
         [switch]$ApplyToDefaultUser
     )
 
+    Set-WinDebloatRegistryValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" `
+        -Name "DisableClickToDo" -Type "DWord" -Value 1
+    Set-WinDebloatRegistryValue -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" `
+        -Name "DisableClickToDo" -Type "DWord" -Value 1
     Set-WinDebloatRegistryValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
         -Name "ClickToDoEnabled" -Type "DWord" -Value 0
 
     $defaultHive = if (Test-Path "Registry::HKLM\WinDebloat_Default") { "WinDebloat_Default" } elseif (Test-Path "Registry::HKLM\WinDebloat7_Default") { "WinDebloat7_Default" } else { $null }
     if ($ApplyToDefaultUser -and $defaultHive) {
+        Set-WinDebloatRegistryValue -Path "HKLM:\$defaultHive\Software\Policies\Microsoft\Windows\WindowsAI" `
+            -Name "DisableClickToDo" -Type "DWord" -Value 1
         Set-WinDebloatRegistryValue -Path "HKLM:\$defaultHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
             -Name "ClickToDoEnabled" -Type "DWord" -Value 0
     }

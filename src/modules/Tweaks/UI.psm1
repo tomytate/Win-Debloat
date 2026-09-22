@@ -179,7 +179,7 @@ function Set-WinDebloatExplorer {
     
     # Hide Gallery
     if ($HideGallery) {
-        $galleryKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace_41040327\{e88865ea-0e1c-4e20-9aa6-ed25316e9424}"
+        $galleryKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace_41040327\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}"
         if ($PSCmdlet.ShouldProcess("Explorer", "Hide Gallery")) {
             if (Test-Path $galleryKey) {
                 # We can't easily delete HKLM keys without trustedinstaller usually, but let's try or set property
@@ -189,7 +189,7 @@ function Set-WinDebloatExplorer {
                 
                 # Using the HKCU CLSID method is safer if available, but for Gallery it's often HKLM.
                 # Let's try to set the property "System.IsPinnedToNameSpaceTree" to 0 in absolute CLSID path
-                $clsid = "{e88865ea-0e1c-4e20-9aa6-ed25316e9424}"
+                $clsid = "{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}"
                 $paths = @(
                     "HKCU:\Software\Classes\CLSID\$clsid",
                     "HKLM:\SOFTWARE\Classes\CLSID\$clsid"
@@ -278,7 +278,7 @@ function Set-WinDebloatExplorer {
     # Show Gallery again (remove the pin override we set on both hives)
     if ($ShowGallery) {
         if ($PSCmdlet.ShouldProcess("Explorer", "Show Gallery")) {
-            $clsid = "{e88865ea-0e1c-4e20-9aa6-ed25316e9424}"
+            $clsid = "{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}"
             $ok = (Remove-RegistryKey -Path "HKCU:\Software\Classes\CLSID\$clsid" -Name "System.IsPinnedToNameSpaceTree") -and
                   (Remove-RegistryKey -Path "HKLM:\SOFTWARE\Classes\CLSID\$clsid" -Name "System.IsPinnedToNameSpaceTree")
             if ($ok) { Write-Log -Message "Gallery restored in Explorer." -Level Success }
@@ -449,7 +449,9 @@ function Set-WinDebloatSearch {
         if ($PSCmdlet.ShouldProcess("Windows Search", "Disable Bing web results & Cortana")) {
             $ok = (Set-RegistryKey -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "DisableSearchBoxSuggestions" -Value 1 -Type DWord) -and
                   (Set-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowCortana" -Value 0 -Type DWord) -and
-                  (Set-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "CortanaConsent" -Value 0 -Type DWord)
+                  (Set-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "CortanaConsent" -Value 0 -Type DWord) -and
+                  (Set-RegistryKey -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0 -Type DWord) -and
+                  (Set-RegistryKey -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "ConnectedSearchUseWeb" -Value 0 -Type DWord)
             if ($ok) { Write-Log -Message "Bing web results and Cortana removed from Start search." -Level Success }
         }
     }
@@ -474,7 +476,9 @@ function Set-WinDebloatSearch {
         if ($PSCmdlet.ShouldProcess("Windows Search", "Restore Bing web results & Cortana defaults")) {
             $ok = (Remove-RegistryKey -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "DisableSearchBoxSuggestions") -and
                   (Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowCortana") -and
-                  (Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "CortanaConsent")
+                  (Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "CortanaConsent") -and
+                  (Remove-RegistryKey -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled") -and
+                  (Remove-RegistryKey -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "ConnectedSearchUseWeb")
             if ($ok) { Write-Log -Message "Bing/Cortana search policy overrides removed." -Level Success }
         }
     }

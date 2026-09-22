@@ -338,6 +338,54 @@
             "StorageType": "Any",
             "RiskLevel": "Low",
             "Description": "Diagnostic system host"
+        },
+        "WSAIFabricSvc": {
+            "DisplayName": "Windows AI Fabric Service",
+            "StartupType": "Disabled",
+            "Category": "AI",
+            "StorageType": "Any",
+            "RiskLevel": "Low",
+            "Description": "Windows AI Fabric background service for local model hosting"
+        },
+        "AIFabricUserSvc": {
+            "DisplayName": "AI Fabric User Service",
+            "StartupType": "Disabled",
+            "Category": "AI",
+            "StorageType": "Any",
+            "RiskLevel": "Low",
+            "Description": "Per-user AI Fabric service for local neural model evaluation"
+        },
+        "NarrativeFlows": {
+            "DisplayName": "Narrative Flows Service",
+            "StartupType": "Disabled",
+            "Category": "AI",
+            "StorageType": "Any",
+            "RiskLevel": "Low",
+            "Description": "Windows AI narrative and generative text workflow service"
+        },
+        "OneSettingsClientUserSvc": {
+            "DisplayName": "OneSettings Client User Service",
+            "StartupType": "Manual",
+            "Category": "AI",
+            "StorageType": "Any",
+            "RiskLevel": "Low",
+            "Description": "OneSettings cloud configuration service for Windows AI components"
+        },
+        "ModelCatalogUserSvc": {
+            "DisplayName": "Model Catalog User Service",
+            "StartupType": "Disabled",
+            "Category": "AI",
+            "StorageType": "Any",
+            "RiskLevel": "Low",
+            "Description": "Catalog service managing local SLM/NPU model definitions"
+        },
+        "SemanticSearchUserSvc": {
+            "DisplayName": "Semantic Search User Service",
+            "StartupType": "Disabled",
+            "Category": "AI",
+            "StorageType": "Any",
+            "RiskLevel": "Low",
+            "Description": "On-device vector indexing service for Windows Recall and AI search"
         }
     },
     "presets": {

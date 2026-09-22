@@ -41,12 +41,20 @@ apps:
   - "Microsoft.ZuneMusic"
   - "Microsoft.ZuneVideo"
   
-  # 25H2 / Newer Bloat
+  # 25H2 / 2026 Newer Bloat
   - "Microsoft.Copilot"
   - "MicrosoftWindows.Client.CoPilot"
   - "MicrosoftWindows.Client.WebExperience"
+  - "Microsoft.Windows.Ai.Copilot.Provider"
+  - "Microsoft.Windows.AIHub"
+  - "Microsoft.WidgetsPlatformRuntime"
   - "Microsoft.OutlookForWindows"
   - "Microsoft.Windows.DevHome"
+  - "Microsoft.M365Companions"
+  - "Microsoft.StartExperiencesApp"
+  - "MicrosoftWindows.CrossDevice"
+  - "Microsoft.PCManager"
+  - "MicrosoftCorporationII.QuickAssist"
   - "Clipchamp.Clipchamp"
   
   # Third Party Preinstalls

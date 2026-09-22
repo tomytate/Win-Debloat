@@ -40,7 +40,8 @@ function Set-WinDebloatOptionalFeatures {
             "WorkFolders-Client",
             "Printing-XPSServices-Features",
             "TelnetClient",
-            "SMB1Protocol"
+            "SMB1Protocol",
+            "Recall"
         ),
         [switch]$Enable
     )
@@ -101,7 +102,9 @@ function Remove-WinDebloatCapabilities {
             "Browser.InternetExplorer*",
             "MathRecognizer*",
             "Microsoft.Windows.WordPad*",
+            "Microsoft.Windows.WMIC*",
             "Print.Fax.Scan*",
+            "VBScript*",
             "XPS.Viewer*"
         )
     )

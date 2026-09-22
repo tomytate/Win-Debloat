@@ -148,8 +148,8 @@ $Script:RegistrySnapshotTargets = @(
     'HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}'
     'HKCU:\Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}'
     # Gallery / Home navigation-pane pins (Set-WinDebloat7Explorer)
-    'HKCU:\Software\Classes\CLSID\{e88865ea-0e1c-4e20-9aa6-ed25316e9424}'
-    'HKLM:\SOFTWARE\Classes\CLSID\{e88865ea-0e1c-4e20-9aa6-ed25316e9424}'
+    'HKCU:\Software\Classes\CLSID\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}'
+    'HKLM:\SOFTWARE\Classes\CLSID\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}'
     'HKLM:\SOFTWARE\Classes\CLSID\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}'
     # "This PC" folder entries removed by Hide3DObjects / HideMusic
     'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{0DB7E03F-FC29-4DC6-9020-FF41B59E513A}'
