@@ -4,9 +4,9 @@
 
 metadata:
   name: "Performance"
-  author: "Win-Debloat Team"
+  author: "Tomy Tate"
   description: "Optimized for low-RAM systems, VMs, and maximum responsiveness."
-  version: "1.6.0"
+  version: "1.7.0"
   target_os:
     - "Windows 10"
     - "Windows 11"

@@ -12,7 +12,7 @@
 
 .NOTES
     Module: Win-Debloat.Modules.Tweaks.System
-    Version: 1.6.0
+    Version: 1.7.0
 #>
 
 using namespace System.Management.Automation

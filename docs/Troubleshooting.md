@@ -19,7 +19,7 @@
 
 ### Windows 11 24H2 DISM Error 0x800f081f
 *   **Cause**: On Windows 11 24H2 / 25H2 (Build 26100+), executing `dism /online /cleanup-image /startcomponentcleanup /resetbase` breaks Checkpoint Cumulative Updates, causing subsequent update failures (`0x800f081f`).
-*   **Fix**: Win-Debloat v1.6.0 includes built-in checkpoint safety gates (`Repair.psm1`) that automatically detect Build 26100+ and execute safe component cleanup without `/ResetBase`, preventing update corruption.
+*   **Fix**: Win-Debloat v1.7.0 includes built-in checkpoint safety gates (`Repair.psm1`) that automatically detect Build 26100+ and execute safe component cleanup without `/ResetBase`, preventing update corruption.
 
 ### WSL2 Network NAT or Windows Hello PIN Inactivity
 *   **Cause**: Disabling `SharedAccess` breaks WSL2/Hyper-V network address translation; disabling `WbioSrvc` disables biometric and PIN authentication.

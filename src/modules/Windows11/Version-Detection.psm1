@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Windows11.VersionDetection
-    Version: 2.0.0
+    Version: 1.7.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
@@ -26,6 +26,16 @@ class WindowsVersionInfo {
     [int]$Ubr              # Update Build Revision (the .xxxx after the build)
     [bool]$IsWindows11
     [string]$FullName       # Composed, display-ready, e.g. "Windows 11 Pro"
+}
+
+class HardwareProfileInfo {
+    [string]$Architecture
+    [string]$ProcessorName
+    [bool]$HasDualCcdX3D
+    [bool]$HasIntelHybrid
+    [bool]$HasNPU
+    [bool]$IsLaptop
+    [double]$TotalPhysicalMemoryGB
 }
 
 # Cache to prevent repeated CIM queries (PERF-001 fix)
@@ -197,6 +207,70 @@ function Clear-WinDebloatVersionCache {
     $Script:CacheTimestamp = [datetime]::MinValue
 }
 
+<#
+.SYNOPSIS
+    Retrieves system hardware capabilities, CPU architecture, and gaming silicon profiles.
+.OUTPUTS
+    [HardwareProfileInfo]
+#>
+function Get-WinDebloatHardwareProfile {
+    [CmdletBinding()]
+    [OutputType([HardwareProfileInfo])]
+    param()
+
+    $prof = [HardwareProfileInfo]::new()
+    $prof.Architecture = if ([Environment]::Is64BitOperatingSystem) {
+        if ($env:PROCESSOR_ARCHITECTURE -match 'ARM64') { 'ARM64' } else { 'x64' }
+    } else { 'x86' }
+
+    # Query processor name from registry (fast, no CIM lock)
+    try {
+        $cpuKey = "HKLM:\HARDWARE\DESCRIPTION\System\CentralProcessor\0"
+        $prof.ProcessorName = (Get-ItemPropertyValue -Path $cpuKey -Name "ProcessorNameString" -ErrorAction Stop).Trim()
+    }
+    catch {
+        $cpu = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
+        $prof.ProcessorName = if ($cpu) { $cpu.Name.Trim() } else { "Unknown Processor" }
+    }
+
+    # Detect AMD Dual-CCD 3D V-Cache (Ryzen 9 7900X3D, 7950X3D, 9900X3D, 9950X3D)
+    $prof.HasDualCcdX3D = [bool]($prof.ProcessorName -match '\b(7900X3D|7950X3D|9900X3D|9950X3D)\b')
+
+    # Detect Intel Hybrid Architecture (12th-15th Gen Core, Arrow Lake, Lunar Lake)
+    $prof.HasIntelHybrid = [bool]($prof.ProcessorName -match 'Intel.*Core.*(i[579]-1[2-4]\d{2,3}|Ultra\s+[579])')
+
+    # Detect NPU (Neural Processing Unit in PnP devices)
+    try {
+        $npuDevice = Get-CimInstance Win32_PnPEntity -Filter "DeviceID LIKE '%NPU%' OR Service LIKE '%NPU%' OR Description LIKE '%Neural%'" -ErrorAction SilentlyContinue | Select-Object -First 1
+        $prof.HasNPU = ($null -ne $npuDevice)
+    }
+    catch {
+        $prof.HasNPU = $false
+    }
+
+    # Detect Laptop / Battery
+    try {
+        $battery = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue
+        $prof.IsLaptop = ($null -ne $battery)
+    }
+    catch {
+        $prof.IsLaptop = $false
+    }
+
+    # RAM Size
+    try {
+        $cs = Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue
+        if ($cs -and $cs.TotalPhysicalMemory) {
+            $prof.TotalPhysicalMemoryGB = [math]::Round($cs.TotalPhysicalMemory / 1GB, 2)
+        }
+    }
+    catch {
+        $prof.TotalPhysicalMemoryGB = 0.0
+    }
+
+    return $prof
+}
+
 # Aliases for backward compatibility
 Set-Alias -Name 'Get-WindowsVersionInfo' -Value 'Get-WinDebloatVersionInfo'
 Set-Alias -Name 'Get-WinDebloat7VersionInfo' -Value 'Get-WinDebloatVersionInfo'
@@ -208,11 +282,13 @@ Set-Alias -Name 'Test-WinDebloatVersion' -Value 'Test-WinDebloat11Version'
 Set-Alias -Name 'Test-WinDebloat7Version' -Value 'Test-WinDebloat11Version'
 Set-Alias -Name 'Clear-WindowsVersionCache' -Value 'Clear-WinDebloatVersionCache'
 Set-Alias -Name 'Clear-WinDebloat7VersionCache' -Value 'Clear-WinDebloatVersionCache'
+Set-Alias -Name 'Get-WinDebloat7HardwareProfile' -Value 'Get-WinDebloatHardwareProfile'
 
 Export-ModuleMember -Function @(
     'Get-WinDebloatVersionInfo',
     'Test-WinDebloat11Version',
-    'Clear-WinDebloatVersionCache'
+    'Clear-WinDebloatVersionCache',
+    'Get-WinDebloatHardwareProfile'
 ) -Alias @(
     'Get-WindowsVersionInfo',
     'Get-WinDebloat7VersionInfo',
@@ -223,5 +299,6 @@ Export-ModuleMember -Function @(
     'Test-WinDebloatVersion',
     'Test-WinDebloat7Version',
     'Clear-WindowsVersionCache',
-    'Clear-WinDebloat7VersionCache'
+    'Clear-WinDebloat7VersionCache',
+    'Get-WinDebloat7HardwareProfile'
 )

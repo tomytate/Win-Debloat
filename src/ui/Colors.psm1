@@ -9,7 +9,7 @@
     
 .NOTES
     Module: Win-Debloat.UI.Colors
-    Version: 1.6.0
+    Version: 1.7.0
 #>
 
 # Premium Color Scheme - Neon Cyber Palette
@@ -311,6 +311,52 @@ function Format-WD7Hyperlink {
 
 <#
 .SYNOPSIS
+    Tests whether the current PowerShell session is running headless or redirected.
+.OUTPUTS
+    [bool]
+#>
+function Test-WDHeadless {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+
+    try {
+        if ([Console]::IsOutputRedirected -or [Console]::IsInputRedirected) {
+            return $true
+        }
+        if ($null -eq [System.Console]::WindowWidth -or [System.Console]::WindowWidth -le 0) {
+            return $true
+        }
+        return $false
+    }
+    catch {
+        return $true
+    }
+}
+
+<#
+.SYNOPSIS
+    Safely clears the console window without throwing exceptions in headless or redirected sessions.
+.OUTPUTS
+    [void]
+#>
+function Clear-WDConsoleSafe {
+    [CmdletBinding()]
+    [OutputType([void])]
+    param()
+
+    if (-not (Test-WDHeadless)) {
+        try {
+            [System.Console]::Clear()
+        }
+        catch {
+            try { Clear-Host } catch { }
+        }
+    }
+}
+
+<#
+.SYNOPSIS
     Displays the standard styled header banner.
 .PARAMETER Compact
     Display compact single-line style.
@@ -325,7 +371,7 @@ function Show-WD7Header {
         [switch]$Compact
     )
     
-    Clear-Host
+    Clear-WDConsoleSafe
     
     if ($Compact) {
         # Compact Art with TrueColor Gradient
@@ -479,6 +525,8 @@ Set-Alias -Name 'Get-WinDebloat7GradientText' -Value 'Get-WD7GradientText'
 Set-Alias -Name 'Format-WinDebloatHyperlink' -Value 'Format-WD7Hyperlink'
 Set-Alias -Name 'Format-WinDebloat7Hyperlink' -Value 'Format-WD7Hyperlink'
 Set-Alias -Name 'Format-WD7Link' -Value 'Format-WD7Hyperlink'
+Set-Alias -Name 'Test-WD7Headless' -Value 'Test-WDHeadless'
+Set-Alias -Name 'Clear-WD7ConsoleSafe' -Value 'Clear-WDConsoleSafe'
 
 Export-ModuleMember -Function Write-WD7Host,
     Show-WD7Header,
@@ -487,9 +535,13 @@ Export-ModuleMember -Function Write-WD7Host,
     Show-WD7StatusBadge,
     Get-WD7AnsiColor,
     Get-WD7GradientText,
-    Format-WD7Hyperlink `
+    Format-WD7Hyperlink,
+    Test-WDHeadless,
+    Clear-WDConsoleSafe `
     -Alias Get-WinDebloatGradientText,
     Get-WinDebloat7GradientText,
     Format-WinDebloatHyperlink,
     Format-WinDebloat7Hyperlink,
-    Format-WD7Link
+    Format-WD7Link,
+    Test-WD7Headless,
+    Clear-WD7ConsoleSafe

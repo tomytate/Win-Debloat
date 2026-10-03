@@ -9,6 +9,7 @@ Describe "System Integration Tests" {
         Import-Module "$src\modules\Repair\Repair.psm1" -Force
         Import-Module "$src\modules\Features\Features.psm1" -Force
         Import-Module "$src\modules\Security\Security.psm1" -Force
+        Import-Module "$src\modules\Windows11\Version-Detection.psm1" -Force
 
         # Stub missing cmdlets for test environment if not present on current host/platform
         if (-not (Get-Command Set-MpPreference -ErrorAction SilentlyContinue)) { function global:Set-MpPreference { } }
@@ -108,6 +109,18 @@ Describe "System Integration Tests" {
 
             Disable-WinDebloat7PUAProtection -Confirm:$false
             Should -Invoke -CommandName Set-MpPreference -ModuleName Security -Times 2
+        }
+    }
+
+    Context "Hardware Profile Detection" {
+        It "Get-WinDebloatHardwareProfile and alias return valid system architecture and specs" {
+            $prof = Get-WinDebloatHardwareProfile
+            $prof | Should -Not -BeNullOrEmpty
+            $prof.Architecture | Should -Match '^(x64|ARM64|x86)$'
+            $prof.ProcessorName | Should -Not -BeNullOrEmpty
+
+            $prof7 = Get-WinDebloat7HardwareProfile
+            $prof7.Architecture | Should -Be $prof.Architecture
         }
     }
 }

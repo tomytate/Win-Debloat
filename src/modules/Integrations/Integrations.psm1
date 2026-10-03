@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Integrations
-    Version: 2.0.0
+    Version: 1.7.0
 #>
 
 Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force -ErrorAction SilentlyContinue

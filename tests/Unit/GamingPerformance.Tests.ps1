@@ -135,4 +135,104 @@ Describe "Gaming & Performance Subsystem" {
             { Set-WinDebloatServices -Preset Minimal -Confirm:$false } | Should -Not -Throw
         }
     }
+
+    Context "AMD Dual-CCD X3D Detection & Core Parking Headroom" {
+        It "Test-WinDebloatDualCcdX3D accurately detects asymmetric cache CPUs" {
+            Test-WinDebloatDualCcdX3D -ProcessorNameOverride "AMD Ryzen 9 7950X3D 16-Core Processor" | Should -Be $true
+            Test-WinDebloatDualCcdX3D -ProcessorNameOverride "AMD Ryzen 9 7900X3D 12-Core Processor" | Should -Be $true
+            Test-WinDebloatDualCcdX3D -ProcessorNameOverride "AMD Ryzen 9 9950X3D 16-Core Processor" | Should -Be $true
+            Test-WinDebloatDualCcdX3D -ProcessorNameOverride "AMD Ryzen 9 9900X3D 12-Core Processor" | Should -Be $true
+            Test-WinDebloatDualCcdX3D -ProcessorNameOverride "AMD Ryzen 7 7800X3D 8-Core Processor" | Should -Be $false
+            Test-WinDebloatDualCcdX3D -ProcessorNameOverride "13th Gen Intel(R) Core(TM) i9-13900K" | Should -Be $false
+        }
+    }
+
+    Context "MMCSS Gaming Priority & Zero Network Throttling" {
+        It "Set-WinDebloatMMCSSPriority configures zero network throttling" {
+            Mock -ModuleName Gaming Set-RegistryKey { return $true }
+            { Set-WinDebloatMMCSSPriority -Confirm:$false } | Should -Not -Throw
+            { Set-WinDebloat7MMCSSPriority -Confirm:$false } | Should -Not -Throw
+        }
+
+        It "Reset-WinDebloatMMCSSPriority restores defaults" {
+            Mock -ModuleName Gaming Set-RegistryKey { return $true }
+            Mock -ModuleName Gaming Remove-RegistryKey { return $true }
+            { Reset-WinDebloatMMCSSPriority -Confirm:$false } | Should -Not -Throw
+            { Reset-WinDebloat7MMCSSPriority -Confirm:$false } | Should -Not -Throw
+        }
+    }
+
+    Context "NVMe APST Low Latency Subsystem" {
+        It "Disable-WinDebloatNVMeAPST sets DisableAPST flag" {
+            Mock -ModuleName Gaming Set-RegistryKey { return $true }
+            { Disable-WinDebloatNVMeAPST -Confirm:$false } | Should -Not -Throw
+            { Disable-WinDebloat7NVMeAPST -Confirm:$false } | Should -Not -Throw
+        }
+
+        It "Enable-WinDebloatNVMeAPST restores default APST transitions" {
+            Mock -ModuleName Gaming Remove-RegistryKey { return $true }
+            { Enable-WinDebloatNVMeAPST -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloat7NVMeAPST -Confirm:$false } | Should -Not -Throw
+        }
+    }
+
+    Context "Energy Saver AC Throttling" {
+        It "Disable-WinDebloatEnergySaverAcThrottling disables AC throttling" {
+            Mock -ModuleName Performance Set-RegistryKey { return $true }
+            { Disable-WinDebloatEnergySaverAcThrottling -Confirm:$false } | Should -Not -Throw
+            { Disable-WinDebloat7EnergySaverAcThrottling -Confirm:$false } | Should -Not -Throw
+        }
+
+        It "Enable-WinDebloatEnergySaverAcThrottling restores AC throttling" {
+            Mock -ModuleName Performance Set-RegistryKey { return $true }
+            { Enable-WinDebloatEnergySaverAcThrottling -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloat7EnergySaverAcThrottling -Confirm:$false } | Should -Not -Throw
+        }
+    }
+
+    Context "Dev Drive ReFS & Server Native NVMe" {
+        It "Optimize-WinDebloatDevDrive sets RefsDisableLastAccessUpdate" {
+            Mock -ModuleName Performance Set-RegistryKey { return $true }
+            { Optimize-WinDebloatDevDrive -Confirm:$false } | Should -Not -Throw
+            { Optimize-WinDebloat7DevDrive -Confirm:$false } | Should -Not -Throw
+        }
+
+        It "Reset-WinDebloatDevDrive removes ReFS tuning key" {
+            Mock -ModuleName Performance Remove-RegistryKey { return $true }
+            { Reset-WinDebloatDevDrive -Confirm:$false } | Should -Not -Throw
+            { Reset-WinDebloat7DevDrive -Confirm:$false } | Should -Not -Throw
+        }
+
+        It "Enable-WinDebloatServerNativeNVMe sets NativeNVMeStorageDriver" {
+            Mock -ModuleName Performance Set-RegistryKey { return $true }
+            { Enable-WinDebloatServerNativeNVMe -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloat7ServerNativeNVMe -Confirm:$false } | Should -Not -Throw
+        }
+
+        It "Disable-WinDebloatServerNativeNVMe removes driver key" {
+            Mock -ModuleName Performance Remove-RegistryKey { return $true }
+            { Disable-WinDebloatServerNativeNVMe -Confirm:$false } | Should -Not -Throw
+            { Disable-WinDebloat7ServerNativeNVMe -Confirm:$false } | Should -Not -Throw
+        }
+    }
+
+    Context "Network LSO and ECN Optimizations" {
+        It "Disable-WinDebloatNetAdapterLSO and Enable-WinDebloatNetAdapterLSO execute safely" {
+            Mock -ModuleName Network Get-NetAdapter { return @([pscustomobject]@{ Name = "Ethernet"; Status = "Up" }) }
+            Mock -ModuleName Network Get-Command { return $true }
+            Mock -ModuleName Network Disable-NetAdapterLso { }
+            Mock -ModuleName Network Enable-NetAdapterLso { }
+            { Disable-WinDebloatNetAdapterLSO -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloatNetAdapterLSO -Confirm:$false } | Should -Not -Throw
+            { Disable-WinDebloat7NetAdapterLSO -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloat7NetAdapterLSO -Confirm:$false } | Should -Not -Throw
+        }
+
+        It "Enable-WinDebloatECN and Disable-WinDebloatECN execute safely" {
+            { Enable-WinDebloatECN -Confirm:$false } | Should -Not -Throw
+            { Disable-WinDebloatECN -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloat7ECN -Confirm:$false } | Should -Not -Throw
+            { Disable-WinDebloat7ECN -Confirm:$false } | Should -Not -Throw
+        }
+    }
 }

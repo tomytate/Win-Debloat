@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.UI.Menu
-    Version: 1.6.0
+    Version: 1.7.0
 #>
 
 using namespace System.Management.Automation

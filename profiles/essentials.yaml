@@ -3,8 +3,8 @@
 
 metadata:
   name: "Essentials"
-  version: "1.0.0"
-  author: "Win-Debloat Team"
+  version: "1.7.0"
+  author: "Tomy Tate"
   description: "Post-debloat essentials installer. Installs recommended browsers, runtimes, utilities, and drivers."
   target_os: [ "Windows 10", "Windows 11" ]
   min_build: 19045

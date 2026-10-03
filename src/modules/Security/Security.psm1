@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Security
-    Version: 2.0.0
+    Version: 1.7.0
 #>
 
 using namespace System.Management.Automation
@@ -576,7 +576,45 @@ function Set-WinDebloatSecurity {
         Enable-WinDebloatScriptBlockLogging
     }
 
+    if ($Config.security.enable_smb_ntlm_block -eq $true) {
+        Enable-WinDebloatSMBNTLMBlock
+    }
+
     Write-Log -Message "Security Baseline configuration applied." -Level Success
+}
+
+<#
+.SYNOPSIS
+    Blocks NTLM authentication over SMB clients to mitigate relay and credential coercion attacks.
+#>
+function Enable-WinDebloatSMBNTLMBlock {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Enabling SMB NTLM blocking..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("SMB Workstation", "Block NTLM authentication over SMB")) {
+        $lmPath = "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters"
+        Set-RegistryKey -Path $lmPath -Name "BlockNTLM" -Value 1 -Type DWord | Out-Null
+        Write-Log -Message "SMB NTLM blocking enabled (Kerberos enforcement active)." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Disables SMB NTLM blocking (restores legacy NTLM support).
+#>
+function Disable-WinDebloatSMBNTLMBlock {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("SMB Workstation", "Restore legacy SMB NTLM authentication")) {
+        $lmPath = "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters"
+        Remove-RegistryKey -Path $lmPath -Name "BlockNTLM" | Out-Null
+        Write-Log -Message "SMB NTLM blocking disabled." -Level Success
+    }
 }
 
 # Aliases for backward compatibility
@@ -607,6 +645,8 @@ Set-Alias -Name 'Disable-WD7ScriptBlockLogging' -Value 'Disable-WinDebloatScript
 Set-Alias -Name 'Get-WinDebloat7LanguageMode' -Value 'Get-WinDebloatLanguageMode'
 Set-Alias -Name 'Get-WD7LanguageMode' -Value 'Get-WinDebloatLanguageMode'
 Set-Alias -Name 'Get-WinDebloat7SecurityStatus' -Value 'Get-WinDebloatSecurityStatus'
+Set-Alias -Name 'Enable-WinDebloat7SMBNTLMBlock' -Value 'Enable-WinDebloatSMBNTLMBlock'
+Set-Alias -Name 'Disable-WinDebloat7SMBNTLMBlock' -Value 'Disable-WinDebloatSMBNTLMBlock'
 
 Export-ModuleMember -Function @(
     "Set-WinDebloatSecurity",
@@ -632,7 +672,9 @@ Export-ModuleMember -Function @(
     "Enable-WinDebloatScriptBlockLogging",
     "Disable-WinDebloatScriptBlockLogging",
     "Get-WinDebloatLanguageMode",
-    "Get-WinDebloatSecurityStatus"
+    "Get-WinDebloatSecurityStatus",
+    "Enable-WinDebloatSMBNTLMBlock",
+    "Disable-WinDebloatSMBNTLMBlock"
 ) -Alias @(
     "Set-WinDebloat7Security",
     "Disable-WinDebloat7SMBv1",
@@ -660,5 +702,7 @@ Export-ModuleMember -Function @(
     "Disable-WD7ScriptBlockLogging",
     "Get-WinDebloat7LanguageMode",
     "Get-WD7LanguageMode",
-    "Get-WinDebloat7SecurityStatus"
+    "Get-WinDebloat7SecurityStatus",
+    "Enable-WinDebloat7SMBNTLMBlock",
+    "Disable-WinDebloat7SMBNTLMBlock"
 )

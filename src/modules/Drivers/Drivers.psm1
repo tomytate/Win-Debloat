@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Drivers
-    Version: 2.0.0
+    Version: 1.7.0
 .LINK
     https://learn.microsoft.com/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>

@@ -1,4 +1,4 @@
-﻿#Requires -Version 7.6
+#Requires -Version 7.6
 
 <#
 .SYNOPSIS
@@ -10,7 +10,7 @@
 
 .NOTES
     Module: Win-Debloat.Modules.Network
-    Version: 2.0.0
+    Version: 1.7.0
 .LINK
     https://learn.microsoft.com/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
@@ -650,6 +650,100 @@ function Enable-WinDebloatNetAdapterRSC {
     }
 }
 
+<#
+.SYNOPSIS
+    Disables Large Send Offload (LSO) on network adapters to mitigate gaming latency and bufferbloat.
+#>
+function Disable-WinDebloatNetAdapterLSO {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Disabling Large Send Offload (LSO) on active network adapters..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Network Adapters", "Disable Large Send Offload (LSO)")) {
+        $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Up" }
+        foreach ($adapter in $adapters) {
+            try {
+                if (Get-Command Disable-NetAdapterLso -ErrorAction SilentlyContinue) {
+                    Disable-NetAdapterLso -Name $adapter.Name -IPv4 -IPv6 -Confirm:$false -ErrorAction SilentlyContinue
+                    Write-Log -Message "Disabled LSO on adapter: $($adapter.Name)" -Level Success
+                }
+            }
+            catch {
+                Write-Log -Message "Notice: Could not disable LSO on $($adapter.Name): $($_.Exception.Message)" -Level Debug
+            }
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Enables Large Send Offload (LSO) on active network adapters.
+#>
+function Enable-WinDebloatNetAdapterLSO {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Network Adapters", "Enable Large Send Offload (LSO)")) {
+        $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Up" }
+        foreach ($adapter in $adapters) {
+            try {
+                if (Get-Command Enable-NetAdapterLso -ErrorAction SilentlyContinue) {
+                    Enable-NetAdapterLso -Name $adapter.Name -IPv4 -IPv6 -Confirm:$false -ErrorAction SilentlyContinue
+                    Write-Log -Message "Enabled LSO on adapter: $($adapter.Name)" -Level Success
+                }
+            }
+            catch {
+                Write-Log -Message "Notice: Could not enable LSO on $($adapter.Name): $($_.Exception.Message)" -Level Debug
+            }
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Enables Explicit Congestion Notification (ECN) capability in the TCP stack.
+#>
+function Enable-WinDebloatECN {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Enabling TCP Explicit Congestion Notification (ECN)..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("TCP Stack", "Enable Explicit Congestion Notification (ECN)")) {
+        try {
+            & netsh int tcp set global ecncapability=enabled 2>$null
+            Write-Log -Message "TCP Explicit Congestion Notification enabled." -Level Success
+        }
+        catch {
+            Write-Log -Message "Could not enable ECN: $($_.Exception.Message)" -Level Warning
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Disables Explicit Congestion Notification (ECN) capability in the TCP stack.
+#>
+function Disable-WinDebloatECN {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("TCP Stack", "Disable Explicit Congestion Notification (ECN)")) {
+        try {
+            & netsh int tcp set global ecncapability=disabled 2>$null
+            Write-Log -Message "TCP Explicit Congestion Notification disabled." -Level Success
+        }
+        catch {
+            Write-Log -Message "Could not disable ECN: $($_.Exception.Message)" -Level Warning
+        }
+    }
+}
+
 #endregion
 
 # Aliases for backward compatibility
@@ -665,6 +759,10 @@ Set-Alias -Name 'Set-WinDebloat7Network' -Value 'Set-WinDebloatNetwork'
 Set-Alias -Name 'Set-WinDebloat7TcpCongestionProvider' -Value 'Set-WinDebloatTcpCongestionProvider'
 Set-Alias -Name 'Disable-WinDebloat7NetAdapterRSC' -Value 'Disable-WinDebloatNetAdapterRSC'
 Set-Alias -Name 'Enable-WinDebloat7NetAdapterRSC' -Value 'Enable-WinDebloatNetAdapterRSC'
+Set-Alias -Name 'Disable-WinDebloat7NetAdapterLSO' -Value 'Disable-WinDebloatNetAdapterLSO'
+Set-Alias -Name 'Enable-WinDebloat7NetAdapterLSO' -Value 'Enable-WinDebloatNetAdapterLSO'
+Set-Alias -Name 'Enable-WinDebloat7ECN' -Value 'Enable-WinDebloatECN'
+Set-Alias -Name 'Disable-WinDebloat7ECN' -Value 'Disable-WinDebloatECN'
 
 Export-ModuleMember -Function @(
     'Set-WinDebloatDNS',
@@ -678,7 +776,11 @@ Export-ModuleMember -Function @(
     'Set-WinDebloatNetwork',
     'Set-WinDebloatTcpCongestionProvider',
     'Disable-WinDebloatNetAdapterRSC',
-    'Enable-WinDebloatNetAdapterRSC'
+    'Enable-WinDebloatNetAdapterRSC',
+    'Disable-WinDebloatNetAdapterLSO',
+    'Enable-WinDebloatNetAdapterLSO',
+    'Enable-WinDebloatECN',
+    'Disable-WinDebloatECN'
 ) -Alias @(
     'Set-WinDebloat7DNS',
     'Get-WinDebloat7DNSProviders',
@@ -691,5 +793,9 @@ Export-ModuleMember -Function @(
     'Set-WinDebloat7Network',
     'Set-WinDebloat7TcpCongestionProvider',
     'Disable-WinDebloat7NetAdapterRSC',
-    'Enable-WinDebloat7NetAdapterRSC'
+    'Enable-WinDebloat7NetAdapterRSC',
+    'Disable-WinDebloat7NetAdapterLSO',
+    'Enable-WinDebloat7NetAdapterLSO',
+    'Enable-WinDebloat7ECN',
+    'Disable-WinDebloat7ECN'
 )

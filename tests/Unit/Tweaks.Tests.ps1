@@ -477,4 +477,30 @@ Describe "Tweaks Module" {
             Should -Invoke -CommandName Set-RegistryKey -ModuleName System -Times 3
         }
     }
+
+    Context "Taskbar Grouping & Explorer Performance Tweaks" {
+        It "Set-WinDebloatTaskbarGrouping configures TaskbarGlomLevel correctly" {
+            Mock -ModuleName UI Set-RegistryKey { return $true }
+            { Set-WinDebloatTaskbarGrouping -Grouping Never -Confirm:$false } | Should -Not -Throw
+            Should -Invoke -CommandName Set-RegistryKey -ModuleName UI -Times 1 -ParameterFilter {
+                $Path -eq "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -and
+                $Name -eq "TaskbarGlomLevel" -and
+                $Value -eq 2
+            }
+
+            { Set-WinDebloat7TaskbarGrouping -Grouping Always -Confirm:$false } | Should -Not -Throw
+            Should -Invoke -CommandName Set-RegistryKey -ModuleName UI -Times 1 -ParameterFilter {
+                $Path -eq "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -and
+                $Name -eq "TaskbarGlomLevel" -and
+                $Value -eq 0
+            }
+        }
+
+        It "Optimize-WinDebloatExplorerPerformance disables cloud files and recommendations" {
+            Mock -ModuleName UI Set-RegistryKey { return $true }
+            { Optimize-WinDebloatExplorerPerformance -Confirm:$false } | Should -Not -Throw
+            { Optimize-WinDebloat7ExplorerPerformance -Confirm:$false } | Should -Not -Throw
+            Should -Invoke -CommandName Set-RegistryKey -ModuleName UI -Times 4
+        }
+    }
 }

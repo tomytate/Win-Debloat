@@ -12,7 +12,7 @@
     and updates distribution manifests.
 
 .PARAMETER Version
-    The release version tag (e.g. 1.6.0 or 0.0.0-CI).
+    The release version tag (e.g. 1.7.0 or 0.0.0-CI).
 
 .PARAMETER OutputDir
     Output directory for built executables and release artifacts (default: dist).
@@ -52,7 +52,7 @@ $Root = (Resolve-Path "$PSScriptRoot\..").Path
 $DistPath = [System.IO.Path]::GetFullPath($OutputDir)
 
 Write-Host "╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║      Win-Debloat Single-File Builder v2.2 (v1.6.0)           ║" -ForegroundColor Cyan
+Write-Host "║      Win-Debloat Single-File Builder v2.2 (v1.7.0)           ║" -ForegroundColor Cyan
 Write-Host "║      High-DPI • Multi-Arch • Dual-Signing • SPDX 2.3 SBOM    ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host "   Version:     $Version" -ForegroundColor Gray
@@ -325,7 +325,7 @@ $sbom = [ordered]@{
     documentNamespace = "https://github.com/tomytate/Win-Debloat/releases/tag/v$Version/sbom.spdx.json"
     creationInfo   = [ordered]@{
         created  = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-        creators = @("Tool: WinDebloat-Builder-2.2", "Organization: Win-Debloat Team")
+        creators = @("Tool: WinDebloat-Builder-2.2", "Person: Tomy Tate")
     }
     packages       = $sbomPackages
 }

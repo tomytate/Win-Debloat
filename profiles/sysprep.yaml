@@ -3,8 +3,8 @@
 
 metadata:
   name: "Sysprep"
-  version: "1.6.0"
-  author: "Win-Debloat Team"
+  version: "1.7.0"
+  author: "Tomy Tate"
   description: "Optimized for Sysprep Audit mode and enterprise image provisioning without breaking sysprep generalization."
   target_os: [ "Windows 10", "Windows 11", "Server 2022", "Server 2025" ]
   min_build: 19041

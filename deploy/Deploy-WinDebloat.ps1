@@ -147,6 +147,20 @@ catch {
     Write-DeployLog "AppX deprovisioning encountered an error: $($_.Exception.Message)" "Warning"
 }
 
-# 7. Finalize
+# 7. Write Intune Detection Registry Stamp
+$stampKey = "HKLM:\SOFTWARE\Win-Debloat"
+try {
+    if (-not (Test-Path $stampKey)) { New-Item -Path $stampKey -Force -ErrorAction SilentlyContinue | Out-Null }
+    Set-ItemProperty -Path $stampKey -Name "Applied" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $stampKey -Name "Version" -Value "1.7.0" -Type String -Force -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $stampKey -Name "Mode" -Value $Mode -Type String -Force -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $stampKey -Name "Timestamp" -Value ((Get-Date).ToString("o")) -Type String -Force -ErrorAction SilentlyContinue
+    Write-DeployLog "Registry detection stamp recorded at $stampKey." "Success"
+}
+catch {
+    Write-DeployLog "Could not write registry detection stamp: $($_.Exception.Message)" "Warning"
+}
+
+# 8. Finalize
 Write-DeployLog "=== Win-Debloat Enterprise Deployment Completed Successfully ===" "Success"
 exit 0

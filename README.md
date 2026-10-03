@@ -4,7 +4,7 @@
   <img src="assets/logo.png" alt="Win-Debloat Logo — High Performance Windows Optimizer and Debloater" width="140" height="140" />
 </a>
 
-# Win-Debloat `v1.6.0` — *Apex*
+# Win-Debloat `v1.7.0` — *Apex*
 
 ### ⚡ Declarative Windows 11, 10 & Server 2025 Optimization & Hardening Engine
 
@@ -27,7 +27,7 @@
 [![CI Status](https://img.shields.io/github/actions/workflow/status/tomytate/Win-Debloat/ci.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
 
 <!-- Badges: Row 3 - Verification & Supply Chain Quality -->
-[![Test Suite](https://img.shields.io/badge/Pester%20Tests-336%20%2F%20336%20Pass%20(100%25)-22C55E?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
+[![Test Suite](https://img.shields.io/badge/Pester%20Tests-355%20%2F%20355%20Pass%20(100%25)-22C55E?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
 [![AST Parity](https://img.shields.io/badge/AST%20Parity-5--Way%20100%25-00D9FF?style=for-the-badge&logo=powershell&logoColor=white)](https://github.com/tomytate/Win-Debloat)
 [![SPDX SBOM](https://img.shields.io/badge/Supply%20Chain-SPDX%202.3%20SBOM-8B5CF6?style=for-the-badge&logo=spdx&logoColor=white)](dist/win-debloat-sbom.spdx.json)
 
@@ -46,7 +46,7 @@
 <p align="center">
   <img src="assets/gui-dashboard.png" alt="Win-Debloat WPF Dashboard — Dark theme GUI showing Windows version, 11-Vector privacy score, and real-time RAM usage" width="880">
   <br>
-  <sub><i>Win-Debloat v1.6.0 'Apex' unified cockpit: live kernel telemetry, 11-vector privacy scoring, and hardware-aware profile presets.</i></sub>
+  <sub><i>Win-Debloat v1.7.0 'Apex' unified cockpit: live kernel telemetry, 11-vector privacy scoring, and hardware-aware profile presets.</i></sub>
 </p>
 
 ---
@@ -85,19 +85,19 @@ Unlike legacy debloat scripts that blindly delete registry keys, Win-Debloat tre
 
 > **"It's like `terraform apply` for your Windows PC."**
 
-### 📊 v1.6.0 *Apex* Key Metrics
+### 📊 v1.7.0 *Apex* Key Metrics
 
 | Dimension | Metric / Feature | Specification / Verification |
 | :--- | :--- | :--- |
 | ⚡ **Performance & Engine** | **Execution Benchmark** | **`< 3.8 ms`** cold dispatch & direct .NET BCL telemetry engine |
 | 📦 **Architecture** | **Module Ecosystem** | **30 modular sub-systems** (100% cohesive domain separation) |
-| 🛠️ **API Surface** | **Functions & Aliases** | **239 canonical functions** + **268 backward-compatible aliases** |
-| 🧪 **Verification** | **Test Suite** | **336 / 336 Pester tests (100% pass)** with 0 PSScriptAnalyzer errors |
+| 🛠️ **API Surface** | **Functions & Aliases** | **261 canonical functions** + **290 backward-compatible aliases** |
+| 🧪 **Verification** | **Test Suite** | **355 / 355 Pester tests (100% pass)** with 0 PSScriptAnalyzer errors |
 | 🔄 **Compatibility** | **5-Way AST Parity** | **100% AST integrity** across PowerShell 5.1, 7.4, 7.5, 7.6.6 & .NET 10 |
 | 🛡️ **Safety & Rollback** | **Encrypted Snapshots** | **DPAPI AES-256 state snapshots** with granular value-level restoration (~85 keys) |
 | 🔍 **Privacy Engine** | **11-Vector Scorer** | **100-point closed algorithm** evaluating Recall, Copilot, Telemetry, and Diagnostics |
-| 🚀 **Hardware Acceleration** | **Next-Gen CPU/GPU** | **AMD 3D V-Cache**, **Intel Thread Director**, **DirectStorage 1.2**, **BBR2/CUBIC TCP** |
-| 🏢 **Enterprise Ready** | **Hardening Standards** | **Windows Protected Print (RFC 8011)**, **Sudo Isolation**, **BitLocker XTS-256** |
+| 🚀 **Hardware Acceleration** | **Next-Gen CPU/GPU** | **AMD Dual-CCD 3D V-Cache**, **Intel Thread Director**, **DirectStorage 1.2**, **Server Native NVMe**, **ReFS Dev Drive** |
+| 🏢 **Enterprise Ready** | **Hardening Standards** | **SMB NTLM Blocking**, **Intune Win32 App Detection**, **Windows Protected Print (RFC 8011)**, **BitLocker XTS-256** |
 | 🔐 **Supply Chain** | **Provenance & Integrity** | **SPDX 2.3 JSON SBOM** + **Dual-Layer Authenticode Code Signing** |
 | 🪟 **Target Environments** | **Operating Systems** | **Windows 11 (24H2/25H2/26H1/26H2)**, **Windows 10 (22H2)**, **Windows Server 2025** |
 
@@ -324,7 +324,7 @@ graph TD
 
 ## 🔒 100-Point 11-Vector Privacy Scoring Engine
 
-Win-Debloat v1.6.0 features a deterministic, real-time **11-Vector Privacy Scoring Engine** implemented in [`SystemState.psm1`](file:///c:/Users/Tate%20Studio/Documents/Tomy%20Tate/Win-Debloat/src/core/SystemState.psm1) and hardened via [`Privacy.psm1`](file:///c:/Users/Tate%20Studio/Documents/Tomy%20Tate/Win-Debloat/src/modules/Privacy/Privacy.psm1). The engine calculates a live system privacy score ($S \in [0, 100]$) by inspecting low-level registry policies, service run-states, and UWP sensor capabilities:
+Win-Debloat v1.7.0 features a deterministic, real-time **11-Vector Privacy Scoring Engine** implemented in [`SystemState.psm1`](file:///c:/Users/Tate%20Studio/Documents/Tomy%20Tate/Win-Debloat/src/core/SystemState.psm1) and hardened via [`Privacy.psm1`](file:///c:/Users/Tate%20Studio/Documents/Tomy%20Tate/Win-Debloat/src/modules/Privacy/Privacy.psm1). The engine calculates a live system privacy score ($S \in [0, 100]$) by inspecting low-level registry policies, service run-states, and UWP sensor capabilities:
 
 $$\text{Privacy Score} = 100 - \sum_{i=1}^{11} \left( \text{Weight}_i \times \mathbb{I}(\text{Vector}_i \text{ is Active/Exposed}) \right)$$
 
@@ -371,7 +371,7 @@ Win-Debloat ships with **239 functions** across **30 modules**, organized into 1
 
 ## 🚀 Silicon & Next-Gen Hardware Optimization
 
-Win-Debloat v1.6.0 introduces low-level kernel, storage, and graphics pipeline tuning specifically engineered for modern silicon architectures:
+Win-Debloat v1.7.0 introduces low-level kernel, storage, and graphics pipeline tuning specifically engineered for modern silicon architectures:
 
 ```mermaid
 graph TD
@@ -422,7 +422,7 @@ DirectStorage 1.2+ streams compressed game assets directly from NVMe drives to V
 
 ## 🛡️ Enterprise Security Hardening & Sysprep Deployment
 
-Win-Debloat v1.6.0 bridges consumer debloating with **zero-trust enterprise baseline hardening** and **OEM golden image provisioning**:
+Win-Debloat v1.7.0 bridges consumer debloating with **zero-trust enterprise baseline hardening** and **OEM golden image provisioning**:
 
 ### 🖨️ 1. Windows Protected Print (WPP) & RFC 8011 IPP Probe
 - Migrates print spooling to driverless **Mopria / IPP standard** (`ProtectedPrintMode = 1`), eliminating **PrintNightmare** (CVE-2021-34527) attack vectors in `spoolsv.exe`.
@@ -496,12 +496,12 @@ Win-Debloat replaces slow WMI/CIM queries with direct **.NET Base Class Library 
 │ Legacy WMI / CIM Engine [Get-CimInstance + Get-Process]                  │
 │ ██████████████████████████████████████████████████ 520.0 ms             │
 │                                                                          │
-│ Win-Debloat v1.6.0 Microsecond Engine [.NET BCL Direct]                  │
+│ Win-Debloat v1.7.0 Microsecond Engine [.NET BCL Direct]                  │
 │ █ 3.8 ms  [136.8x Faster]                                               │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-| Performance Metric | Stock Windows 11 (24H2) | Win-Debloat v1.6.0 (Optimized) | Delta / Improvement |
+| Performance Metric | Stock Windows 11 (24H2) | Win-Debloat v1.7.0 (Optimized) | Delta / Improvement |
 |:---|:---:|:---:|:---:|
 | 🧠 **Idle RAM Consumption** | 4,350 MB (~4.35 GB) | **1,820 MB (~1.82 GB)** | **-2,530 MB (-58.2%)** 🟢 |
 | ⚙️ **Active Background Processes** | 198 processes | **58 processes** | **-140 processes (-70.7%)** 🟢 |
@@ -567,23 +567,23 @@ Win-Debloat treats Windows configuration **as code**, guaranteeing deterministic
 3. **4-Tier Sidecar (`meta.json`) Resilience**: Fast-path metadata reading ensures instant GUI dashboard loading with self-healing recovery for damaged files.
 4. **Value-Level Registry Rollback**: Targets specific property values only, strictly preserving sibling keys, OEM drivers, and third-party software settings.
 5. **Supply Chain Security**: Dual-layer Authenticode signing with RFC 3161 timestamps, **SPDX 2.3 JSON SBOM** (`win-debloat-sbom.spdx.json`), and published SHA-256 checksums.
-6. **AST 5-Way Mathematical Parity**: 0 parity violations across 239 functions, 268 aliases, and 30 modules.
-7. **336 / 336 Pester Tests Passing (100% Pass Rate)** with 0 PSScriptAnalyzer errors in CI.
+6. **AST 5-Way Mathematical Parity**: 0 parity violations across 261 functions, 290 aliases, and 30 modules.
+7. **355 / 355 Pester Tests Passing (100% Pass Rate)** with 0 PSScriptAnalyzer errors in CI.
 
 ---
 
 ## 💎 Why Win-Debloat?
 
-| Feature | Legacy Scripts / Batch Hacks | Win-Debloat v1.6.0 |
+| Feature | Legacy Scripts / Batch Hacks | Win-Debloat v1.7.0 |
 | :--- | :--- | :--- |
 | **Engine** | Fragile `.bat` / nested WMI loops | **PowerShell 7.6.6 LTS (.NET 10) + Direct BCL** |
 | **Telemetry Latency** | ~520 ms (WMI COM marshaling) | **< 3.8 ms (Direct .NET memory/process APIs)** |
 | **Registry Writes** | Slow PSDrive provider (4.8s) | **Direct Win32 BCL (194ms, 25x faster)** |
 | **Rollback Safety** | Destructive / irreversible | **DPAPI AES-256 snapshots + human-readable .reg undo** |
-| **Hardware Awareness** | Breaks AMD X3D core parking | **AMD X3D, Intel Thread Director, DirectStorage 1.2** |
+| **Hardware Awareness** | Breaks AMD X3D core parking | **AMD Dual-CCD X3D, Intel Thread Director, DirectStorage 1.2** |
 | **Interface** | Raw terminal only | **WPF Cyber-OLED Cockpit + 24-bit TrueColor TUI** |
 | **Supply Chain** | Unsigned scripts | **SPDX 2.3 SBOM + Dual Authenticode Signing** |
-| **Code Quality** | Unverified / tech debt | **100% 5-Way AST Parity, 336/336 Tests Passed** |
+| **Code Quality** | Unverified / tech debt | **100% 5-Way AST Parity, 355/355 Tests Passed** |
 
 ---
 

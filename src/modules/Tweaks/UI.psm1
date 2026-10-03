@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Tweaks.UI
-    Version: 1.6.0
+    Version: 1.7.0
 #>
 
 using namespace System.Management.Automation
@@ -761,6 +761,60 @@ function Set-WinDebloatDriveLetterPosition {
 
 #endregion
 
+#region Taskbar Grouping and Explorer Performance
+
+<#
+.SYNOPSIS
+    Configures Windows taskbar app icon grouping and window label behavior.
+.PARAMETER Grouping
+    Always, WhenFull, or Never (shows labels).
+#>
+function Set-WinDebloatTaskbarGrouping {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet("Always", "WhenFull", "Never")]
+        [string]$Grouping
+    )
+
+    $glomLevel = switch ($Grouping) {
+        "Always"   { 0 }
+        "WhenFull" { 1 }
+        "Never"    { 2 }
+    }
+
+    Write-Log -Message "Setting Taskbar grouping to $Grouping..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Taskbar", "Set grouping mode to $Grouping")) {
+        $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        if (Set-RegistryKey -Path $path -Name "TaskbarGlomLevel" -Value $glomLevel -Type DWord) {
+            Write-Log -Message "Taskbar grouping set to $Grouping." -Level Success
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Optimizes File Explorer responsiveness by disabling cloud sync discovery and file recommendations.
+#>
+function Optimize-WinDebloatExplorerPerformance {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Optimizing File Explorer performance..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("File Explorer", "Disable cloud files in quick access and home recommendations")) {
+        $advPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        Set-RegistryKey -Path $advPath -Name "ShowCloudFilesInQuickAccess" -Value 0 -Type DWord | Out-Null
+        Set-RegistryKey -Path $advPath -Name "ShowRecommendations" -Value 0 -Type DWord | Out-Null
+        Write-Log -Message "File Explorer cloud and recommendations indexing disabled." -Level Success
+    }
+}
+
+#endregion
+
 # Backward-compatibility aliases
 Set-Alias -Name 'Set-WinDebloat7TaskbarAlignment' -Value 'Set-WinDebloatTaskbarAlignment' -Description 'Backward-compatibility alias'
 Set-Alias -Name 'Set-WinDebloat7ContextMenu' -Value 'Set-WinDebloatContextMenu' -Description 'Backward-compatibility alias'
@@ -773,6 +827,8 @@ Set-Alias -Name 'Set-WinDebloat7ContextMenuItems' -Value 'Set-WinDebloatContextM
 Set-Alias -Name 'Restart-WinDebloat7Explorer' -Value 'Restart-WinDebloatExplorer' -Description 'Backward-compatibility alias'
 Set-Alias -Name 'Set-WinDebloat7DuplicateRemovableDrives' -Value 'Set-WinDebloatDuplicateRemovableDrives' -Description 'Backward-compatibility alias'
 Set-Alias -Name 'Set-WinDebloat7DriveLetterPosition' -Value 'Set-WinDebloatDriveLetterPosition' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Set-WinDebloat7TaskbarGrouping' -Value 'Set-WinDebloatTaskbarGrouping' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Optimize-WinDebloat7ExplorerPerformance' -Value 'Optimize-WinDebloatExplorerPerformance' -Description 'Backward-compatibility alias'
 
 Export-ModuleMember -Function @(
     'Set-WinDebloatTaskbarAlignment',
@@ -784,7 +840,9 @@ Export-ModuleMember -Function @(
     'Set-WinDebloatContextMenuItems',
     'Restart-WinDebloatExplorer',
     'Set-WinDebloatDuplicateRemovableDrives',
-    'Set-WinDebloatDriveLetterPosition'
+    'Set-WinDebloatDriveLetterPosition',
+    'Set-WinDebloatTaskbarGrouping',
+    'Optimize-WinDebloatExplorerPerformance'
 ) -Alias @(
     'Set-WinDebloat7TaskbarAlignment',
     'Set-WinDebloat7ContextMenu',
@@ -796,5 +854,7 @@ Export-ModuleMember -Function @(
     'Set-WinDebloat7ContextMenuItems',
     'Restart-WinDebloat7Explorer',
     'Set-WinDebloat7DuplicateRemovableDrives',
-    'Set-WinDebloat7DriveLetterPosition'
+    'Set-WinDebloat7DriveLetterPosition',
+    'Set-WinDebloat7TaskbarGrouping',
+    'Optimize-WinDebloat7ExplorerPerformance'
 )

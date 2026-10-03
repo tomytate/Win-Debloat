@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Performance
-    Version: 2.0.0
+    Version: 1.7.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
@@ -81,6 +81,7 @@ function Optimize-WinDebloatPerformance {
         [bool]$Config.performance.enable_amd_x3d_safeguards    # 8. AMD 3D V-Cache Safeguards
         [bool]$Config.performance.enable_directsr              # 9. DirectSR & Windowed VRR
         [bool]$Config.performance.enable_hags_tdr_tuning       # 10. HAGS 2.0 & GPU Driver TDR
+        [bool]$Config.performance.disable_energy_saver_ac_throttling # 11. Energy Saver AC Throttling
     ).Where({ $_ }).Count)
     $currentStep = 0
     
@@ -88,6 +89,13 @@ function Optimize-WinDebloatPerformance {
     $currentStep++
     Write-Progress -Activity "Applying Performance Settings" -Status "Configuring Power Plan: $plan" -PercentComplete ([math]::Clamp([int][math]::Round(($currentStep / [math]::Max(1, $totalSteps)) * 100), 0, 100))
     try {
+        if ($plan -in "HighPerformance", "Ultimate") {
+            if (Test-WinDebloatDualCcdX3D) {
+                Write-Log -Message "AMD Dual-CCD 3D V-Cache CPU detected. Ultimate/High schemes disable core parking and cause high inter-CCD gaming latency. Applying Balanced plan with core parking enabled." -Level Warning
+                $plan = "Balanced"
+            }
+        }
+
         switch ($plan) {
             "HighPerformance" {
                 $guid = $Script:PowerPlanGUIDs.HighPerformance
@@ -305,6 +313,14 @@ function Optimize-WinDebloatPerformance {
         Set-WinDebloatHAGSTDR
         $successCount++
     }
+
+    # 11. Energy Saver AC Throttling (Windows 11 24H2+)
+    if ($Config.performance.disable_energy_saver_ac_throttling) {
+        $currentStep++
+        Write-Progress -Activity "Applying Performance Settings" -Status "Disabling Energy Saver AC Throttling" -PercentComplete ([math]::Clamp([int][math]::Round(($currentStep / [math]::Max(1, $totalSteps)) * 100), 0, 100))
+        Disable-WinDebloatEnergySaverAcThrottling
+        $successCount++
+    }
     
     Write-Progress -Activity "Applying Performance Settings" -Completed
     
@@ -375,8 +391,13 @@ function Optimize-WinDebloatThreadDirector {
         try {
             # Prefer performant cores (P-cores) for thread scheduling (SCHEDPOLICY 1 = Performant processors)
             & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SCHEDPOLICY 1 2>$null
+            # Prefer performant cores for short burst threads (SHORTSCHEDPOLICY 1 = Performant processors)
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SHORTSCHEDPOLICY 1 2>$null
+            # Heterogeneous thread scheduling policy (1 = All processors, prioritize performance)
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR HETEROPOLICY 1 2>$null
             # Autonomous mode performance bias (EPP 0% = Max Performance)
             & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFEPP 0 2>$null
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFEPP1 0 2>$null
             # Apply changes
             & powercfg /setactive SCHEME_CURRENT 2>$null
             Write-Log -Message "CPU scheduling (P-core preference) and EPP optimization applied." -Level Success
@@ -402,8 +423,11 @@ function Reset-WinDebloatThreadDirector {
         try {
             # Reset SCHEDPOLICY to 5 (Automatic / Windows Default)
             & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SCHEDPOLICY 5 2>$null
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SHORTSCHEDPOLICY 5 2>$null
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR HETEROPOLICY 0 2>$null
             # Reset EPP to 50% (Balanced default)
             & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFEPP 50 2>$null
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFEPP1 50 2>$null
             # Apply changes
             & powercfg /setactive SCHEME_CURRENT 2>$null
             Write-Log -Message "CPU scheduling and EPP restored to default." -Level Success
@@ -411,6 +435,108 @@ function Reset-WinDebloatThreadDirector {
         catch {
             Write-Log -Message "Could not restore powercfg scheduling: $($_.Exception.Message)" -Level Warning
         }
+    }
+}
+
+<#
+.SYNOPSIS
+    Disables Windows 11 24H2+ Energy Saver AC Throttling to prevent performance caps when plugged in.
+#>
+function Disable-WinDebloatEnergySaverAcThrottling {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Disabling Energy Saver AC Throttling..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Energy Saver Subsystem", "Disable AC power throttling")) {
+        $pwrPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
+        Set-RegistryKey -Path $pwrPath -Name "EcoModeState" -Value 2 -Type DWord | Out-Null
+        Write-Log -Message "Energy Saver AC Throttling disabled." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores default Windows Energy Saver AC Throttling behavior.
+#>
+function Enable-WinDebloatEnergySaverAcThrottling {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Energy Saver Subsystem", "Restore default AC power throttling")) {
+        $pwrPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
+        Set-RegistryKey -Path $pwrPath -Name "EcoModeState" -Value 0 -Type DWord | Out-Null
+        Write-Log -Message "Energy Saver AC Throttling restored to default." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Optimizes ReFS Dev Drive performance and memory utilization.
+#>
+function Optimize-WinDebloatDevDrive {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Optimizing ReFS Dev Drive performance..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Dev Drive ReFS", "Disable last access update overhead for Dev Drives")) {
+        $fsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
+        Set-RegistryKey -Path $fsPath -Name "RefsDisableLastAccessUpdate" -Value 1 -Type DWord | Out-Null
+        Write-Log -Message "Dev Drive ReFS performance tuning applied." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores ReFS Dev Drive settings to Windows defaults.
+#>
+function Reset-WinDebloatDevDrive {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Dev Drive ReFS", "Restore default ReFS settings")) {
+        $fsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
+        Remove-RegistryKey -Path $fsPath -Name "RefsDisableLastAccessUpdate" | Out-Null
+        Write-Log -Message "Dev Drive ReFS settings restored to defaults." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Enables Windows Server native high-performance NVMe storage driver.
+#>
+function Enable-WinDebloatServerNativeNVMe {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Enabling Windows Server Native NVMe storage driver..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Storage Subsystem", "Enable native NVMe driver stack")) {
+        $stornvmeKey = "HKLM:\SYSTEM\CurrentControlSet\Services\stornvme\Parameters\Device"
+        Set-RegistryKey -Path $stornvmeKey -Name "NativeNVMeStorageDriver" -Value 1 -Type DWord | Out-Null
+        Write-Log -Message "Windows Server Native NVMe driver stack enabled." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores standard Windows NVMe storage driver.
+#>
+function Disable-WinDebloatServerNativeNVMe {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Storage Subsystem", "Restore default NVMe driver stack")) {
+        $stornvmeKey = "HKLM:\SYSTEM\CurrentControlSet\Services\stornvme\Parameters\Device"
+        Remove-RegistryKey -Path $stornvmeKey -Name "NativeNVMeStorageDriver" | Out-Null
+        Write-Log -Message "Windows standard NVMe driver stack restored." -Level Success
     }
 }
 
@@ -422,13 +548,25 @@ Set-Alias -Name 'Optimize-WinDebloat7DirectStorage' -Value 'Optimize-WinDebloatD
 Set-Alias -Name 'Reset-WinDebloat7DirectStorage' -Value 'Reset-WinDebloatDirectStorage'
 Set-Alias -Name 'Optimize-WinDebloat7ThreadDirector' -Value 'Optimize-WinDebloatThreadDirector'
 Set-Alias -Name 'Reset-WinDebloat7ThreadDirector' -Value 'Reset-WinDebloatThreadDirector'
+Set-Alias -Name 'Disable-WinDebloat7EnergySaverAcThrottling' -Value 'Disable-WinDebloatEnergySaverAcThrottling'
+Set-Alias -Name 'Enable-WinDebloat7EnergySaverAcThrottling' -Value 'Enable-WinDebloatEnergySaverAcThrottling'
+Set-Alias -Name 'Optimize-WinDebloat7DevDrive' -Value 'Optimize-WinDebloatDevDrive'
+Set-Alias -Name 'Reset-WinDebloat7DevDrive' -Value 'Reset-WinDebloatDevDrive'
+Set-Alias -Name 'Enable-WinDebloat7ServerNativeNVMe' -Value 'Enable-WinDebloatServerNativeNVMe'
+Set-Alias -Name 'Disable-WinDebloat7ServerNativeNVMe' -Value 'Disable-WinDebloatServerNativeNVMe'
 
 Export-ModuleMember -Function @(
     'Optimize-WinDebloatPerformance',
     'Optimize-WinDebloatDirectStorage',
     'Reset-WinDebloatDirectStorage',
     'Optimize-WinDebloatThreadDirector',
-    'Reset-WinDebloatThreadDirector'
+    'Reset-WinDebloatThreadDirector',
+    'Disable-WinDebloatEnergySaverAcThrottling',
+    'Enable-WinDebloatEnergySaverAcThrottling',
+    'Optimize-WinDebloatDevDrive',
+    'Reset-WinDebloatDevDrive',
+    'Enable-WinDebloatServerNativeNVMe',
+    'Disable-WinDebloatServerNativeNVMe'
 ) -Alias @(
     'Set-WinDebloatPerformance',
     'Set-WinDebloat7Performance',
@@ -436,5 +574,11 @@ Export-ModuleMember -Function @(
     'Optimize-WinDebloat7DirectStorage',
     'Reset-WinDebloat7DirectStorage',
     'Optimize-WinDebloat7ThreadDirector',
-    'Reset-WinDebloat7ThreadDirector'
+    'Reset-WinDebloat7ThreadDirector',
+    'Disable-WinDebloat7EnergySaverAcThrottling',
+    'Enable-WinDebloat7EnergySaverAcThrottling',
+    'Optimize-WinDebloat7DevDrive',
+    'Reset-WinDebloat7DevDrive',
+    'Enable-WinDebloat7ServerNativeNVMe',
+    'Disable-WinDebloat7ServerNativeNVMe'
 )

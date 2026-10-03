@@ -284,4 +284,24 @@ Describe "Security Hardening Subsystem" {
             { Set-WinDebloatSecurity -Config $config -Confirm:$false } | Should -Not -Throw
         }
     }
+
+    Context "SMB NTLM Blocking" {
+        It "Enable-WinDebloatSMBNTLMBlock sets BlockNTLM flag" {
+            Mock -ModuleName Security Set-RegistryKey { return $true }
+            { Enable-WinDebloatSMBNTLMBlock -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloat7SMBNTLMBlock -Confirm:$false } | Should -Not -Throw
+            Should -Invoke -CommandName Set-RegistryKey -ModuleName Security -Times 2 -ParameterFilter {
+                $Path -eq "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" -and
+                $Name -eq "BlockNTLM" -and
+                $Value -eq 1
+            }
+        }
+
+        It "Disable-WinDebloatSMBNTLMBlock removes BlockNTLM override" {
+            Mock -ModuleName Security Remove-RegistryKey { return $true }
+            { Disable-WinDebloatSMBNTLMBlock -Confirm:$false } | Should -Not -Throw
+            { Disable-WinDebloat7SMBNTLMBlock -Confirm:$false } | Should -Not -Throw
+            Should -Invoke -CommandName Remove-RegistryKey -ModuleName Security -Times 2
+        }
+    }
 }

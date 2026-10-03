@@ -92,6 +92,17 @@ Describe "UI.Colors Module" {
             { Show-WD7Separator -Title "TEST SEPARATOR" -Color "Primary" } | Should -Not -Throw
             { Show-WD7StatusBadge -Label "All Systems Operational" -Status "Success" } | Should -Not -Throw
         }
+
+        It "Test-WDHeadless and Clear-WDConsoleSafe execute safely without crashing" {
+            (Get-Command "Test-WDHeadless" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Test-WD7Headless" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Clear-WDConsoleSafe" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Clear-WD7ConsoleSafe" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+
+            { $isHeadless = Test-WDHeadless; $isHeadless | Should -BeOfType [bool] } | Should -Not -Throw
+            { Clear-WDConsoleSafe } | Should -Not -Throw
+            { Clear-WD7ConsoleSafe } | Should -Not -Throw
+        }
     }
 }
 

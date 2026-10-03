@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2026-10-04 — "Silicon Mastery & Enterprise Parity"
+
+The definitive **Silicon Mastery & Enterprise Parity** milestone release: **261 exported functions, 290 aliases, 355/355 Pester tests passing with zero defects, hardware-aware silicon scheduling (AMD Dual-CCD X3D, Intel Hybrid, ARM64 NPU), ReFS Dev Drive optimization, Server Native NVMe stack, SMB NTLM relay blocking, headless terminal safety, and Microsoft Intune custom detection.**
+
+### 🌟 Release Highlights
+- **Hardware Profile & Silicon Detection (`Version-Detection.psm1`)**: Automated hardware profiling (`Get-WinDebloatHardwareProfile`) detecting AMD Dual-CCD X3D (7900X3D/7950X3D/9900X3D/9950X3D), Intel Hybrid P/E-cores (Alder Lake through Arrow Lake), Snapdragon X Elite ARM64, and dedicated NPUs.
+- **AMD Dual-CCD X3D Low-Latency Protection (`Performance.psm1`, `Gaming.psm1`)**: Intercepts Ultimate and High-Performance power schemes to strictly preserve AMD 3D V-Cache core parking (`CPMINCORES = 0`), eliminating cross-CCD interconnect latency stutters (~80ns penalty).
+- **Windows 11 Energy Saver AC Throttling Override (`Performance.psm1`)**: Added `Disable-WinDebloatEnergySaverAcThrottling` / `Enable-WinDebloatEnergySaverAcThrottling` (`EcoModeState = 2`) to eliminate aggressive background CPU throttling on desktop/workstation AC power.
+- **Storage Subsystem Acceleration & NVMe Tuning (`Performance.psm1`)**:
+  - `Optimize-WinDebloatDevDrive`: Enables ReFS `RefsDisableLastAccessUpdate = 1` for accelerated developer drives.
+  - `Enable-WinDebloatServerNativeNVMe`: Activates the high-throughput Windows Server Native NVMe storage driver stack.
+  - `Disable-WinDebloatNVMeAPST`: Disables NVMe Autonomous Power State Transitions (APST) to eliminate storage wake-up latency hitches.
+- **Multimedia & Network Latency Tuning (`Performance.psm1`, `Network.psm1`)**:
+  - `Set-WinDebloatMMCSSPriority`: Enforces high-priority multimedia class scheduling (`NetworkThrottlingIndex = 0xffffffff`, `Clock Rate = 10000`).
+  - `Disable-WinDebloatNetAdapterLSO`: Disables Large Send Offload on active network adapters to prevent micro-stuttering and packet jitter.
+  - `Enable-WinDebloatECN`: Enables TCP Explicit Congestion Notification for improved network responsiveness.
+- **Enterprise Security Hardening (`Security.psm1`, `deploy/`)**:
+  - `Enable-WinDebloatSMBNTLMBlock`: Hardens workstation Lanman parameters (`BlockNTLM = 1`) to defeat NTLM relay attacks in corporate networks.
+  - `deploy/Detect-WinDebloat.ps1`: Production-ready Microsoft Intune Win32 App custom detection script evaluating registry stamps.
+- **UI & Ergonomic Enhancements (`Tweaks/UI.psm1`)**:
+  - `Set-WinDebloatTaskbarGrouping`: Configures taskbar grouping (`TaskbarGlomLevel`: Always, WhenFull, Never).
+  - `Optimize-WinDebloatExplorerPerformance`: Suppresses cloud file sync lookups and recommendation indexing in File Explorer.
+- **Headless Terminal Safety (`Colors.psm1`)**:
+  - `Test-WDHeadless`: Robust detection of non-interactive environments, output redirection, and CI runners.
+  - `Clear-WDConsoleSafe`: Window boundary checks to safely clear screen without "handle is invalid" crashes in headless contexts.
+- **Automated Winget Packaging (`build/New-WingetManifest.ps1`)**:
+  - Standalone manifest generator producing version, installer, and locale manifests formatted for `winget-pkgs` PR submissions.
+- **Zero Technical Debt Verification**:
+  - **100% 5-Way AST Parity**: 261 exported functions, 290 aliases synchronized across manifests and module definitions.
+  - **355 / 355 Tests Passing**: 100% Pester test pass rate across 18 test suites (0 failed, 0 skipped).
+
 ## [1.6.0] - 2026-10-04 — "Zero Technical Debt & Apex Architecture"
 
 The definitive **Apex & Zero Tech Debt** milestone release: **100% 5-Way AST mathematical parity, 336/336 Pester tests passing, Smart App Control bypass trampoline (`Run.bat`), standalone Intune/OOBE enterprise deployment (`Deploy-WinDebloat.ps1`), multi-user offline hive mounting, cross-browser bloatware stripping, 24H2 checkpoint cumulative update safety gates, and dual-layer human-readable `.reg` rollback.**

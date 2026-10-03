@@ -10,7 +10,7 @@
 
 .NOTES
     Module: Win-Debloat.UI.GUI
-    Version: 1.6.0
+    Version: 1.7.0
 #>
 
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '', Justification = 'Event parameters required by signature')]

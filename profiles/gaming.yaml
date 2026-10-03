@@ -1,7 +1,7 @@
 metadata:
   name: "Gaming"
-  version: "1.6.0"
-  author: "Win-Debloat Team"
+  version: "1.7.0"
+  author: "Tomy Tate"
   description: "Maximum performance for gamers. Aggressive bloatware removal with gaming-friendly settings."
   target_os: [ "Windows 10", "Windows 11" ]
   min_build: 19045
@@ -35,6 +35,7 @@ performance:
   enable_amd_x3d_safeguards: true
   enable_thread_director: true
   enable_hags_tdr_tuning: true
+  disable_energy_saver_ac_throttling: true
 
 network:
   dns_servers: [ "1.1.1.1", "1.0.0.1" ]

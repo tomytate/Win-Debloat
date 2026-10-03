@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Privacy
-    Version: 2.0.0
+    Version: 1.7.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
@@ -174,12 +174,21 @@ function Set-WinDebloatPrivacy {
                 @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"; Name = "TurnOffWindowsCopilot"; Value = 1 }
                 @{ Path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Name = "ShowCopilotButton"; Value = 0 }
                 @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"; Name = "DisableCopilotUserFeedback"; Value = 1 }
-                # Edge AI
+                # Edge AI & Promos
                 @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"; Name = "HubsSidebarEnabled"; Value = 0 }
                 @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"; Name = "CopilotCDPPageContext"; Value = 0 }
                 @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"; Name = "ComposeInlineEnabled"; Value = 0 }
                 @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"; Name = "EdgeHistoryAISearchEnabled"; Value = 0 }
                 @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"; Name = "AIGenThemesEnabled"; Value = 0 }
+                @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"; Name = "EdgeShoppingAssistantEnabled"; Value = 0 }
+                @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"; Name = "ShowCopilotButton"; Value = 0 }
+                # Chrome GenAI Enterprise Policies
+                @{ Path = "HKLM:\SOFTWARE\Policies\Google\Chrome"; Name = "CreateThemesSettings"; Value = 2 }
+                @{ Path = "HKLM:\SOFTWARE\Policies\Google\Chrome"; Name = "HelpMeWriteSettings"; Value = 2 }
+                @{ Path = "HKLM:\SOFTWARE\Policies\Google\Chrome"; Name = "TabOrganizerSettings"; Value = 2 }
+                @{ Path = "HKLM:\SOFTWARE\Policies\Google\Chrome"; Name = "HistorySearchSettings"; Value = 2 }
+                # Windows Shell Promotional Recommendations (Iris)
+                @{ Path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Name = "Start_IrisRecommendations"; Value = 0 }
             )
             
             foreach ($item in $copilotKeys) {

@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Bloatware
-    Version: 2.0.0
+    Version: 1.7.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
@@ -57,10 +57,20 @@ $Script:BloatwareCategories = @{
 
         # Lenovo OEM Bloat
         "E046963F.LenovoCompanion", "E046963F.LenovoSettings", "LenovoCorporation.LenovoID",
-        "LenovoCompanyLimited.LenovoVantageService",
+        "LenovoCompanyLimited.LenovoVantageService", "LenovoCorporation.LenovoVantage",
+        "LenovoCorporation.LenovoSmartAppearance",
 
         # Acer OEM Bloat
-        "AcerIncorporated.AcerCare", "AcerIncorporated.AcerQuickAccess"
+        "AcerIncorporated.AcerCare", "AcerIncorporated.AcerQuickAccess", "AcerIncorporated.AcerCareCenter",
+
+        # ASUS OEM Bloat
+        "B9ECED6F.ArmouryCrate", "B9ECED6F.MyASUS",
+
+        # Samsung OEM Bloat
+        "SamsungElectronicsCoLtd.SamsungSettings",
+
+        # Additional HP and Dell Bloat
+        "AD2F1837.OMENGamingHub", "AD2F1837.HPCommandCenter", "DellInc.AlienwareCommandCenter"
     )
 
     Microsoft  = @(
@@ -83,10 +93,11 @@ $Script:BloatwareCategories = @{
     )
 
     Aggressive = @(
-        # AI / Copilot / Widgets ecosystem
+        # AI / Copilot / Widgets / 2026 Workloads ecosystem
         "Microsoft.Copilot", "MicrosoftWindows.Client.CoPilot", "MicrosoftWindows.Client.WebExperience",
         "Microsoft.Windows.Ai.Copilot.Provider", "Microsoft.Windows.AIHub", "Microsoft.WidgetsPlatformRuntime",
         "XP9CXNGPPJ97XX", "MicrosoftCorporationII.MicrosoftFamily", "MicrosoftCorporationII.QuickAssist",
+        "Microsoft.Windows.Ai.PromptEngine", "WindowsWorkload.*", "Microsoft.Windows.Ai.*",
 
         # Xbox ecosystem
         "Microsoft.XboxApp", "Microsoft.GamingApp", "Microsoft.XboxGameOverlay", "Microsoft.XboxGamingOverlay",

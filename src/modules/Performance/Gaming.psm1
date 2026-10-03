@@ -11,7 +11,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Performance.Gaming
-    Version: 2.0.0
+    Version: 1.7.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
@@ -114,6 +114,35 @@ function Set-WinDebloatGaming {
 
 <#
 .SYNOPSIS
+    Tests whether the current CPU is an AMD Dual-CCD 3D V-Cache processor.
+.OUTPUTS
+    [bool] True if 7900X3D, 7950X3D, 9900X3D, 9950X3D or equivalent asymmetric cache silicon is detected.
+#>
+function Test-WinDebloatDualCcdX3D {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [string]$ProcessorNameOverride
+    )
+
+    $procName = if ($ProcessorNameOverride) {
+        $ProcessorNameOverride
+    }
+    else {
+        try {
+            (Get-ItemPropertyValue -Path "HKLM:\HARDWARE\DESCRIPTION\System\CentralProcessor\0" -Name "ProcessorNameString" -ErrorAction Stop).Trim()
+        }
+        catch {
+            $cpu = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($cpu) { $cpu.Name.Trim() } else { "" }
+        }
+    }
+
+    return [bool]($procName -match '\b(7900X3D|7950X3D|9900X3D|9950X3D)\b')
+}
+
+<#
+.SYNOPSIS
     Protects AMD Dual-CCD 3D V-Cache CPUs (7900X3D/7950X3D/9900X3D/9950X3D) from cross-CCD latency penalties.
 #>
 function Protect-WinDebloatAMDX3D {
@@ -137,6 +166,13 @@ function Protect-WinDebloatAMDX3D {
         }
         else {
             Write-Log -Message "AMD 3D V-Cache driver not present on this system (skipped)." -Level Debug
+        }
+
+        # If Dual-CCD X3D CPU is detected, enforce CPMINCORES = 0 so driver can park standard CCD cores during games
+        if (Test-WinDebloatDualCcdX3D) {
+            Write-Log -Message "AMD Dual-CCD 3D V-Cache CPU detected. Enforcing core parking headroom (CPMINCORES = 0)..." -Level Info
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES 0 2>$null
+            & powercfg /setactive SCHEME_CURRENT 2>$null
         }
     }
 }
@@ -280,10 +316,92 @@ function Enable-WinDebloatGameBarPopup {
     }
 }
 
+<#
+.SYNOPSIS
+    Configures Multimedia Class Scheduler Service (MMCSS) network throttling and gaming priority.
+#>
+function Set-WinDebloatMMCSSPriority {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Configuring MMCSS gaming scheduling and disabling network throttling..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Multimedia Class Scheduler", "Configure zero network throttling and high gaming priority")) {
+        $sysProfile = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
+        $tasksGames = "$sysProfile\Tasks\Games"
+
+        Set-RegistryKey -Path $sysProfile -Name "NetworkThrottlingIndex" -Value 0xffffffff -Type DWord | Out-Null
+        Set-RegistryKey -Path $sysProfile -Name "SystemResponsiveness" -Value 0 -Type DWord | Out-Null
+        Set-RegistryKey -Path $sysProfile -Name "NoLazyMode" -Value 1 -Type DWord | Out-Null
+
+        Set-RegistryKey -Path $tasksGames -Name "Clock Rate" -Value 10000 -Type DWord | Out-Null
+        Set-RegistryKey -Path $tasksGames -Name "GPU Priority" -Value 8 -Type DWord | Out-Null
+        Set-RegistryKey -Path $tasksGames -Name "Priority" -Value 6 -Type DWord | Out-Null
+        Set-RegistryKey -Path $tasksGames -Name "Scheduling Category" -Value "High" -Type String | Out-Null
+        Set-RegistryKey -Path $tasksGames -Name "SFIO Priority" -Value "High" -Type String | Out-Null
+
+        Write-Log -Message "MMCSS gaming priorities configured with network throttling disabled." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores MMCSS network throttling and gaming tasks to Windows defaults.
+#>
+function Reset-WinDebloatMMCSSPriority {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Multimedia Class Scheduler", "Restore default MMCSS settings")) {
+        $sysProfile = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
+        Set-RegistryKey -Path $sysProfile -Name "NetworkThrottlingIndex" -Value 10 -Type DWord | Out-Null
+        Set-RegistryKey -Path $sysProfile -Name "SystemResponsiveness" -Value 20 -Type DWord | Out-Null
+        Remove-RegistryKey -Path $sysProfile -Name "NoLazyMode" | Out-Null
+        Write-Log -Message "MMCSS defaults restored." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Disables Autonomous Power State Transitions (APST) on NVMe storage controllers to eliminate gaming latency spikes.
+#>
+function Disable-WinDebloatNVMeAPST {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Disabling NVMe Autonomous Power State Transitions (APST)..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("NVMe Storage Subsystem", "Disable APST power state transitions")) {
+        $stornvmeKey = "HKLM:\SYSTEM\CurrentControlSet\Services\stornvme\Parameters\Device"
+        Set-RegistryKey -Path $stornvmeKey -Name "DisableAPST" -Value 1 -Type DWord | Out-Null
+        Write-Log -Message "NVMe APST disabled (low-latency mode active)." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Enables default Autonomous Power State Transitions (APST) on NVMe storage controllers.
+#>
+function Enable-WinDebloatNVMeAPST {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("NVMe Storage Subsystem", "Restore default APST power state transitions")) {
+        $stornvmeKey = "HKLM:\SYSTEM\CurrentControlSet\Services\stornvme\Parameters\Device"
+        Remove-RegistryKey -Path $stornvmeKey -Name "DisableAPST" | Out-Null
+        Write-Log -Message "NVMe APST restored to Windows default." -Level Success
+    }
+}
+
 # Aliases for backward compatibility
 Set-Alias -Name 'Set-WinDebloat7Gaming' -Value 'Set-WinDebloatGaming'
 Set-Alias -Name 'Optimize-WinDebloatGaming' -Value 'Set-WinDebloatGaming'
 Set-Alias -Name 'Optimize-WinDebloat7Gaming' -Value 'Set-WinDebloatGaming'
+Set-Alias -Name 'Test-WinDebloat7DualCcdX3D' -Value 'Test-WinDebloatDualCcdX3D'
 Set-Alias -Name 'Protect-WinDebloat7AMDX3D' -Value 'Protect-WinDebloatAMDX3D'
 Set-Alias -Name 'Reset-WinDebloat7AMDX3D' -Value 'Reset-WinDebloatAMDX3D'
 Set-Alias -Name 'Set-WinDebloat7HAGSTDR' -Value 'Set-WinDebloatHAGSTDR'
@@ -292,9 +410,14 @@ Set-Alias -Name 'Enable-WinDebloat7DirectSR' -Value 'Enable-WinDebloatDirectSR'
 Set-Alias -Name 'Disable-WinDebloat7DirectSR' -Value 'Disable-WinDebloatDirectSR'
 Set-Alias -Name 'Disable-WinDebloat7GameBarPopup' -Value 'Disable-WinDebloatGameBarPopup'
 Set-Alias -Name 'Enable-WinDebloat7GameBarPopup' -Value 'Enable-WinDebloatGameBarPopup'
+Set-Alias -Name 'Set-WinDebloat7MMCSSPriority' -Value 'Set-WinDebloatMMCSSPriority'
+Set-Alias -Name 'Reset-WinDebloat7MMCSSPriority' -Value 'Reset-WinDebloatMMCSSPriority'
+Set-Alias -Name 'Disable-WinDebloat7NVMeAPST' -Value 'Disable-WinDebloatNVMeAPST'
+Set-Alias -Name 'Enable-WinDebloat7NVMeAPST' -Value 'Enable-WinDebloatNVMeAPST'
 
 Export-ModuleMember -Function @(
     'Set-WinDebloatGaming',
+    'Test-WinDebloatDualCcdX3D',
     'Protect-WinDebloatAMDX3D',
     'Reset-WinDebloatAMDX3D',
     'Set-WinDebloatHAGSTDR',
@@ -302,11 +425,16 @@ Export-ModuleMember -Function @(
     'Enable-WinDebloatDirectSR',
     'Disable-WinDebloatDirectSR',
     'Disable-WinDebloatGameBarPopup',
-    'Enable-WinDebloatGameBarPopup'
+    'Enable-WinDebloatGameBarPopup',
+    'Set-WinDebloatMMCSSPriority',
+    'Reset-WinDebloatMMCSSPriority',
+    'Disable-WinDebloatNVMeAPST',
+    'Enable-WinDebloatNVMeAPST'
 ) -Alias @(
     'Set-WinDebloat7Gaming',
     'Optimize-WinDebloatGaming',
     'Optimize-WinDebloat7Gaming',
+    'Test-WinDebloat7DualCcdX3D',
     'Protect-WinDebloat7AMDX3D',
     'Reset-WinDebloat7AMDX3D',
     'Set-WinDebloat7HAGSTDR',
@@ -314,5 +442,9 @@ Export-ModuleMember -Function @(
     'Enable-WinDebloat7DirectSR',
     'Disable-WinDebloat7DirectSR',
     'Disable-WinDebloat7GameBarPopup',
-    'Enable-WinDebloat7GameBarPopup'
+    'Enable-WinDebloat7GameBarPopup',
+    'Set-WinDebloat7MMCSSPriority',
+    'Reset-WinDebloat7MMCSSPriority',
+    'Disable-WinDebloat7NVMeAPST',
+    'Enable-WinDebloat7NVMeAPST'
 )

@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Core.Registry
-    Version: 1.6.0
+    Version: 1.7.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>

@@ -16,7 +16,7 @@
 
 .NOTES
     Module: Win-Debloat.Core.State
-    Version: 1.6.0
+    Version: 1.7.0
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
@@ -257,6 +257,13 @@ function Protect-WDData {
         return [System.Security.Cryptography.ProtectedData]::Protect($Data, $null, $Scope)
     }
     catch [System.Security.Cryptography.CryptographicException] {
+        if ($Scope -eq [System.Security.Cryptography.DataProtectionScope]::CurrentUser) {
+            try {
+                Write-Verbose "Retrying DPAPI encryption with LocalMachine scope..."
+                return [System.Security.Cryptography.ProtectedData]::Protect($Data, $null, [System.Security.Cryptography.DataProtectionScope]::LocalMachine)
+            }
+            catch { }
+        }
         Write-Log -Message "DPAPI encryption failed: $($_.Exception.Message). Ensure current user profile is loaded." -Level Error
         throw
     }
@@ -285,6 +292,13 @@ function Unprotect-WDData {
         return [System.Security.Cryptography.ProtectedData]::Unprotect($EncryptedData, $null, $Scope)
     }
     catch [System.Security.Cryptography.CryptographicException] {
+        if ($Scope -eq [System.Security.Cryptography.DataProtectionScope]::CurrentUser) {
+            try {
+                Write-Verbose "Retrying DPAPI decryption with LocalMachine scope..."
+                return [System.Security.Cryptography.ProtectedData]::Unprotect($EncryptedData, $null, [System.Security.Cryptography.DataProtectionScope]::LocalMachine)
+            }
+            catch { }
+        }
         Write-Log -Message "DPAPI decryption failed: $($_.Exception.Message). Snapshot may have been encrypted under a different user account or non-elevated context." -Level Error
         throw
     }
@@ -1089,12 +1103,32 @@ function New-WinDebloatSnapshot {
                                     [void]$regBuilder.AppendLine("$vNameEscaped=dword:$dwordHex")
                                 }
                                 'QWord' {
-                                    $qwordHex = ([uint64]$vData).ToString("x16")
-                                    [void]$regBuilder.AppendLine("$vNameEscaped=hex(b):$qwordHex")
+                                    $qBytes = [BitConverter]::GetBytes([uint64]$vData)
+                                    $qHex = ($qBytes | ForEach-Object { $_.ToString("x2") }) -join ","
+                                    [void]$regBuilder.AppendLine("$vNameEscaped=hex(b):$qHex")
                                 }
                                 'String' {
                                     $escapedStr = if ($vData) { ($vData.ToString() -replace '\\', '\\\\' -replace '"', '\"') } else { "" }
                                     [void]$regBuilder.AppendLine("$vNameEscaped=`"$escapedStr`"")
+                                }
+                                'MultiString' {
+                                    $byteList = [System.Collections.Generic.List[byte]]::new()
+                                    foreach ($s in [string[]]$vData) {
+                                        $byteList.AddRange([System.Text.Encoding]::Unicode.GetBytes($s))
+                                        $byteList.Add(0); $byteList.Add(0)
+                                    }
+                                    $byteList.Add(0); $byteList.Add(0)
+                                    $hexBytes = ($byteList | ForEach-Object { $_.ToString("x2") }) -join ","
+                                    [void]$regBuilder.AppendLine("$vNameEscaped=hex(7):$hexBytes")
+                                }
+                                'ExpandString' {
+                                    $byteList = [System.Collections.Generic.List[byte]]::new()
+                                    if ($vData) {
+                                        $byteList.AddRange([System.Text.Encoding]::Unicode.GetBytes($vData.ToString()))
+                                    }
+                                    $byteList.Add(0); $byteList.Add(0)
+                                    $hexBytes = ($byteList | ForEach-Object { $_.ToString("x2") }) -join ","
+                                    [void]$regBuilder.AppendLine("$vNameEscaped=hex(2):$hexBytes")
                                 }
                                 default {
                                     if ($vData -is [byte[]]) {
@@ -1106,6 +1140,15 @@ function New-WinDebloatSnapshot {
                         }
                     }
                     [void]$regBuilder.AppendLine("")
+                }
+
+                # Also record keys that did NOT exist originally so importing rollback.reg deletes created keys
+                foreach ($keyPath in $snapshot.Registry.Keys) {
+                    $entry = $snapshot.Registry[$keyPath]
+                    if ($entry -and -not $entry['Existed']) {
+                        $normalizedKey = $keyPath -replace '^HKCU:', 'HKEY_CURRENT_USER' -replace '^HKLM:', 'HKEY_LOCAL_MACHINE' -replace '^HKCR:', 'HKEY_CLASSES_ROOT' -replace '^HKU:', 'HKEY_USERS'
+                        [void]$regBuilder.AppendLine("[-$normalizedKey]")
+                    }
                 }
 
                 [System.IO.File]::WriteAllText("$basePath\rollback.reg", $regBuilder.ToString(), [System.Text.Encoding]::Unicode)

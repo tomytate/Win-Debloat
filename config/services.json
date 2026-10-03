@@ -386,6 +386,30 @@
             "StorageType": "Any",
             "RiskLevel": "Low",
             "Description": "On-device vector indexing service for Windows Recall and AI search"
+        },
+        "CDPSvc": {
+            "DisplayName": "Connected Devices Platform Service",
+            "StartupType": "Manual",
+            "Category": "Telemetry",
+            "StorageType": "Any",
+            "RiskLevel": "Low",
+            "Description": "Cross-device activities and telemetry sync service"
+        },
+        "InventorySvc": {
+            "DisplayName": "Windows Inventory Service",
+            "StartupType": "Disabled",
+            "Category": "Telemetry",
+            "StorageType": "Any",
+            "RiskLevel": "Low",
+            "Description": "Inventories software/hardware telemetry for Microsoft diagnostic servers"
+        },
+        "WSAIFabricSvc": {
+            "DisplayName": "Windows System AI Fabric Service",
+            "StartupType": "Disabled",
+            "Category": "AI",
+            "StorageType": "Any",
+            "RiskLevel": "Low",
+            "Description": "Background daemon hosting on-device Phi-Silica SLM workloads"
         }
     },
     "presets": {

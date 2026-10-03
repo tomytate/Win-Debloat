@@ -54,7 +54,7 @@ if defined WT_EXE (
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to launch Win-Debloat with elevated privileges.
     echo Check log at %LOG_FILE%
-    pause
+    if not defined UNATTENDED if not defined CI pause
 )
 
 goto :EOF
