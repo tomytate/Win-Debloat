@@ -250,7 +250,7 @@ pwsh .\Win-Debloat.ps1 -Gui
 
 ## 🆚 Editions: Standard vs Extras
 
-Both editions share the exact same core PowerShell 7.6 LTS engine, DPAPI snapshot rollback architecture, YAML profile system, GUI dashboard, and 227+ system optimization cmdlets.
+Both editions share the exact same core PowerShell 7.6.6 LTS engine, DPAPI snapshot rollback architecture, YAML profile system, GUI dashboard, and 239+ system optimization cmdlets.
 
 | Capability / Feature | 🛡️ Standard Edition | ⚠️ Extras Edition |
 | :--- | :---: | :---: |
@@ -349,7 +349,7 @@ $$\text{Privacy Score} = 100 - \sum_{i=1}^{11} \left( \text{Weight}_i \times \ma
 
 ## 📖 Features Overview
 
-Win-Debloat ships with **227 functions** across **30 modules**, organized into 14 feature areas (with full backward-compatible `*-WinDebloat7*` and `WD7*` aliases):
+Win-Debloat ships with **239 functions** across **30 modules**, organized into 14 feature areas (with full backward-compatible `*-WinDebloat7*` and `WD7*` aliases):
 
 | Feature | Description | Key Functions |
 |---------|-------------|---------------|
@@ -563,11 +563,12 @@ Set-WinDebloatTaskbarAlignment -Alignment Left
 Win-Debloat treats Windows configuration **as code**, guaranteeing deterministic rollbacks, cryptographically protected snapshots, and an auditable software supply chain:
 
 1. **DPAPI AES-256 Snapshots (`Protect-WDData` / `Unprotect-WDData`)**: Encrypts machine state snapshots at rest with OS-bound user keys.
-2. **4-Tier Sidecar (`meta.json`) Resilience**: Fast-path metadata reading ensures instant GUI dashboard loading with self-healing recovery for damaged files.
-3. **Value-Level Registry Rollback**: Targets specific property values only, strictly preserving sibling keys, OEM drivers, and third-party software settings.
-4. **Supply Chain Security**: Dual-layer Authenticode signing with RFC 3161 timestamps, **SPDX 2.3 JSON SBOM** (`win-debloat-sbom.spdx.json`), and published SHA-256 checksums.
-5. **AST 5-Way Mathematical Parity**: 0 parity violations across 227 functions, 256 aliases, and 30 modules.
-6. **286 / 286 Pester Tests Passing (100% Pass Rate)** with 0 PSScriptAnalyzer errors in CI.
+2. **Dual-Layer Human-Readable Rollback (`rollback.reg`)**: Exports a standard Windows Registry Editor `.reg` file in `backups/` alongside DPAPI snapshots for transparent manual inspection and double-click restoration.
+3. **4-Tier Sidecar (`meta.json`) Resilience**: Fast-path metadata reading ensures instant GUI dashboard loading with self-healing recovery for damaged files.
+4. **Value-Level Registry Rollback**: Targets specific property values only, strictly preserving sibling keys, OEM drivers, and third-party software settings.
+5. **Supply Chain Security**: Dual-layer Authenticode signing with RFC 3161 timestamps, **SPDX 2.3 JSON SBOM** (`win-debloat-sbom.spdx.json`), and published SHA-256 checksums.
+6. **AST 5-Way Mathematical Parity**: 0 parity violations across 239 functions, 268 aliases, and 30 modules.
+7. **336 / 336 Pester Tests Passing (100% Pass Rate)** with 0 PSScriptAnalyzer errors in CI.
 
 ---
 
@@ -575,14 +576,14 @@ Win-Debloat treats Windows configuration **as code**, guaranteeing deterministic
 
 | Feature | Legacy Scripts / Batch Hacks | Win-Debloat v1.6.0 |
 | :--- | :--- | :--- |
-| **Engine** | Fragile `.bat` / nested WMI loops | **PowerShell 7.6.5 LTS (.NET 10) + Direct BCL** |
+| **Engine** | Fragile `.bat` / nested WMI loops | **PowerShell 7.6.6 LTS (.NET 10) + Direct BCL** |
 | **Telemetry Latency** | ~520 ms (WMI COM marshaling) | **< 3.8 ms (Direct .NET memory/process APIs)** |
 | **Registry Writes** | Slow PSDrive provider (4.8s) | **Direct Win32 BCL (194ms, 25x faster)** |
-| **Rollback Safety** | Destructive / irreversible | **DPAPI AES-256 snapshots + value-level undo** |
+| **Rollback Safety** | Destructive / irreversible | **DPAPI AES-256 snapshots + human-readable .reg undo** |
 | **Hardware Awareness** | Breaks AMD X3D core parking | **AMD X3D, Intel Thread Director, DirectStorage 1.2** |
 | **Interface** | Raw terminal only | **WPF Cyber-OLED Cockpit + 24-bit TrueColor TUI** |
 | **Supply Chain** | Unsigned scripts | **SPDX 2.3 SBOM + Dual Authenticode Signing** |
-| **Code Quality** | Unverified / tech debt | **100% 5-Way AST Parity, 286/286 Tests Passed** |
+| **Code Quality** | Unverified / tech debt | **100% 5-Way AST Parity, 336/336 Tests Passed** |
 
 ---
 
@@ -594,8 +595,9 @@ Win-Debloat treats Windows configuration **as code**, guaranteeing deterministic
 
 **Yes, Win-Debloat is designed with safety as its primary architectural requirement.**
 - **Encrypted Pre-Change Snapshots:** Before any registry key or service state is modified, a DPAPI-encrypted snapshot captures original values and types with full fidelity.
-- **Zero Compiled Binaries (Standard Edition):** The Standard edition is 100% open PowerShell code that you can inspect and verify.
-- **Strict Testing Pipeline:** Every commit is validated against a 286-test Pester test harness and enforces 0 PSScriptAnalyzer errors in CI.
+- **Dual-Layer .reg File Export:** A standard human-readable `rollback.reg` is created alongside every snapshot, allowing transparent auditing in Notepad and instant manual recovery.
+- **Zero Compiled Binaries (Standard Edition):** The Standard edition is 100% open PowerShell code that you can inspect and verify, or run directly via `Run.bat`.
+- **Strict Testing Pipeline:** Every commit is validated against a 336-test Pester test harness and enforces 0 PSScriptAnalyzer errors in CI.
 - **Non-Destructive Defaults:** Core Windows components (Windows Update, Microsoft Store, essential framework libraries) are protected and untouched in Standard and Moderate removal profiles.
 </details>
 
@@ -704,10 +706,13 @@ All operations are logged with timestamps, severity levels, and execution metada
 We welcome contributions! Whether you want to add support for new bloatware packages, enhance performance tweaks, or improve UI components:
 
 ```powershell
-# Run the complete test suite (286 tests)
+# 1. Run the complete test suite (336 tests, 100% pass)
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\Run-AllTests.ps1
 
-# Run PSScriptAnalyzer linting (0 errors required)
+# 2. Verify 5-Way Mathematical AST export parity (0 violations)
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\AST\Test-WinDebloatAstExportParity.ps1
+
+# 3. Run PSScriptAnalyzer linting (0 errors required)
 Invoke-ScriptAnalyzer -Path src -Recurse -Severity Error,Warning
 ```
 

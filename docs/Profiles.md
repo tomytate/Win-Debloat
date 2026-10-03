@@ -112,14 +112,25 @@ software:
     - "Microsoft.Teams"
 ```
 
-## 🛠️ How to Create a Custom Profile
+## 🛠️ How to Create and Run Profiles
 
 1.  Copy an existing profile (e.g., `profiles\moderate.yaml`).
 2.  Rename it to `my-profile.yaml`.
-3.  Edit the values in any text editor (Notepad, VS Code).
+3.  Edit the values in any text editor (VS Code, Notepad).
 4.  Run it:
     ```powershell
-    .\Win-Debloat.ps1 -ProfileFile "profiles\my-profile.yaml"
-    # Or via the compiled launcher:
-    .\Win-Debloat.exe -ProfileFile "profiles\my-profile.yaml" -Unattended
+    # Safe dry-run preview:
+    pwsh .\Win-Debloat.ps1 -Profile "profiles\my-profile.yaml" -WhatIf
+
+    # Unattended headless execution:
+    pwsh .\Win-Debloat.ps1 -Profile "profiles\my-profile.yaml" -Silent
+
+    # Sysprep / Golden Master image generation:
+    pwsh .\Win-Debloat.ps1 -Profile "profiles\my-profile.yaml" -Sysprep -Silent
+
+    # Enterprise deployment via standalone script (Intune / OOBE Shift+F10):
+    pwsh .\deploy\Deploy-WinDebloat.ps1 -Profile moderate -Silent
+
+    # Zero-Binary launcher:
+    .\Run.bat
     ```

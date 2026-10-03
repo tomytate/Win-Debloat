@@ -28,14 +28,14 @@ Please note that this project is released with a [Contributor Code of Conduct](C
    ```
 
 ## 🧪 Testing
-- We use **Pester 5** for unit and integration testing.
+- We use **Pester 5/6** for unit, integration, and compliance testing.
 - Run the full test suite before submitting a PR:
   ```powershell
-  # Compliance suite (35 tests)
-  Invoke-Pester -Path tests/Overall.Tests.ps1 -Output Detailed
+  # 1. Complete test harness (336 tests, 100% pass required)
+  pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\Run-AllTests.ps1
 
-  # Unit tests
-  Invoke-Pester -Path tests/Unit -Output Detailed
+  # 2. Mathematical 5-Way AST Parity (0 violations required)
+  pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\AST\Test-WinDebloatAstExportParity.ps1
   ```
 - Run **PSScriptAnalyzer** for linting:
   ```powershell

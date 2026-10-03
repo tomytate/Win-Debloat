@@ -1,6 +1,6 @@
 # Modules Reference
 
-Win-Debloat is built on a modular architecture. Each feature is encapsulated in a standalone PowerShell Module (`.psm1`) located in `src/modules`, `src/core`, or `src/ui`. The standard manifest registers **30 modules** exporting **227 functions** (and 256 backward-compatible aliases), all engineered with zero-data-loss hardening, full reversibility, and backward-compatible `*-WinDebloat7*` aliases.
+Win-Debloat is built on a modular architecture. Each feature is encapsulated in a standalone PowerShell Module (`.psm1`) located in `src/modules`, `src/core`, or `src/ui`. The standard manifest registers **30 modules** exporting **239 functions** (and 268 backward-compatible aliases), all engineered with zero-data-loss hardening, full reversibility, and backward-compatible `*-WinDebloat7*` aliases.
 
 ---
 
@@ -9,24 +9,26 @@ Win-Debloat is built on a modular architecture. Each feature is encapsulated in 
 ### **Bloatware** (`src/modules/Bloatware/Bloatware.psm1`)
 Identifies and removes pre-installed Appx packages.
 - **Exported Functions & Aliases:** `Get-WinDebloatBloatwareList` / `Get-WinDebloat7BloatwareList`, `Remove-WinDebloatBloatware` / `Remove-WinDebloat7Bloatware`, `Uninstall-WinDebloatOneDrive` / `Uninstall-WinDebloat7OneDrive`, `Uninstall-WinDebloatEdge` / `Uninstall-WinDebloat7Edge`, `Uninstall-WinDebloatXbox` / `Uninstall-WinDebloat7Xbox`
-- **Logic:** O(N) regex matching against a tiered database of 139 bloatware apps (Conservative, Moderate, Aggressive tiers).
-- **Safety:** DPAPI snapshot rollback and profile exclusion support.
+- **Logic:** O(N) regex matching against a tiered database of 139 bloatware apps (Conservative, Moderate, Aggressive tiers), including Copilot App, Microsoft Family, and OEM bloat.
+- **Safety:** DPAPI snapshot rollback, human-readable `.reg` export, and profile exclusion support.
 
 ### **Privacy & Telemetry** (`src/modules/Privacy/Privacy.psm1`, `Tasks.psm1`, `Firewall.psm1`)
-Comprehensive privacy hardening via Registry, Group Policy, Scheduled Tasks, and Windows Firewall.
+Comprehensive privacy hardening via Registry, Group Policy, Scheduled Tasks, Windows Firewall, and Third-Party Browsers.
 - **Privacy Core:** `Set-WinDebloatPrivacy` / `Set-WinDebloat7Privacy`, `Enable-WinDebloatPrivacy` / `Enable-WinDebloat7Privacy`, `Disable-WinDebloatAI` / `Disable-WinDebloat7AIandAds`
+- **Browser Bloatware Stripping:** `Disable-WinDebloatBrowserBloat` / `Disable-WinDebloat7BrowserBloat`, `Enable-WinDebloatBrowserBloat` / `Enable-WinDebloat7BrowserBloat` (removes shopping, sidebars, AI integrations, rewards, and telemetry across Edge, Chrome, and Brave).
 - **Telemetry Tasks:** `Get-WinDebloatTelemetryTasks` / `Get-WinDebloat7TelemetryTasks`, `Disable-WinDebloatTelemetryTasks` / `Disable-WinDebloat7TelemetryTasks`, `Enable-WinDebloatTelemetryTasks` / `Enable-WinDebloat7TelemetryTasks`
-- **Firewall Rules:** `Add-WinDebloatFirewallBlock` / `Add-WinDebloat7FirewallBlock`, `Remove-WinDebloatFirewallBlock` / `Remove-WinDebloat7FirewallBlock`, `Get-WinDebloatFirewallStatus` / `Get-WinDebloat7FirewallStatus`, `Get-WinDebloatTelemetryDomains` / `Get-WinDebloat7TelemetryDomains`
-- **Features:** Neutralizes DiagTrack, Connected User Experiences, WaaSMedicSvc, and blocks 45 telemetry domains via Windows Firewall.
+- **Firewall Rules:** `Add-WinDebloatFirewallBlock` / `Add-WinDebloat7FirewallBlock`, `Remove-WinDebloatFirewallBlock` / `Remove-WinDebloat7FirewallBlock`, `Get-WinDebloatFirewallStatus` / `Get-WinDebloat7FirewallStatus`, `Get-WinDebloatTelemetryDomains` / `Get-WinDebloat7TelemetryDomains` (with offline resolved IP cache fallback).
+- **Features:** Neutralizes DiagTrack, Connected User Experiences, WaaSMedicSvc, and blocks 45 telemetry domains via Windows Defender Firewall.
 
 ### **Performance & Gaming** (`src/modules/Performance/Performance.psm1`, `Gaming.psm1`, `Benchmark.psm1`)
-System responsiveness tuning, power management, and hardware benchmarking.
-- **Exported Functions & Aliases:** `Set-WinDebloatPerformance` / `Optimize-WinDebloatPerformance` / `Set-WinDebloat7Performance`, `Set-WinDebloatGaming` / `Set-WinDebloat7Gaming`, `Measure-WinDebloatSystem` / `Measure-WinDebloat7System`, `Compare-WinDebloatBenchmarks` / `Compare-WinDebloat7Benchmarks`
-- **Features:** Ultimate Performance power plan activation, Nagle's algorithm disablement, Game DVR removal, GPU priority elevation, and system metrics benchmarking.
+System responsiveness tuning, power management, gaming overlay decoupling, and hardware benchmarking.
+- **Exported Functions & Aliases:** `Set-WinDebloatPerformance` / `Optimize-WinDebloatPerformance` / `Set-WinDebloat7Performance`, `Set-WinDebloatGaming` / `Set-WinDebloat7Gaming`, `Disable-WinDebloatGameBarPopup` / `Disable-WinDebloat7GameBarPopup`, `Enable-WinDebloatGameBarPopup` / `Enable-WinDebloat7GameBarPopup`, `Measure-WinDebloatSystem` / `Measure-WinDebloat7System`, `Compare-WinDebloatBenchmarks` / `Compare-WinDebloat7Benchmarks`
+- **Features:** Ultimate Performance power plan activation, Nagle's algorithm disablement, Game DVR removal, Game Bar popup suppression (`ms-gamingoverlay` prompt suppression without breaking Xbox Live/Game Pass authentication), GPU priority elevation, and system metrics benchmarking.
 
 ### **Services** (`src/modules/Performance/Services.psm1`)
-JSON-driven Windows service optimization with intelligent presets.
+JSON-driven Windows service optimization with intelligent presets and runtime safety decoupling.
 - **Exported Functions & Aliases:** `Set-WinDebloatServices` / `Set-WinDebloat7Services`, `Get-WinDebloatServicePresets` / `Get-WinDebloat7ServicePresets`, `Get-WinDebloatServiceStatus` / `Get-WinDebloat7ServiceStatus`
+- **Runtime Decoupling:** Dynamically skips `SharedAccess` when WSL2/Hyper-V is running and skips `WbioSrvc` when Windows Hello PIN or biometrics are configured.
 - **Presets:** Privacy, Performance, Security, Minimal, Gaming (`config/services.json`).
 
 ### **Tweaks (AI & Ads)** (`src/modules/Performance/Tweaks.psm1`)
@@ -36,9 +38,9 @@ AI disablement and Windows 11 Copilot+ neutralization.
 - **Power & Sysprep Helpers:** `Enable-WinDebloatUltimatePower` / `Enable-WinDebloat7UltimatePower`, `Disable-WinDebloatUltimatePower` / `Disable-WinDebloat7UltimatePower`, `Invoke-WinDebloatSysprepDefaults` / `Invoke-WinDebloat7SysprepDefaults`, `Set-WinDebloatRegistryValue` / `Set-WinDebloat7RegistryValue`
 
 ### **System QoL Tweaks** (`src/modules/Tweaks/System.psm1`)
-System-level Quality of Life tweaks with true per-tweak undo counterparts (removes policy overrides on revert).
+System-level Quality of Life tweaks and ergonomics with true per-tweak undo counterparts (removes policy overrides on revert).
 - **Master Orchestrator:** `Set-WinDebloatSystemTweaks` / `Set-WinDebloat7SystemTweaks`
-- **16 Reversible Tweak Pairs:**
+- **18 Reversible Tweak Pairs:**
   - `Disable-WinDebloatFastStartup` / `Enable-WinDebloatFastStartup` (`*7` aliases supported)
   - `Disable-WinDebloatModernStandbyNetworking` / `Enable-WinDebloatModernStandbyNetworking`
   - `Disable-WinDebloatAutoBitLocker` / `Enable-WinDebloatAutoBitLocker`
@@ -55,11 +57,12 @@ System-level Quality of Life tweaks with true per-tweak undo counterparts (remov
   - `Disable-WinDebloatWidgets` / `Enable-WinDebloatWidgets`
   - `Disable-WinDebloatChatTaskbar` / `Enable-WinDebloatChatTaskbar`
   - `Disable-WinDebloatStartAllApps` / `Enable-WinDebloatStartAllApps`
+  - `Disable-WinDebloatMouseAcceleration` / `Enable-WinDebloatMouseAcceleration` (disables pointer acceleration for 1:1 raw input)
 - **Update Behavior:** `Set-WinDebloatUpdateBehavior` / `Set-WinDebloat7UpdateBehavior`
 
 ### **UI Customization** (`src/modules/Tweaks/UI.psm1`)
-Taskbar, context menu, and File Explorer customization.
-- **Exported Functions & Aliases:** `Set-WinDebloatTaskbarAlignment` / `Set-WinDebloat7TaskbarAlignment`, `Set-WinDebloatContextMenu` / `Set-WinDebloat7ContextMenu`, `Set-WinDebloatExplorer` / `Set-WinDebloat7Explorer`, `Set-WinDebloatStartMenu` / `Set-WinDebloat7StartMenu`, `Set-WinDebloatSearch` / `Set-WinDebloat7Search`, `Set-WinDebloatTaskbarTweaks` / `Set-WinDebloat7TaskbarTweaks`, `Set-WinDebloatContextMenuItems` / `Set-WinDebloat7ContextMenuItems`, `Restart-WinDebloatExplorer` / `Restart-WinDebloat7Explorer`
+Taskbar, context menu, and File Explorer navigation customization.
+- **Exported Functions & Aliases:** `Set-WinDebloatTaskbarAlignment` / `Set-WinDebloat7TaskbarAlignment`, `Set-WinDebloatContextMenu` / `Set-WinDebloat7ContextMenu`, `Set-WinDebloatExplorer` / `Set-WinDebloat7Explorer`, `Set-WinDebloatStartMenu` / `Set-WinDebloat7StartMenu`, `Set-WinDebloatSearch` / `Set-WinDebloat7Search`, `Set-WinDebloatTaskbarTweaks` / `Set-WinDebloat7TaskbarTweaks`, `Set-WinDebloatContextMenuItems` / `Set-WinDebloat7ContextMenuItems`, `Restart-WinDebloatExplorer` / `Restart-WinDebloat7Explorer`, `Set-WinDebloatDuplicateRemovableDrives` / `Set-WinDebloat7DuplicateRemovableDrives`, `Set-WinDebloatDriveLetterPosition` / `Set-WinDebloat7DriveLetterPosition`
 
 ### **Network & DNS** (`src/modules/Network/Network.psm1`)
 DNS provider configuration, network diagnostics, and IPv6 toggling.
@@ -76,13 +79,14 @@ Hardware and graphics driver inspection and update manager.
 - **Exported Functions & Aliases:** `Get-WinDebloatDriverStatus` / `Get-WinDebloat7DriverStatus`, `Get-WinDebloatGPUInfo` / `Get-WinDebloat7GPUInfo`, `Update-WinDebloatDrivers` / `Update-WinDebloat7Drivers`
 
 ### **System Repair** (`src/modules/Repair/Repair.psm1`)
-Industrial 4-step repair sequence and component resets.
+Industrial 4-step repair sequence with Windows 11 24H2 checkpoint cumulative update safety gates.
 - **Exported Functions & Aliases:** `Repair-WinDebloatSystem` / `Repair-WinDebloat7System`, `Reset-WinDebloatNetwork` / `Reset-WinDebloat7Network`, `Reset-WinDebloatUpdate` / `Reset-WinDebloat7Update`
+- **Safety Gate:** Guards Windows 11 Build 26100+ Checkpoint Cumulative Updates from `0x800f081f` corruption errors during DISM component store cleanup.
 - **Repair Sequence:** ChkDsk → SFC (first pass) → DISM RestoreHealth → SFC (second pass).
 
 ### **Security** (`src/modules/Security/Security.psm1`)
-Attack surface reduction and malware protection hardening.
-- **Exported Functions & Aliases:** `Disable-WinDebloatSMBv1` / `Disable-WinDebloat7SMBv1`, `Enable-WinDebloatSMBv1` / `Enable-WinDebloat7SMBv1`, `Enable-WinDebloatPUAProtection` / `Enable-WinDebloat7PUAProtection`, `Disable-WinDebloatPUAProtection` / `Disable-WinDebloat7PUAProtection`, `Get-WinDebloatSecurityStatus` / `Get-WinDebloat7SecurityStatus`
+Attack surface reduction, enterprise logging, and malware protection hardening.
+- **Exported Functions & Aliases:** `Disable-WinDebloatSMBv1` / `Disable-WinDebloat7SMBv1`, `Enable-WinDebloatSMBv1` / `Enable-WinDebloat7SMBv1`, `Enable-WinDebloatPUAProtection` / `Enable-WinDebloat7PUAProtection`, `Disable-WinDebloatPUAProtection` / `Disable-WinDebloat7PUAProtection`, `Enable-WinDebloatScriptBlockLogging` / `Disable-WinDebloatScriptBlockLogging`, `Get-WinDebloatSecurityStatus` / `Get-WinDebloat7SecurityStatus`
 
 ### **Windows Features** (`src/modules/Features/Features.psm1`)
 Optional Windows features and capabilities management.
@@ -117,11 +121,11 @@ These modules provide the foundational runtime engine for configuration, logging
 | Module | File | Purpose | Exported Functions & Aliases |
 |--------|------|---------|-------------------|
 | **Logger** | `src/core/Logger.psm1` | Thread-safe logging with rotation | `Start-WinDebloatLogging` / `Start-WD7Logging`, `Write-Log`, `Get-WinDebloatLogPath` / `Get-WD7LogPath` |
-| **Config** | `src/core/Config.psm1` | YAML profile parsing, schema validation & preview | `Import-WinDebloatConfig` / `Import-WinDebloat7Config`, `Test-WinDebloatConfig` / `Test-WinDebloat7Config`, `Get-WinDebloatRecommendedProfile` / `Get-WinDebloat7RecommendedProfile`, `Get-WinDebloatProfilePlan` / `Get-WinDebloat7ProfilePlan` |
-| **Registry** | `src/core/Registry.psm1` | Raw .NET registry operations, hive validation & key removal | `Set-RegistryKey`, `Get-RegistryKey`, `Test-RegistryKey`, `Export-RegistryKey`, `Remove-RegistryKey` |
-| **State** | `src/core/State.psm1` | DPAPI-encrypted snapshots & value-level restore | `New-WinDebloatSnapshot` / `New-WinDebloat7Snapshot`, `Restore-WinDebloatSnapshot` / `Restore-WinDebloat7Snapshot`, `Get-WinDebloatSnapshot` / `Get-WinDebloat7Snapshot`, `Compare-WinDebloatSnapshot` / `Compare-WinDebloat7Snapshot`, `Get-WinDebloatRegistryTargets` / `Get-WinDebloat7RegistryTargets` |
+| **Config** | `src/core/Config.psm1` | YAML profile parsing, cycle-guarded inheritance & preview | `Import-WinDebloatConfig` / `Import-WinDebloat7Config`, `Test-WinDebloatConfig` / `Test-WinDebloat7Config`, `Get-WinDebloatRecommendedProfile` / `Get-WinDebloat7RecommendedProfile`, `Get-WinDebloatProfilePlan` / `Get-WinDebloat7ProfilePlan` |
+| **Registry** | `src/core/Registry.psm1` | Raw .NET registry operations, policy protection & key removal | `Set-RegistryKey`, `Get-RegistryKey`, `Test-RegistryKey`, `Export-RegistryKey`, `Remove-RegistryKey` |
+| **State** | `src/core/State.psm1` | Dual-layer DPAPI-encrypted snapshots & human-readable `.reg` exports | `New-WinDebloatSnapshot` / `New-WinDebloat7Snapshot`, `Restore-WinDebloatSnapshot` / `Restore-WinDebloat7Snapshot`, `Get-WinDebloatSnapshot` / `Get-WinDebloat7Snapshot`, `Compare-WinDebloatSnapshot` / `Compare-WinDebloat7Snapshot`, `Get-WinDebloatRegistryTargets` / `Get-WinDebloat7RegistryTargets` |
 | **SystemState** | `src/core/SystemState.psm1` | Live system detection & 100-point privacy scoring | `Get-WinDebloatSystemState` / `Get-WinDebloat7SystemState`, `Get-WinDebloatPrivacyScore` / `Get-WinDebloat7PrivacyScore` |
-| **Sysprep** | `src/core/Sysprep.psm1` | Audit mode detection & Default User hive mounting | `Test-WinDebloatSysprep` / `Test-WinDebloat7Sysprep`, `Mount-WinDebloatDefaultHive` / `Mount-WinDebloat7DefaultHive`, `Dismount-WinDebloatDefaultHive` / `Dismount-WinDebloat7DefaultHive` |
+| **Sysprep** | `src/core/Sysprep.psm1` | Audit mode detection, multi-user profile discovery & hive mounting | `Test-WinDebloatSysprep` / `Test-WinDebloat7Sysprep`, `Mount-WinDebloatDefaultHive` / `Mount-WinDebloat7DefaultHive`, `Dismount-WinDebloatDefaultHive` / `Dismount-WinDebloat7DefaultHive`, `Get-WinDebloatUserProfiles` / `Get-WinDebloat7UserProfiles`, `Mount-WinDebloatUserHive` / `Mount-WinDebloat7UserHive`, `Dismount-WinDebloatUserHive` / `Dismount-WinDebloat7UserHive`, `Invoke-WinDebloatWithTargetUserHive` / `Invoke-WinDebloat7WithTargetUserHive` |
 
 ---
 
@@ -132,3 +136,4 @@ These modules provide the foundational runtime engine for configuration, logging
 | **Colors** | `src/ui/Colors.psm1` | TrueColor ANSI engine & formatted UI output | `Write-WD7Host`, `Show-WD7Header`, `Show-WD7Separator`, `Show-WD7Progress`, `Show-WD7StatusBadge` |
 | **Menu** | `src/ui/Menu.psm1` | Interactive Terminal User Interface (TUI) | `Show-MainMenu` |
 | **GUI** | `src/ui/gui/GUI.psm1` | WPF Graphical User Interface (GUI) controller | `Show-WinDebloatGUI` / `Show-WinDebloat7GUI` |
+
