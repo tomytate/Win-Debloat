@@ -577,7 +577,13 @@ function Import-WinDebloatConfig {
         [ValidateScript({ Test-Path $_ -PathType Leaf })]
         [string]$Path,
         
-        [switch]$SkipDependencyCheck
+        [switch]$SkipDependencyCheck,
+
+        [Parameter()]
+        [System.Collections.Generic.HashSet[string]]$VisitedProfiles,
+
+        [Parameter()]
+        [int]$CurrentDepth = 0
     )
     
     Write-Log -Message "Loading profile: $Path" -Level Info
@@ -815,7 +821,10 @@ function Import-WinDebloatConfig {
         # 6. Resolve Profile Inheritance (`extends`) if specified
         if ($Config.extends) {
             $baseDir = Split-Path -Parent (Resolve-Path $Path).Path
-            $Config = Resolve-WinDebloatProfileInheritance -ChildConfig $Config -ChildPath $Path -BaseDir $baseDir -VisitedPaths ([System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)) -CurrentDepth 0
+            if ($null -eq $VisitedProfiles) {
+                $VisitedProfiles = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            }
+            $Config = Resolve-WinDebloatProfileInheritance -ChildConfig $Config -ChildPath $Path -BaseDir $baseDir -VisitedPaths $VisitedProfiles -CurrentDepth $CurrentDepth
         }
 
         # Report validation errors
@@ -884,7 +893,7 @@ function Resolve-WinDebloatProfileInheritance {
             throw "Inherited parent profile not found: '$pSpec' (referenced by $ChildPath)"
         }
 
-        $parentConfig = Import-WinDebloatConfig -Path $pPath -SkipDependencyCheck
+        $parentConfig = Import-WinDebloatConfig -Path $pPath -SkipDependencyCheck -VisitedProfiles $VisitedPaths -CurrentDepth ($CurrentDepth + 1)
 
         # Deep merge parent into accumulator
         $merged = Merge-WinDebloatConfigDictionaries -BaseDict $merged -OverrideDict $parentConfig

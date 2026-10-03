@@ -601,21 +601,36 @@ function Remove-RegistryKey {
 
         if ($WholeKey) {
             # Guard against accidental root / shallow key deletion
-            $norm = $Path.TrimEnd('\') -replace '^HK(LM|CU|CR|U|CC):\\?', ''
-            $segments = $norm.Split('\') | Where-Object { $_ }
+            $norm = ($Path.TrimEnd('\') -replace '^(Registry::)?HK(LM|CU|CR|U|CC):\\?', '').Trim('\')
+            $segments = @($norm.Split('\') | Where-Object { $_ })
             
-            # Protected root blacklist
+            # Protected root blacklist - keys that must NEVER be recursively wiped
             $protectedSubtrees = @(
+                'SOFTWARE',
                 'SOFTWARE\Microsoft',
                 'SOFTWARE\Policies',
+                'SOFTWARE\Policies\Microsoft',
                 'SOFTWARE\Classes',
+                'SYSTEM',
                 'SYSTEM\CurrentControlSet',
+                'SYSTEM\CurrentControlSet\Control',
+                'SYSTEM\CurrentControlSet\Services',
                 'SYSTEM\Setup',
                 'SAM',
                 'SECURITY'
             )
 
-            if ($segments.Count -lt 2 -or ($norm -in $protectedSubtrees)) {
+            $isProtected = ($segments.Count -lt 2)
+            if (-not $isProtected) {
+                foreach ($prot in $protectedSubtrees) {
+                    if ($norm.Equals($prot, [System.StringComparison]::OrdinalIgnoreCase)) {
+                        $isProtected = $true
+                        break
+                    }
+                }
+            }
+
+            if ($isProtected) {
                 Write-Log -Message "Refusing to delete protected system registry path: $Path" -Level Error
                 return $false
             }

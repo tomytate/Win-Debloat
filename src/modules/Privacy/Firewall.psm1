@@ -161,7 +161,10 @@ function Remove-LegacyWinDebloatHostsBlock {
 function Add-WinDebloatFirewallBlock {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     [OutputType([void])]
-    param()
+    param(
+        [Parameter()]
+        [string]$CachePath = (Join-Path $PSScriptRoot "..\..\..\config\resolved-telemetry-ips.json")
+    )
     
     Remove-LegacyWinDebloatHostsBlock
     
@@ -169,57 +172,157 @@ function Add-WinDebloatFirewallBlock {
     
     if ($PSCmdlet.ShouldProcess("Windows Firewall", "Block $($Script:TelemetryDomains.Count) telemetry domains")) {
         try {
-            $existingRules = Get-NetFirewallRule -DisplayName $Script:FirewallRuleName -ErrorAction SilentlyContinue
-            if ($existingRules) {
-                Remove-NetFirewallRule -DisplayName $Script:FirewallRuleName -ErrorAction SilentlyContinue
+            # Canonicalize cache path
+            $resolvedCachePath = if (Test-Path -Path $CachePath) {
+                (Resolve-Path -Path $CachePath).Path
+            } else {
+                [System.IO.Path]::GetFullPath($CachePath)
             }
-            $legacyRules = Get-NetFirewallRule -DisplayName $Script:LegacyFirewallRuleName -ErrorAction SilentlyContinue
-            if ($legacyRules) {
-                Remove-NetFirewallRule -DisplayName $Script:LegacyFirewallRuleName -ErrorAction SilentlyContinue
-            }
-            
-            # Resolve the domains to IPs concurrently for maximum responsiveness.
-            $ipsToBlock = [System.Collections.Generic.List[string]]::new()
-            Write-Log -Message "Resolving telemetry domains to IPs..." -Level Info
+
+            # Prepare parallel resolution
+            $ipsToBlock = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            Write-Log -Message "Resolving telemetry domains to IPs (asynchronous parallel lookup)..." -Level Info
             
             $tasks = foreach ($domain in $Script:TelemetryDomains) {
-                $cleanDomain = $domain -replace ':\d+$', ''
+                $cleanDomain = ($domain -replace ':\d+$', '').Trim()
+                if ([string]::IsNullOrWhiteSpace($cleanDomain)) { continue }
                 [pscustomobject]@{
                     Domain = $cleanDomain
                     Task   = [System.Net.Dns]::GetHostAddressesAsync($cleanDomain)
                 }
             }
             
-            # Wait up to 6 seconds max for all DNS queries to complete in parallel
+            # Wait up to 6 seconds max for all DNS queries to complete in parallel.
+            # Catch and tolerate AggregateException / MethodInvocationException caused by defunct or sinkholed hosts.
             $allTasks = @($tasks | ForEach-Object { $_.Task })
             if ($allTasks.Count -gt 0) {
-                [System.Threading.Tasks.Task]::WaitAll($allTasks, 6000) | Out-Null
+                try {
+                    [System.Threading.Tasks.Task]::WaitAll($allTasks, 6000) | Out-Null
+                }
+                catch [System.AggregateException], [System.Management.Automation.MethodInvocationException] {
+                    Write-Verbose "Parallel DNS WaitAll finished with expected non-resolvable domain faults."
+                }
+                catch {
+                    Write-Verbose "Parallel DNS encountered non-terminating wait notice: $($_.Exception.Message)"
+                }
             }
             
+            # Safely harvest IPs strictly from completed tasks
+            $resolvedCount = 0
             foreach ($t in $tasks) {
-                if ($t.Task.IsCompletedSuccessfully) {
+                if ($t.Task.Status -eq [System.Threading.Tasks.TaskStatus]::RanToCompletion) {
+                    $resolvedCount++
                     foreach ($ip in $t.Task.Result) {
-                        $ipsToBlock.Add($ip.IPAddressToString)
+                        $ipStr = $ip.IPAddressToString
+                        if (-not [string]::IsNullOrWhiteSpace($ipStr)) {
+                            [void]$ipsToBlock.Add($ipStr)
+                        }
                     }
                 }
                 else {
-                    Write-Verbose "Domain not resolvable (or blocked): $($t.Domain)"
+                    Write-Verbose "Domain unresolvable or timed out: $($t.Domain) (Status: $($t.Task.Status))"
                 }
             }
             
-            $uniqueIps = @($ipsToBlock | Select-Object -Unique)
+            Write-Log -Message "Successfully resolved $resolvedCount of $($tasks.Count) domains ($($ipsToBlock.Count) unique IPs)." -Level Info
             
-            if ($uniqueIps.Count -gt 0) {
-                # Split into chunks of 1000 IPs to avoid WMI command length limits
-                $chunks = [Math]::Ceiling($uniqueIps.Count / 1000)
-                for ($i = 0; $i -lt $chunks; $i++) {
-                    $chunkIps = $uniqueIps | Select-Object -Skip ($i * 1000) -First 1000
-                    New-NetFirewallRule -DisplayName $Script:FirewallRuleName -Direction Outbound -Action Block -RemoteAddress $chunkIps -ErrorAction Stop | Out-Null
+            # Cache Integration (Dual-Mode: Online Sync & Offline Fallback)
+            if ($ipsToBlock.Count -gt 0) {
+                # Merge existing cache entries into active set to retain historical CDN IPs
+                if (Test-Path -Path $resolvedCachePath) {
+                    try {
+                        $cachedJson = Get-Content -Path $resolvedCachePath -Raw -ErrorAction Stop | ConvertFrom-Json
+                        if ($cachedJson -and $cachedJson.IPs) {
+                            foreach ($cachedIp in $cachedJson.IPs) {
+                                if (-not [string]::IsNullOrWhiteSpace($cachedIp)) {
+                                    [void]$ipsToBlock.Add([string]$cachedIp)
+                                }
+                            }
+                        }
+                    }
+                    catch {
+                        Write-Verbose "Could not read existing cache file: $($_.Exception.Message)"
+                    }
                 }
-                Write-Log -Message "Added firewall rules blocking $($uniqueIps.Count) telemetry IP addresses." -Level Success
-            } else {
-                Write-Log -Message "Could not resolve any telemetry domains. They may already be blocked at the DNS level." -Level Warning
+
+                # Update cache on disk
+                try {
+                    $cacheDir = Split-Path -Path $resolvedCachePath -Parent
+                    if (-not (Test-Path -Path $cacheDir)) {
+                        New-Item -Path $cacheDir -ItemType Directory -Force | Out-Null
+                    }
+                    
+                    $cachePayload = [ordered]@{
+                        Version     = "1.0.0"
+                        LastUpdated = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
+                        Description = "Locally cached telemetry IPs for Win-Debloat offline resilience"
+                        TotalIPs    = $ipsToBlock.Count
+                        IPs         = @($ipsToBlock | Sort-Object)
+                    }
+                    $jsonContent = $cachePayload | ConvertTo-Json -Depth 4
+                    Set-Content -Path $resolvedCachePath -Value $jsonContent -Encoding UTF8 -Force
+                    Write-Verbose "Persisted $($ipsToBlock.Count) telemetry IPs to local cache ($resolvedCachePath)."
+                }
+                catch {
+                    Write-Log -Message "Notice: Could not persist DNS cache to disk: $($_.Exception.Message)" -Level Debug
+                }
             }
+            else {
+                # Offline / DNS sinkholed mode: Fall back to persistent disk cache
+                Write-Log -Message "Network DNS resolution yielded 0 IPs. Falling back to local offline cache..." -Level Warning
+                if (Test-Path -Path $resolvedCachePath) {
+                    try {
+                        $cachedJson = Get-Content -Path $resolvedCachePath -Raw -ErrorAction Stop | ConvertFrom-Json
+                        if ($cachedJson -and $cachedJson.IPs) {
+                            foreach ($cachedIp in $cachedJson.IPs) {
+                                [void]$ipsToBlock.Add([string]$cachedIp)
+                            }
+                            Write-Log -Message "Loaded $($ipsToBlock.Count) telemetry IPs from local cache." -Level Info
+                        }
+                    }
+                    catch {
+                        Write-Log -Message "Failed to load offline telemetry IP cache: $($_.Exception.Message)" -Level Error
+                    }
+                }
+                else {
+                    Write-Log -Message "Local cache file not found at $resolvedCachePath. Cannot block offline." -Level Warning
+                }
+            }
+            
+            $uniqueIps = @($ipsToBlock)
+            if ($uniqueIps.Count -eq 0) {
+                Write-Log -Message "Could not resolve or recover any telemetry IPs. No firewall rules were applied." -Level Warning
+                return
+            }
+
+            # Atomic Rule Replacement: Remove old rules only when we have valid IPs to replace them
+            $existingRules = Get-NetFirewallRule -ErrorAction SilentlyContinue | Where-Object { 
+                $_.DisplayName -like "$($Script:FirewallRuleName)*" 
+            }
+            if ($existingRules) {
+                $existingRules | Remove-NetFirewallRule -ErrorAction SilentlyContinue
+            }
+            $legacyRules = Get-NetFirewallRule -ErrorAction SilentlyContinue | Where-Object { 
+                $_.DisplayName -like "$($Script:LegacyFirewallRuleName)*" 
+            }
+            if ($legacyRules) {
+                $legacyRules | Remove-NetFirewallRule -ErrorAction SilentlyContinue
+            }
+            
+            # Split into chunks of 1000 IPs to avoid WMI / NetSecurity buffer limits
+            $chunkSize = 1000
+            $totalChunks = [Math]::Ceiling($uniqueIps.Count / $chunkSize)
+            for ($i = 0; $i -lt $totalChunks; $i++) {
+                $chunkIps = $uniqueIps | Select-Object -Skip ($i * $chunkSize) -First $chunkSize
+                $ruleSuffix = if ($totalChunks -gt 1) { " (Part $($i + 1)/$totalChunks)" } else { "" }
+                New-NetFirewallRule -DisplayName "$($Script:FirewallRuleName)$ruleSuffix" `
+                                    -Direction Outbound `
+                                    -Action Block `
+                                    -RemoteAddress $chunkIps `
+                                    -ErrorAction Stop | Out-Null
+            }
+            
+            Write-Log -Message "Added firewall rules blocking $($uniqueIps.Count) telemetry IP addresses across $totalChunks chunk(s)." -Level Success
         }
         catch {
             Write-Log -Message "Failed to add firewall rules: $($_.Exception.Message)" -Level Error
@@ -240,18 +343,14 @@ function Remove-WinDebloatFirewallBlock {
     
     if ($PSCmdlet.ShouldProcess("Windows Firewall", "Remove telemetry blocks")) {
         try {
-            $existingRules = Get-NetFirewallRule -DisplayName $Script:FirewallRuleName -ErrorAction SilentlyContinue
+            $existingRules = Get-NetFirewallRule -ErrorAction SilentlyContinue | Where-Object { 
+                $_.DisplayName -like "$($Script:FirewallRuleName)*" -or $_.DisplayName -like "$($Script:LegacyFirewallRuleName)*" 
+            }
             if ($existingRules) {
-                Remove-NetFirewallRule -DisplayName $Script:FirewallRuleName -ErrorAction Stop
+                $existingRules | Remove-NetFirewallRule -ErrorAction Stop
                 Write-Log -Message "Telemetry firewall blocks removed successfully." -Level Success
             } else {
                 Write-Log -Message "No telemetry firewall blocks found." -Level Info
-            }
-            
-            $legacyRules = Get-NetFirewallRule -DisplayName $Script:LegacyFirewallRuleName -ErrorAction SilentlyContinue
-            if ($legacyRules) {
-                Remove-NetFirewallRule -DisplayName $Script:LegacyFirewallRuleName -ErrorAction Stop
-                Write-Log -Message "Legacy telemetry firewall blocks removed successfully." -Level Success
             }
             
             Remove-LegacyWinDebloatHostsBlock

@@ -256,13 +256,16 @@ Describe "Core.State Module - DPAPI Encryption & Edge Cases" {
         It "Returns empty array when snapshots directory does not exist" {
             try {
                 $origProgData = $env:ProgramData
+                $origLocalAppData = $env:LOCALAPPDATA
                 $env:ProgramData = Join-Path $env:TEMP "NonExistentPath_$([guid]::NewGuid().ToString('N'))"
+                $env:LOCALAPPDATA = Join-Path $env:TEMP "NonExistentLocal_$([guid]::NewGuid().ToString('N'))"
 
                 $list = Get-WinDebloat7Snapshot
                 $list.Count | Should -Be 0
             }
             finally {
                 $env:ProgramData = $origProgData
+                $env:LOCALAPPDATA = $origLocalAppData
             }
         }
     }

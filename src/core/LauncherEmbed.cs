@@ -131,14 +131,34 @@ namespace WinDebloat
                 }
 
                 // 4. Prepare PowerShell Command
+                StringBuilder safeArgs = new StringBuilder();
+                if (args != null && args.Length > 0)
+                {
+                    foreach (string arg in args)
+                    {
+                        if (System.Text.RegularExpressions.Regex.IsMatch(arg, @"[;&|`$<>^'""]"))
+                        {
+                            throw new System.Security.SecurityException("Disallowed characters detected in CLI argument: " + arg);
+                        }
+                        if (arg.Contains(" ") || arg.Contains("\t"))
+                        {
+                            safeArgs.Append(" '").Append(arg.Replace("'", "''")).Append("'");
+                        }
+                        else
+                        {
+                            safeArgs.Append(" ").Append(arg);
+                        }
+                    }
+                }
+
                 string scriptCmd = string.Format(
                     "$progressPreference='SilentlyContinue'; " +
                     "Write-Host '🚀 Initializing Win-Debloat...' -ForegroundColor Cyan; " +
                     "Expand-Archive -LiteralPath '{0}' -DestinationPath '{1}' -Force; " +
                     "Set-Location '{1}'; " +
                     "$entry = if (Test-Path './Win-Debloat.ps1') {{ './Win-Debloat.ps1' }} else {{ './Win-Debloat7.ps1' }}; " +
-                    "& $entry {2}",
-                    zipPath.Replace("'", "''"), tempPath.Replace("'", "''"), args.Length > 0 ? String.Join(" ", args) : ""
+                    "& $entry{2}",
+                    zipPath.Replace("'", "''"), tempPath.Replace("'", "''"), safeArgs.ToString()
                 );
 
                 ProcessStartInfo startInfo = new ProcessStartInfo();

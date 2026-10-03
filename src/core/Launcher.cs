@@ -110,10 +110,29 @@ namespace WinDebloat
                     return;
                 }
 
-                string extraArgs = (args != null && args.Length > 0) ? " " + string.Join(" ", args) : "";
+                StringBuilder safeArgs = new StringBuilder();
+                if (args != null && args.Length > 0)
+                {
+                    foreach (string arg in args)
+                    {
+                        if (System.Text.RegularExpressions.Regex.IsMatch(arg, @"[;&|`$<>^""]"))
+                        {
+                            throw new System.Security.SecurityException("Disallowed characters detected in CLI argument: " + arg);
+                        }
+                        if (arg.Contains(" ") || arg.Contains("\t"))
+                        {
+                            safeArgs.Append(" \"").Append(arg.Replace("\"", "\\\"")).Append("\"");
+                        }
+                        else
+                        {
+                            safeArgs.Append(" ").Append(arg);
+                        }
+                    }
+                }
+
                 ProcessStartInfo startInfo = new ProcessStartInfo();
                 startInfo.FileName = pwshPath;
-                startInfo.Arguments = string.Format("-NoProfile -ExecutionPolicy Bypass -File \"{0}\"{1}", scriptPath, extraArgs);
+                startInfo.Arguments = string.Format("-NoProfile -ExecutionPolicy Bypass -File \"{0}\"{1}", scriptPath, safeArgs.ToString());
                 startInfo.UseShellExecute = false;
 
                 Process p = Process.Start(startInfo);

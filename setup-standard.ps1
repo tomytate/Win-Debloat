@@ -14,7 +14,7 @@ try {
 }
 catch {
     Write-Host " [ERROR]" -ForegroundColor Red
-    throw "Failed to fetch release info. Check your internet connection."
+    throw "Failed to fetch release info: $($_.Exception.Message). Check your internet connection."
 }
 
 # 2. Find the Standard Edition Asset (Single-File EXE)
@@ -35,51 +35,108 @@ if (-not $Asset) {
     throw "Could not find a valid release asset for Standard Edition."
 }
 
-# 3. Download to Temp
-$DownloadUrl = $Asset.browser_download_url
+# 3. Setup Temp Directory
 $TempDir = "$env:TEMP\Win-Debloat7-Install"
-$ZipPath = "$TempDir\$($Asset.name)"
+$ArtifactPath = "$TempDir\$($Asset.name)"
 
-if (Test-Path $TempDir) { Remove-Item $TempDir -Recurse -Force }
-New-Item -ItemType Directory -Path $TempDir | Out-Null
+if (Test-Path -LiteralPath $TempDir) {
+    Remove-Item -LiteralPath $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
 
-Write-Host " -> Downloading Standard Edition..." -ForegroundColor Yellow
-Invoke-WebRequest -Uri $DownloadUrl -OutFile $ZipPath
+# 4. Download and Verify with Fail-Closed Security
+$isVerified = $false
 
-# 4. Verify SHA256 Checksum
 try {
-    Write-Host " -> Verifying Integrity..." -NoNewline
+    # 4a. Retrieve Authoritative SHA256 Checksum Manifest
+    Write-Host " -> Fetching Checksum Manifest..." -NoNewline
     $SumsAsset = $Release.assets | Where-Object { $_.name -eq "SHA256SUMS.txt" } | Select-Object -First 1
+    if (-not $SumsAsset) {
+        Write-Host " [MISSING]" -ForegroundColor Red
+        $global:LASTEXITCODE = 1
+        throw [System.Security.SecurityException]"CRITICAL SECURITY ERROR: Checksum manifest 'SHA256SUMS.txt' missing from release $($Release.tag_name). Fail-closed policy prevents installation."
+    }
 
-    if ($SumsAsset) {
+    try {
         $SumsContent = (Invoke-RestMethod -Uri $SumsAsset.browser_download_url).Trim()
-        $FileHash = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash
+        Write-Host " [OK]" -ForegroundColor Green
+    }
+    catch {
+        Write-Host " [FAILED]" -ForegroundColor Red
+        $global:LASTEXITCODE = 1
+        throw [System.Security.SecurityException]"CRITICAL SECURITY ERROR: Failed to download checksum manifest from $($SumsAsset.browser_download_url): $($_.Exception.Message)"
+    }
 
-        if ($SumsContent -match "$FileHash\s+$($Asset.name)") {
-            Write-Host " [VALID]" -ForegroundColor Green
-        }
-        else {
-            Write-Host " [INVALID]" -ForegroundColor Red
-            throw "Hash mismatch! The file may be corrupted or tampered with."
+    # 4b. Parse Authoritative Expected Hash for Target Asset
+    $expectedHash = $null
+    $lines = $SumsContent -split "[\r\n]+"
+    foreach ($line in $lines) {
+        if ($line -match '^\s*([a-fA-F0-9]{64})\s+[*]?(.+?)\s*$') {
+            $entryHash = $Matches[1].ToUpperInvariant()
+            $entryFile = [System.IO.Path]::GetFileName($Matches[2].Trim())
+            if ($entryFile.Equals($Asset.name, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $expectedHash = $entryHash
+                break
+            }
         }
     }
-    else {
-        Write-Host " [SKIPPED] (Checksum file not found)" -ForegroundColor DarkGray
+
+    if (-not $expectedHash) {
+        $global:LASTEXITCODE = 1
+        throw [System.Security.SecurityException]"CRITICAL SECURITY ERROR: No authoritative SHA256 entry found for '$($Asset.name)' in release manifest."
+    }
+
+    # 4c. Download Target Binary
+    Write-Host " -> Downloading Standard Edition ($($Asset.name))..." -ForegroundColor Yellow
+    Invoke-WebRequest -Uri $Asset.browser_download_url -OutFile $ArtifactPath -UseBasicParsing
+
+    if (-not (Test-Path -LiteralPath $ArtifactPath)) {
+        throw [System.IO.FileNotFoundException]"Target download file '$ArtifactPath' does not exist."
+    }
+
+    # 4d. Cryptographic Integrity Verification
+    Write-Host " -> Verifying Integrity..." -NoNewline
+    $actualHash = (Get-FileHash -LiteralPath $ArtifactPath -Algorithm SHA256).Hash.ToUpperInvariant()
+
+    if ($actualHash -ne $expectedHash) {
+        Write-Host " [INVALID]" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "================================================================" -ForegroundColor Red
+        Write-Host "               CRITICAL SECURITY INTEGRITY ERROR                " -ForegroundColor Red
+        Write-Host "================================================================" -ForegroundColor Red
+        Write-Host "SHA256 checksum mismatch for $($Asset.name)!" -ForegroundColor Red
+        Write-Host "  Expected: $expectedHash" -ForegroundColor Red
+        Write-Host "  Actual:   $actualHash" -ForegroundColor Red
+        Write-Host "The downloaded file is corrupted or may have been tampered with." -ForegroundColor Red
+        Write-Host "Installation aborted immediately to prevent running untrusted code." -ForegroundColor Red
+        $global:LASTEXITCODE = 1
+        throw [System.Security.SecurityException]"Integrity check failed: SHA256 mismatch for '$($Asset.name)'."
+    }
+
+    Write-Host " [VALID]" -ForegroundColor Green
+    $isVerified = $true
+}
+finally {
+    if (-not $isVerified) {
+        # Atomic Cleanup on Mismatch, Interruption, or Failure
+        if (Test-Path -LiteralPath $ArtifactPath) {
+            Remove-Item -LiteralPath $ArtifactPath -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path -LiteralPath $TempDir) {
+            Remove-Item -LiteralPath $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 }
-catch {
-    Write-Host " [WARNING] (Verification check failed)" -ForegroundColor Yellow
-}
 
-# 5. Extract or Run
-if ($ZipPath.EndsWith(".exe")) {
+# 5. Extract or Run (Guaranteed Verified)
+if ($ArtifactPath.EndsWith(".exe", [System.StringComparison]::OrdinalIgnoreCase)) {
     Write-Host " -> Launching Installer..." -ForegroundColor Green
-    Start-Process -FilePath $ZipPath -Verb RunAs
+    Start-Process -FilePath $ArtifactPath -Verb RunAs
 }
 else {
     Write-Host " -> Extracting..." -ForegroundColor Yellow
     $destDir = "$env:ProgramFiles\Win-Debloat"
-    Expand-Archive -Path $ZipPath -DestinationPath $destDir -Force
+    Expand-Archive -Path $ArtifactPath -DestinationPath $destDir -Force
 
     $Launcher = "$destDir\Win-Debloat.ps1"
     if (-not (Test-Path $Launcher)) {

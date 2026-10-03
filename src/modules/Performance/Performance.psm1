@@ -19,6 +19,9 @@ using namespace System.Management.Automation
 
 Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force
 Import-Module "$PSScriptRoot\..\..\core\Registry.psm1" -Force
+if (-not (Get-Command Enable-WinDebloatDirectSR -ErrorAction SilentlyContinue)) {
+    Import-Module "$PSScriptRoot\Gaming.psm1" -Global
+}
 
 #region Constants (CQ-006 fix: Named constants instead of magic GUIDs)
 $Script:PowerPlanGUIDs = @{
@@ -66,12 +69,24 @@ function Optimize-WinDebloatPerformance {
     
     $successCount = 0
     $failCount = 0
-    $totalSteps = 6
+    # Dynamically calculate total steps based on active profile configuration
+    $totalSteps = [math]::Max(1, @(
+        $true                                                  # 1. Power Plan (unconditional)
+        ($Config.performance.visual_effects -eq "Performance") # 2. Visual Effects & Responsiveness
+        $true                                                  # 3. RAM Optimization (unconditional)
+        [bool]$Config.performance.disable_game_bar             # 4. Game Mode & DVR
+        [bool]$Config.performance.disable_background_apps      # 5. Background Apps
+        [bool]$Config.performance.enable_directstorage_tuning  # 6. DirectStorage & Storage Subsystem
+        [bool]$Config.performance.enable_thread_director       # 7. Intel Thread Director / EPP
+        [bool]$Config.performance.enable_amd_x3d_safeguards    # 8. AMD 3D V-Cache Safeguards
+        [bool]$Config.performance.enable_directsr              # 9. DirectSR & Windowed VRR
+        [bool]$Config.performance.enable_hags_tdr_tuning       # 10. HAGS 2.0 & GPU Driver TDR
+    ).Where({ $_ }).Count)
     $currentStep = 0
     
     # 1. Power Plans (using named constants)
     $currentStep++
-    Write-Progress -Activity "Applying Performance Settings" -Status "Configuring Power Plan: $plan" -PercentComplete (($currentStep / $totalSteps) * 100)
+    Write-Progress -Activity "Applying Performance Settings" -Status "Configuring Power Plan: $plan" -PercentComplete ([math]::Clamp([int][math]::Round(($currentStep / [math]::Max(1, $totalSteps)) * 100), 0, 100))
     try {
         switch ($plan) {
             "HighPerformance" {
@@ -185,7 +200,7 @@ function Optimize-WinDebloatPerformance {
     # 2. Visual Effects & Responsiveness
     if ($Config.performance.visual_effects -eq "Performance") {
         $currentStep++
-        Write-Progress -Activity "Applying Performance Settings" -Status "Optimizing Visual Effects & Responsiveness" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Write-Progress -Activity "Applying Performance Settings" -Status "Optimizing Visual Effects & Responsiveness" -PercentComplete ([math]::Clamp([int][math]::Round(($currentStep / [math]::Max(1, $totalSteps)) * 100), 0, 100))
         Write-Log -Message "Optimizing Visual Effects for Performance" -Level Info
         
         $results = @(
@@ -207,7 +222,7 @@ function Optimize-WinDebloatPerformance {
     
     # 3. RAM Optimization (Service Host Split)
     $currentStep++
-    Write-Progress -Activity "Applying Performance Settings" -Status "Optimizing Service Host Split" -PercentComplete (($currentStep / $totalSteps) * 100)
+    Write-Progress -Activity "Applying Performance Settings" -Status "Optimizing Service Host Split" -PercentComplete ([math]::Clamp([int][math]::Round(($currentStep / [math]::Max(1, $totalSteps)) * 100), 0, 100))
     $compSys = Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue
     if ($compSys -and $compSys.TotalPhysicalMemory) {
         $ramGB = $compSys.TotalPhysicalMemory / 1GB
@@ -224,7 +239,7 @@ function Optimize-WinDebloatPerformance {
     # 4. Game Mode & DVR
     if ($Config.performance.disable_game_bar) {
         $currentStep++
-        Write-Progress -Activity "Applying Performance Settings" -Status "Disabling Game Bar" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Write-Progress -Activity "Applying Performance Settings" -Status "Disabling Game Bar" -PercentComplete ([math]::Clamp([int][math]::Round(($currentStep / [math]::Max(1, $totalSteps)) * 100), 0, 100))
         Write-Log -Message "Disabling Game Bar" -Level Info
         
         $results = @(
@@ -239,7 +254,7 @@ function Optimize-WinDebloatPerformance {
     # 5. Background Apps
     if ($Config.performance.disable_background_apps) {
         $currentStep++
-        Write-Progress -Activity "Applying Performance Settings" -Status "Disabling Background Apps" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Write-Progress -Activity "Applying Performance Settings" -Status "Disabling Background Apps" -PercentComplete ([math]::Clamp([int][math]::Round(($currentStep / [math]::Max(1, $totalSteps)) * 100), 0, 100))
         Write-Log -Message "Disabling Background Apps" -Level Info
         
         $results = @(
@@ -251,42 +266,42 @@ function Optimize-WinDebloatPerformance {
         $failCount += ($results | Where-Object { -not $_ }).Count
     }
     
-    # 7. DirectStorage & Storage Subsystem
+    # 6. DirectStorage & Storage Subsystem
     if ($Config.performance.enable_directstorage_tuning) {
         $currentStep++
-        Write-Progress -Activity "Applying Performance Settings" -Status "Optimizing DirectStorage & NTFS" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Write-Progress -Activity "Applying Performance Settings" -Status "Optimizing DirectStorage & NTFS" -PercentComplete ([math]::Clamp([int][math]::Round(($currentStep / [math]::Max(1, $totalSteps)) * 100), 0, 100))
         Optimize-WinDebloatDirectStorage
         $successCount++
     }
 
-    # 8. Intel Thread Director / EPP Tuning
+    # 7. Intel Thread Director / EPP Tuning
     if ($Config.performance.enable_thread_director) {
         $currentStep++
-        Write-Progress -Activity "Applying Performance Settings" -Status "Optimizing CPU Thread Scheduling" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Write-Progress -Activity "Applying Performance Settings" -Status "Optimizing CPU Thread Scheduling" -PercentComplete ([math]::Clamp([int][math]::Round(($currentStep / [math]::Max(1, $totalSteps)) * 100), 0, 100))
         Optimize-WinDebloatThreadDirector
         $successCount++
     }
 
-    # 9. AMD 3D V-Cache Dual-CCD Core Parking Safeguards
+    # 8. AMD 3D V-Cache Dual-CCD Core Parking Safeguards
     if ($Config.performance.enable_amd_x3d_safeguards) {
         $currentStep++
-        Write-Progress -Activity "Applying Performance Settings" -Status "Enforcing AMD 3D V-Cache Safeguards" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Write-Progress -Activity "Applying Performance Settings" -Status "Enforcing AMD 3D V-Cache Safeguards" -PercentComplete ([math]::Clamp([int][math]::Round(($currentStep / [math]::Max(1, $totalSteps)) * 100), 0, 100))
         Protect-WinDebloatAMDX3D
         $successCount++
     }
 
-    # 10. DirectSR & Windowed VRR Optimization
+    # 9. DirectSR & Windowed VRR Optimization
     if ($Config.performance.enable_directsr) {
         $currentStep++
-        Write-Progress -Activity "Applying Performance Settings" -Status "Enabling DirectSR & Windowed VRR" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Write-Progress -Activity "Applying Performance Settings" -Status "Enabling DirectSR & Windowed VRR" -PercentComplete ([math]::Clamp([int][math]::Round(($currentStep / [math]::Max(1, $totalSteps)) * 100), 0, 100))
         Enable-WinDebloatDirectSR
         $successCount++
     }
 
-    # 11. HAGS 2.0 & GPU Driver TDR Stability
+    # 10. HAGS 2.0 & GPU Driver TDR Stability
     if ($Config.performance.enable_hags_tdr_tuning) {
         $currentStep++
-        Write-Progress -Activity "Applying Performance Settings" -Status "Configuring HAGS & TDR Stability" -PercentComplete (($currentStep / $totalSteps) * 100)
+        Write-Progress -Activity "Applying Performance Settings" -Status "Configuring HAGS & TDR Stability" -PercentComplete ([math]::Clamp([int][math]::Round(($currentStep / [math]::Max(1, $totalSteps)) * 100), 0, 100))
         Set-WinDebloatHAGSTDR
         $successCount++
     }
@@ -385,8 +400,8 @@ function Reset-WinDebloatThreadDirector {
 
     if ($PSCmdlet.ShouldProcess("Processor Power Policy", "Restore default CPU scheduling and EPP")) {
         try {
-            # Reset SCHEDPOLICY to 3 (Automatic / Windows Default)
-            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SCHEDPOLICY 3 2>$null
+            # Reset SCHEDPOLICY to 5 (Automatic / Windows Default)
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SCHEDPOLICY 5 2>$null
             # Reset EPP to 50% (Balanced default)
             & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFEPP 50 2>$null
             # Apply changes
