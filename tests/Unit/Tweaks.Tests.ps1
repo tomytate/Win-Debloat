@@ -414,6 +414,67 @@ Describe "Tweaks Module" {
             (Get-Command "Set-WinDebloat7ContextMenuItems" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
             (Get-Command "Restart-WinDebloatExplorer" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
             (Get-Command "Restart-WinDebloat7Explorer" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Set-WinDebloatDuplicateRemovableDrives" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Set-WinDebloat7DuplicateRemovableDrives" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Set-WinDebloatDriveLetterPosition" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Set-WinDebloat7DriveLetterPosition" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        }
+    }
+
+    Context "Set-WinDebloatDuplicateRemovableDrives and DriveLetterPosition" {
+        It "Hides and restores duplicate removable drives" {
+            Mock -ModuleName UI Test-Path { return $true }
+            Mock -ModuleName UI Remove-Item { }
+            Mock -ModuleName UI Set-RegistryKey { return $true }
+
+            { Set-WinDebloatDuplicateRemovableDrives -Hide -Confirm:$false } | Should -Not -Throw
+            Should -Invoke -CommandName Remove-Item -ModuleName UI -Times 2
+
+            { Set-WinDebloatDuplicateRemovableDrives -Show -Confirm:$false } | Should -Not -Throw
+            Should -Invoke -CommandName Set-RegistryKey -ModuleName UI -Times 2
+        }
+
+        It "Configures drive letter position to First and Last" {
+            Mock -ModuleName UI Set-RegistryKey { return $true }
+
+            { Set-WinDebloatDriveLetterPosition -Position First -Confirm:$false } | Should -Not -Throw
+            Should -Invoke -CommandName Set-RegistryKey -ModuleName UI -Times 1 -ParameterFilter {
+                $Path -eq "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" -and
+                $Name -eq "ShowDriveLettersFirst" -and
+                $Value -eq 4
+            }
+
+            { Set-WinDebloatDriveLetterPosition -Position Last -Confirm:$false } | Should -Not -Throw
+            Should -Invoke -CommandName Set-RegistryKey -ModuleName UI -Times 1 -ParameterFilter {
+                $Path -eq "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" -and
+                $Name -eq "ShowDriveLettersFirst" -and
+                $Value -eq 0
+            }
+        }
+    }
+
+    Context "System Tweaks - Mouse Acceleration" {
+        BeforeAll {
+            Import-Module "$src\modules\Tweaks\System.psm1" -Force -ErrorAction Stop
+        }
+
+        It "Exports mouse acceleration cmdlets and aliases" {
+            (Get-Command "Disable-WinDebloatMouseAcceleration" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Enable-WinDebloatMouseAcceleration" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Disable-WinDebloat7MouseAcceleration" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Enable-WinDebloat7MouseAcceleration" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        }
+
+        It "Disables mouse acceleration via Set-RegistryKey" {
+            Mock -ModuleName System Set-RegistryKey { return $true }
+            { Disable-WinDebloatMouseAcceleration -Confirm:$false } | Should -Not -Throw
+            Should -Invoke -CommandName Set-RegistryKey -ModuleName System -Times 3
+        }
+
+        It "Enables mouse acceleration via Set-RegistryKey" {
+            Mock -ModuleName System Set-RegistryKey { return $true }
+            { Enable-WinDebloatMouseAcceleration -Confirm:$false } | Should -Not -Throw
+            Should -Invoke -CommandName Set-RegistryKey -ModuleName System -Times 3
         }
     }
 }

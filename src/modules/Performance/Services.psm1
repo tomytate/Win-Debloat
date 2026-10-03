@@ -106,6 +106,23 @@ function Set-WinDebloatServices {
 
         $targetStartup = $serviceConfig.StartupType
 
+        # Runtime Virtualization and Hello PIN safeguards (Pillar 21)
+        if ($serviceName -eq 'SharedAccess') {
+            $hasWsl = [bool](Get-Command "wsl.exe" -ErrorAction SilentlyContinue)
+            $hasVm = [bool](Get-Service -Name "vmms" -ErrorAction SilentlyContinue)
+            if ($hasWsl -or $hasVm) {
+                Write-Log -Message "Skipping SharedAccess (ICS) modification: WSL/Hyper-V virtualization detected." -Level Warning
+                return
+            }
+        }
+        if ($serviceName -eq 'WbioSrvc' -and $targetStartup -eq 'Disabled') {
+            $hasPin = Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\NgcPin"
+            if ($hasPin) {
+                Write-Log -Message "Skipping WbioSrvc disablement: Windows Hello PIN/Biometric authentication detected." -Level Warning
+                return
+            }
+        }
+
         if ($PSCmdlet.ShouldProcess($serviceConfig.DisplayName, "Set startup to $targetStartup")) {
             try {
                 if ($validationList.ContainsKey($serviceName)) {

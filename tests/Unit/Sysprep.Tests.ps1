@@ -215,4 +215,58 @@ Describe "Sysprep Module" {
             { Dismount-WinDebloatDefaultHive } | Should -Not -Throw
         }
     }
+
+    Context "Get-WinDebloatUserProfiles" {
+        It "Should query ProfileList and return discovered user profiles" {
+            Mock -ModuleName Sysprep Test-Path { return $true }
+            Mock -ModuleName Sysprep Get-ChildItem {
+                return @(
+                    [PSCustomObject]@{ PSChildName = "S-1-5-21-12345"; PSPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\S-1-5-21-12345" }
+                )
+            }
+            Mock -ModuleName Sysprep Get-ItemPropertyValue { return "C:\Users\TestUser" }
+
+            $profiles = Get-WinDebloatUserProfiles
+            $profiles.Count | Should -Be 1
+            $profiles[0].UserName | Should -Be "TestUser"
+            $profiles[0].SID | Should -Be "S-1-5-21-12345"
+            $profiles[0].IsDefault | Should -Be $false
+        }
+    }
+
+    Context "Mount-WinDebloatUserHive and Dismount-WinDebloatUserHive" {
+        It "Mounts offline profile hive via reg.exe" {
+            Mock -ModuleName Sysprep Test-Path -ParameterFilter { ($Path -like "*NTUSER.DAT") -or ($LiteralPath -like "*NTUSER.DAT") } { return $true }
+            Mock -ModuleName Sysprep Test-Path -ParameterFilter { ($Path -like "*WinDebloat_Test*") -or ($LiteralPath -like "*WinDebloat_Test*") } { return $false }
+            Mock -ModuleName Sysprep Start-Process { return [PSCustomObject]@{ ExitCode = 0 } }
+
+            $mounted = Mount-WinDebloatUserHive -ProfilePath "C:\Users\TestUser" -MountName "WinDebloat_Test"
+            $mounted | Should -Be $true
+            Should -Invoke -CommandName Start-Process -ModuleName Sysprep -Times 1
+        }
+
+        It "Dismounts offline profile hive via reg.exe with retry" {
+            Mock -ModuleName Sysprep Test-Path { return $true }
+            Mock -ModuleName Sysprep Start-Process { return [PSCustomObject]@{ ExitCode = 0 } }
+
+            { Dismount-WinDebloatUserHive -MountName "WinDebloat_Test" } | Should -Not -Throw
+            Should -Invoke -CommandName Start-Process -ModuleName Sysprep -Times 1
+        }
+    }
+
+    Context "Invoke-WinDebloatWithTargetUserHive" {
+        It "Invokes scriptblock with Default hive when TargetUser is Default" {
+            Mock -ModuleName Sysprep Mount-WinDebloatDefaultHive { return $true }
+            Mock -ModuleName Sysprep Dismount-WinDebloatDefaultHive { }
+
+            $targetHive = $null
+            Invoke-WinDebloatWithTargetUserHive -TargetUser "Default" -ScriptBlock {
+                param($hive)
+                $script:targetHive = $hive
+            }
+
+            $script:targetHive | Should -Be "HKLM\WinDebloat_Default"
+            Should -Invoke -CommandName Dismount-WinDebloatDefaultHive -ModuleName Sysprep -Times 1
+        }
+    }
 }

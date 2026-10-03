@@ -235,6 +235,51 @@ function Reset-WinDebloatAMDX3D {
     }
 }
 
+<#
+.SYNOPSIS
+    Suppresses the 'You will need a new app to open this ms-gamebar link' popup
+    when Xbox Game Bar is removed or disabled.
+#>
+function Disable-WinDebloatGameBarPopup {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Xbox Game Bar Popups", "Disable ms-gamebar protocol handler prompt")) {
+        Set-RegistryKey -Path "HKCU:\SOFTWARE\Microsoft\GameBar" -Name "UseNexusForGameBarEnabled" -Value 0 -Type DWord | Out-Null
+
+        $protocols = @("HKCR:\ms-gamebar", "HKCR:\ms-gamebarservices")
+        foreach ($proto in $protocols) {
+            Set-RegistryKey -Path $proto -Name "" -Value ($proto -replace '^HKCR:\\', 'URL:') -Type String | Out-Null
+            Set-RegistryKey -Path $proto -Name "URL Protocol" -Value "" -Type String | Out-Null
+            Set-RegistryKey -Path $proto -Name "NoOpenWith" -Value "" -Type String | Out-Null
+            Set-RegistryKey -Path "$proto\shell\open\command" -Name "" -Value "%SystemRoot%\System32\systray.exe" -Type String | Out-Null
+        }
+        Write-Log -Message "Xbox Game Bar protocol popups disabled." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores the standard Windows Xbox Game Bar protocol handlers.
+#>
+function Enable-WinDebloatGameBarPopup {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Xbox Game Bar Popups", "Restore ms-gamebar protocol handlers")) {
+        Set-RegistryKey -Path "HKCU:\SOFTWARE\Microsoft\GameBar" -Name "UseNexusForGameBarEnabled" -Value 1 -Type DWord | Out-Null
+
+        $protocols = @("HKCR:\ms-gamebar", "HKCR:\ms-gamebarservices")
+        foreach ($proto in $protocols) {
+            Remove-RegistryKey -Path $proto -Name "NoOpenWith" | Out-Null
+            Remove-RegistryKey -Path "$proto\shell\open\command" -WholeKey | Out-Null
+        }
+        Write-Log -Message "Xbox Game Bar protocol handlers restored." -Level Success
+    }
+}
+
 # Aliases for backward compatibility
 Set-Alias -Name 'Set-WinDebloat7Gaming' -Value 'Set-WinDebloatGaming'
 Set-Alias -Name 'Optimize-WinDebloatGaming' -Value 'Set-WinDebloatGaming'
@@ -245,6 +290,8 @@ Set-Alias -Name 'Set-WinDebloat7HAGSTDR' -Value 'Set-WinDebloatHAGSTDR'
 Set-Alias -Name 'Reset-WinDebloat7HAGSTDR' -Value 'Reset-WinDebloatHAGSTDR'
 Set-Alias -Name 'Enable-WinDebloat7DirectSR' -Value 'Enable-WinDebloatDirectSR'
 Set-Alias -Name 'Disable-WinDebloat7DirectSR' -Value 'Disable-WinDebloatDirectSR'
+Set-Alias -Name 'Disable-WinDebloat7GameBarPopup' -Value 'Disable-WinDebloatGameBarPopup'
+Set-Alias -Name 'Enable-WinDebloat7GameBarPopup' -Value 'Enable-WinDebloatGameBarPopup'
 
 Export-ModuleMember -Function @(
     'Set-WinDebloatGaming',
@@ -253,7 +300,9 @@ Export-ModuleMember -Function @(
     'Set-WinDebloatHAGSTDR',
     'Reset-WinDebloatHAGSTDR',
     'Enable-WinDebloatDirectSR',
-    'Disable-WinDebloatDirectSR'
+    'Disable-WinDebloatDirectSR',
+    'Disable-WinDebloatGameBarPopup',
+    'Enable-WinDebloatGameBarPopup'
 ) -Alias @(
     'Set-WinDebloat7Gaming',
     'Optimize-WinDebloatGaming',
@@ -263,5 +312,7 @@ Export-ModuleMember -Function @(
     'Set-WinDebloat7HAGSTDR',
     'Reset-WinDebloat7HAGSTDR',
     'Enable-WinDebloat7DirectSR',
-    'Disable-WinDebloat7DirectSR'
+    'Disable-WinDebloat7DirectSR',
+    'Disable-WinDebloat7GameBarPopup',
+    'Enable-WinDebloat7GameBarPopup'
 )

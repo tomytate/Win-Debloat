@@ -22,12 +22,12 @@
 
 <!-- Badges: Row 2 - Platform & Architecture -->
 [![Windows Compatibility](https://img.shields.io/badge/Windows-11%20%7C%2010%20%7C%20Server%202025-0078D4?style=for-the-badge&logo=windows11&logoColor=white)](https://github.com/tomytate/Win-Debloat)
-[![PowerShell Runtime](https://img.shields.io/badge/PowerShell-7.6.5%20LTS-5391FE?style=for-the-badge&logo=powershell&logoColor=white)](https://github.com/PowerShell/PowerShell/releases)
+[![PowerShell Runtime](https://img.shields.io/badge/PowerShell-7.6.6%20LTS-5391FE?style=for-the-badge&logo=powershell&logoColor=white)](https://github.com/PowerShell/PowerShell/releases)
 [![.NET 10 Framework](https://img.shields.io/badge/.NET-10.0%20Ready-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/tomytate/Win-Debloat/ci.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
 
 <!-- Badges: Row 3 - Verification & Supply Chain Quality -->
-[![Test Suite](https://img.shields.io/badge/Pester%20Tests-286%20%2F%20286%20Pass%20(100%25)-22C55E?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
+[![Test Suite](https://img.shields.io/badge/Pester%20Tests-336%20%2F%20336%20Pass%20(100%25)-22C55E?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
 [![AST Parity](https://img.shields.io/badge/AST%20Parity-5--Way%20100%25-00D9FF?style=for-the-badge&logo=powershell&logoColor=white)](https://github.com/tomytate/Win-Debloat)
 [![SPDX SBOM](https://img.shields.io/badge/Supply%20Chain-SPDX%202.3%20SBOM-8B5CF6?style=for-the-badge&logo=spdx&logoColor=white)](dist/win-debloat-sbom.spdx.json)
 
@@ -91,9 +91,9 @@ Unlike legacy debloat scripts that blindly delete registry keys, Win-Debloat tre
 | :--- | :--- | :--- |
 | ⚡ **Performance & Engine** | **Execution Benchmark** | **`< 3.8 ms`** cold dispatch & direct .NET BCL telemetry engine |
 | 📦 **Architecture** | **Module Ecosystem** | **30 modular sub-systems** (100% cohesive domain separation) |
-| 🛠️ **API Surface** | **Functions & Aliases** | **227 canonical functions** + **256 backward-compatible aliases** |
-| 🧪 **Verification** | **Test Suite** | **286 / 286 Pester tests (100% pass)** with 0 PSScriptAnalyzer errors |
-| 🔄 **Compatibility** | **5-Way AST Parity** | **100% AST integrity** across PowerShell 5.1, 7.4, 7.5, 7.6.5 & .NET 10 |
+| 🛠️ **API Surface** | **Functions & Aliases** | **239 canonical functions** + **268 backward-compatible aliases** |
+| 🧪 **Verification** | **Test Suite** | **336 / 336 Pester tests (100% pass)** with 0 PSScriptAnalyzer errors |
+| 🔄 **Compatibility** | **5-Way AST Parity** | **100% AST integrity** across PowerShell 5.1, 7.4, 7.5, 7.6.6 & .NET 10 |
 | 🛡️ **Safety & Rollback** | **Encrypted Snapshots** | **DPAPI AES-256 state snapshots** with granular value-level restoration (~85 keys) |
 | 🔍 **Privacy Engine** | **11-Vector Scorer** | **100-point closed algorithm** evaluating Recall, Copilot, Telemetry, and Diagnostics |
 | 🚀 **Hardware Acceleration** | **Next-Gen CPU/GPU** | **AMD 3D V-Cache**, **Intel Thread Director**, **DirectStorage 1.2**, **BBR2/CUBIC TCP** |
@@ -218,6 +218,8 @@ Win-Debloat supports full unattended CLI execution, enabling integration with **
 | `-Profile <File\|Name>` | `String` | Applies a specific YAML optimization profile (e.g. `profiles/gaming.yaml`, `moderate`, `conservative`). |
 | `-Silent` / `-Unattended` | `Switch` | Suppresses all interactive prompts and confirmations for automated headless execution. |
 | `-Extra` | `Switch` | Enables Extras modules (Defender Remover & MAS tools) in CLI workflows. |
+| `-Sysprep` | `Switch` | Enables Audit / Sysprep mode, mounting `C:\Users\Default\NTUSER.DAT` so all future user profiles inherit tweaks. |
+| `-TargetUser <User\|Default\|All>` | `String` | Targets specific user profile hives, Default user template, or all discovered local user hives. |
 | `-NoRestorePoint` | `Switch` | Skips pre-optimization state snapshot / restore point creation (useful in lightweight VMs, CI, and containers). |
 | `-WhatIf` / `-Preview` | `Switch` | **Dry-Run Simulation**: Emulates execution (`SupportsShouldProcess`), showing all changes without writing modifications. |
 | `-Gui` | `Switch` | Bypasses the terminal menu and directly launches the WPF Cockpit Dashboard. |
@@ -226,17 +228,20 @@ Win-Debloat supports full unattended CLI execution, enabling integration with **
 #### Example CLI Commands
 
 ```powershell
-# 1. Simulate applying the Gaming profile (Safe dry-run preview)
+# 1. Zero-Binary One-Click Execution (Bypasses Smart App Control & auto-elevates)
+.\Run.bat
+
+# 2. Standalone Intune / OOBE Shift+F10 Enterprise Headless Deployment
+pwsh .\deploy\Deploy-WinDebloat.ps1 -Profile moderate -Silent
+
+# 3. Simulate applying the Gaming profile (Safe dry-run preview)
 pwsh .\Win-Debloat.ps1 -Profile profiles/gaming.yaml -WhatIf
 
-# 2. Apply Moderate profile silently during unattended deployment (Intune/MDT/Sysprep)
-pwsh .\Win-Debloat.ps1 -Profile profiles/moderate.yaml -Silent
+# 4. Apply Moderate profile during Sysprep / Audit mode for newly created accounts
+pwsh .\Win-Debloat.ps1 -Profile profiles/moderate.yaml -Sysprep -Silent
 
-# 3. Direct launch into the WPF Cockpit GUI
+# 5. Direct launch into the WPF Cockpit GUI
 pwsh .\Win-Debloat.ps1 -Gui
-
-# 4. Standalone EXE parameter passthrough
-.\Win-Debloat.exe -Profile profiles/gaming.yaml -Silent
 ```
 
 </details>

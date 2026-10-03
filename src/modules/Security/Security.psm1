@@ -572,7 +572,7 @@ function Set-WinDebloatSecurity {
         Enable-WinDebloatDMAProtection
     }
 
-    if ($Config.security.enable_script_block_logging -eq $true) {
+    if ($Config.security.enable_script_block_logging -eq $true -or $Config.security.enable_audit_logging -eq $true) {
         Enable-WinDebloatScriptBlockLogging
     }
 

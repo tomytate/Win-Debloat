@@ -86,7 +86,7 @@ $Script:BloatwareCategories = @{
         # AI / Copilot / Widgets ecosystem
         "Microsoft.Copilot", "MicrosoftWindows.Client.CoPilot", "MicrosoftWindows.Client.WebExperience",
         "Microsoft.Windows.Ai.Copilot.Provider", "Microsoft.Windows.AIHub", "Microsoft.WidgetsPlatformRuntime",
-        "MicrosoftCorporationII.QuickAssist",
+        "XP9CXNGPPJ97XX", "MicrosoftCorporationII.MicrosoftFamily", "MicrosoftCorporationII.QuickAssist",
 
         # Xbox ecosystem
         "Microsoft.XboxApp", "Microsoft.GamingApp", "Microsoft.XboxGameOverlay", "Microsoft.XboxGamingOverlay",

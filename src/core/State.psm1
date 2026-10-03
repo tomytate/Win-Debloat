@@ -1057,6 +1057,63 @@ function New-WinDebloatSnapshot {
                 Encrypted   = [bool]$Encrypt
                 Version     = $snapshot.Version
             } | ConvertTo-Json | Set-Content -Path "$basePath\meta.json" -Encoding UTF8
+
+            # Dual-Layer Rollback: Generate human-readable .reg file for instant notepad audit and double-click restore (Pillar 27)
+            try {
+                $regBuilder = [System.Text.StringBuilder]::new()
+                [void]$regBuilder.AppendLine("Windows Registry Editor Version 5.00`r`n")
+                [void]$regBuilder.AppendLine("; Win-Debloat Rollback File")
+                [void]$regBuilder.AppendLine("; Snapshot: $($snapshot.Name)")
+                [void]$regBuilder.AppendLine("; Generated: $($snapshot.Timestamp.ToString('yyyy-MM-dd HH:mm:ss'))`r`n")
+
+                foreach ($keyPath in $snapshot.Registry.Keys) {
+                    $entry = $snapshot.Registry[$keyPath]
+                    if (-not $entry -or -not $entry['Existed']) {
+                        continue
+                    }
+                    $normalizedKey = $keyPath -replace '^HKCU:', 'HKEY_CURRENT_USER' -replace '^HKLM:', 'HKEY_LOCAL_MACHINE' -replace '^HKCR:', 'HKEY_CLASSES_ROOT' -replace '^HKU:', 'HKEY_USERS'
+                    [void]$regBuilder.AppendLine("[$normalizedKey]")
+
+                    $vals = $entry['RegValues']
+                    if ($vals) {
+                        foreach ($valName in $vals.Keys) {
+                            $valObj = $vals[$valName]
+                            $vData = $valObj['Value']
+                            $vKind = $valObj['Kind']
+
+                            $vNameEscaped = if ([string]::IsNullOrEmpty($valName)) { "@" } else { "`"$valName`"" }
+
+                            switch ($vKind) {
+                                'DWord' {
+                                    $dwordHex = ([uint32]$vData).ToString("x8")
+                                    [void]$regBuilder.AppendLine("$vNameEscaped=dword:$dwordHex")
+                                }
+                                'QWord' {
+                                    $qwordHex = ([uint64]$vData).ToString("x16")
+                                    [void]$regBuilder.AppendLine("$vNameEscaped=hex(b):$qwordHex")
+                                }
+                                'String' {
+                                    $escapedStr = if ($vData) { ($vData.ToString() -replace '\\', '\\\\' -replace '"', '\"') } else { "" }
+                                    [void]$regBuilder.AppendLine("$vNameEscaped=`"$escapedStr`"")
+                                }
+                                default {
+                                    if ($vData -is [byte[]]) {
+                                        $hexBytes = ($vData | ForEach-Object { $_.ToString("x2") }) -join ","
+                                        [void]$regBuilder.AppendLine("$vNameEscaped=hex:$hexBytes")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    [void]$regBuilder.AppendLine("")
+                }
+
+                [System.IO.File]::WriteAllText("$basePath\rollback.reg", $regBuilder.ToString(), [System.Text.Encoding]::Unicode)
+                Write-Log -Message "Human-readable rollback .reg generated: $basePath\rollback.reg" -Level Debug
+            }
+            catch {
+                Write-Log -Message "Notice: Failed to export rollback.reg: $($_.Exception.Message)" -Level Debug
+            }
         }
     }
     catch {

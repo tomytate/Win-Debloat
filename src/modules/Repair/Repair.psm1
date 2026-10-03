@@ -218,9 +218,16 @@ function Optimize-WinDebloatComponentStore {
 
     Write-Log -Message "Analyzing Windows Component Store (WinSxS)..." -Level Info
 
-    # 5-Point Safety Gate for -ResetBase (irreversible superseded package cleanup)
+    # 6-Point Safety Gate for -ResetBase (irreversible superseded package cleanup)
     if ($ResetBase) {
-        Write-Log -Message "Evaluating 5-Point Safety Gate for /ResetBase..." -Level Info
+        Write-Log -Message "Evaluating 6-Point Safety Gate for /ResetBase..." -Level Info
+
+        # Gate 0: Windows 11 24H2+ Checkpoint Cumulative Update Guard
+        $osBuild = [Environment]::OSVersion.Version.Build
+        if ($osBuild -ge 26100 -and -not $Force) {
+            Write-Log -Message "Safety Gate Failed: Detected Windows 11 24H2+ (Build $osBuild). DISM /ResetBase permanently breaks Checkpoint Cumulative Updates (error 0x800f081f). /ResetBase is blocked on Build 26100+ (use standard component cleanup or pass -Force to override)." -Level Error
+            return
+        }
 
         # Gate 1: Pending Reboot Verification
         $pendingReboot = (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") -or

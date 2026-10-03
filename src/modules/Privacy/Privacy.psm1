@@ -492,6 +492,108 @@ function Enable-WinDebloatPrivacy {
     }
 }
 
+<#
+.SYNOPSIS
+    Disables bloatware, telemetry, and sponsored features across Edge, Chrome, and Brave.
+#>
+function Disable-WinDebloatBrowserBloat {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param(
+        [switch]$EdgeOnly,
+        [switch]$BraveOnly,
+        [switch]$ChromeOnly
+    )
+
+    $all = -not $EdgeOnly -and -not $BraveOnly -and -not $ChromeOnly
+
+    if ($PSCmdlet.ShouldProcess("Browsers", "Disable Browser Bloat & Telemetry")) {
+        $applied = 0
+
+        # Edge bloatware policies
+        if ($all -or $EdgeOnly) {
+            $edgePath = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
+            $edgePolicies = @{
+                "NewTabPageContentEnabled"                      = 0
+                "NewTabPageHideDefaultTopSites"                 = 1
+                "EdgeShoppingAssistantEnabled"                  = 0
+                "TabServicesEnabled"                            = 0
+                "AlternateErrorPagesEnabled"                    = 0
+                "UserFeedbackAllowed"                           = 0
+                "ShowRecommendationsEnabled"                    = 0
+                "WalletDonationEnabled"                         = 0
+                "HideFirstRunExperience"                        = 0
+                "DefaultBrowserSettingEnabled"                  = 0
+                "DefaultBrowserSettingsCampaignEnabled"         = 0
+                "SpotlightExperiencesAndRecommendationsEnabled" = 0
+                "ShowAcrobatSubscriptionButton"                 = 0
+                "HubsSidebarEnabled"                            = 0
+                "CopilotCDPPageContext"                         = 0
+                "ComposeInlineEnabled"                          = 0
+                "NewTabPageBingChatEnabled"                     = 0
+            }
+            foreach ($k in $edgePolicies.Keys) {
+                if (Set-RegistryKey -Path $edgePath -Name $k -Value $edgePolicies[$k] -Type DWord) { $applied++ }
+            }
+        }
+
+        # Brave bloatware policies (VPN, Crypto Wallet, Rewards, Leo AI, Talk, News)
+        if ($all -or $BraveOnly) {
+            $bravePath = "HKLM:\Software\Policies\BraveSoftware\Brave"
+            $bravePolicies = @{
+                "BraveVPNDisabled"     = 1
+                "BraveWalletDisabled"  = 1
+                "BraveAIChatEnabled"   = 0
+                "BraveRewardsDisabled" = 1
+                "BraveTalkDisabled"    = 1
+                "BraveNewsDisabled"    = 1
+            }
+            foreach ($k in $bravePolicies.Keys) {
+                if (Set-RegistryKey -Path $bravePath -Name $k -Value $bravePolicies[$k] -Type DWord) { $applied++ }
+            }
+        }
+
+        # Chrome AI / suggestion policies
+        if ($all -or $ChromeOnly) {
+            $chromePath = "HKLM:\SOFTWARE\Policies\Google\Chrome"
+            $chromePolicies = @{
+                "ChromeSuggestionsSettings" = 1
+            }
+            foreach ($k in $chromePolicies.Keys) {
+                if (Set-RegistryKey -Path $chromePath -Name $k -Value $chromePolicies[$k] -Type DWord) { $applied++ }
+            }
+        }
+
+        Write-Log -Message "Browser bloatware and sponsored features disabled ($applied policies applied)." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores browser settings to factory defaults.
+#>
+function Enable-WinDebloatBrowserBloat {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Browsers", "Restore Default Browser Policies")) {
+        $edgeKeys = @("NewTabPageContentEnabled", "NewTabPageHideDefaultTopSites", "EdgeShoppingAssistantEnabled",
+                      "TabServicesEnabled", "AlternateErrorPagesEnabled", "UserFeedbackAllowed", "ShowRecommendationsEnabled",
+                      "WalletDonationEnabled", "HideFirstRunExperience", "DefaultBrowserSettingEnabled",
+                      "DefaultBrowserSettingsCampaignEnabled", "SpotlightExperiencesAndRecommendationsEnabled",
+                      "ShowAcrobatSubscriptionButton", "HubsSidebarEnabled", "CopilotCDPPageContext", "ComposeInlineEnabled", "NewTabPageBingChatEnabled")
+        foreach ($k in $edgeKeys) {
+            Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name $k | Out-Null
+        }
+
+        Remove-RegistryKey -Path "HKLM:\Software\Policies\BraveSoftware\Brave" -WholeKey | Out-Null
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Google\Chrome" -Name "ChromeSuggestionsSettings" | Out-Null
+
+        Write-Log -Message "Browser policies restored to factory defaults." -Level Success
+    }
+}
+
 # Aliases for backward compatibility
 Set-Alias -Name 'Set-WinDebloat7Privacy' -Value 'Set-WinDebloatPrivacy'
 Set-Alias -Name 'Disable-WinDebloatPrivacy' -Value 'Set-WinDebloatPrivacy'
@@ -504,6 +606,8 @@ Set-Alias -Name 'Enable-WinDebloat7AIFabric' -Value 'Enable-WinDebloatAIFabric'
 Set-Alias -Name 'Disable-WinDebloat7Recall' -Value 'Disable-WinDebloatRecall'
 Set-Alias -Name 'Disable-WinDebloat7ClickToDo' -Value 'Disable-WinDebloatClickToDo'
 Set-Alias -Name 'Enable-WinDebloat7Privacy' -Value 'Enable-WinDebloatPrivacy'
+Set-Alias -Name 'Disable-WinDebloat7BrowserBloat' -Value 'Disable-WinDebloatBrowserBloat'
+Set-Alias -Name 'Enable-WinDebloat7BrowserBloat' -Value 'Enable-WinDebloatBrowserBloat'
 
 Export-ModuleMember -Function @(
     'Set-WinDebloatPrivacy',
@@ -512,7 +616,9 @@ Export-ModuleMember -Function @(
     'Enable-WinDebloatAIFabric',
     'Disable-WinDebloatRecall',
     'Disable-WinDebloatClickToDo',
-    'Enable-WinDebloatPrivacy'
+    'Enable-WinDebloatPrivacy',
+    'Disable-WinDebloatBrowserBloat',
+    'Enable-WinDebloatBrowserBloat'
 ) -Alias @(
     'Set-WinDebloat7Privacy',
     'Disable-WinDebloatPrivacy',
@@ -524,5 +630,7 @@ Export-ModuleMember -Function @(
     'Enable-WinDebloat7AIFabric',
     'Disable-WinDebloat7Recall',
     'Disable-WinDebloat7ClickToDo',
-    'Enable-WinDebloat7Privacy'
+    'Enable-WinDebloat7Privacy',
+    'Disable-WinDebloat7BrowserBloat',
+    'Enable-WinDebloat7BrowserBloat'
 )

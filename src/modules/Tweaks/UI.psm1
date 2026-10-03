@@ -677,6 +677,90 @@ function Set-WinDebloatStartMenu {
 
 #endregion
 
+#region Duplicate Removable Drives
+
+<#
+.SYNOPSIS
+    Configures whether duplicate removable drives appear in the File Explorer navigation pane.
+
+.PARAMETER Hide
+    Hides duplicate removable drive icons from the navigation pane tree.
+
+.PARAMETER Show
+    Restores default behavior showing removable drive icons under both Desktop and This PC.
+#>
+function Set-WinDebloatDuplicateRemovableDrives {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory, ParameterSetName = "Hide")]
+        [switch]$Hide,
+
+        [Parameter(Mandatory, ParameterSetName = "Show")]
+        [switch]$Show
+    )
+
+    $clsid = "{F5FB2C77-0E2F-4A16-A381-3E560C68BC83}"
+    $paths = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\DelegateFolders\$clsid",
+        "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\DelegateFolders\$clsid"
+    )
+
+    if ($Hide) {
+        if ($PSCmdlet.ShouldProcess("Explorer", "Hide duplicate removable drives")) {
+            foreach ($p in $paths) {
+                if (Test-Path $p) {
+                    Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+            }
+            Write-Log -Message "Duplicate removable drives hidden from Explorer navigation pane." -Level Success
+        }
+    }
+    elseif ($Show) {
+        if ($PSCmdlet.ShouldProcess("Explorer", "Show duplicate removable drives")) {
+            foreach ($p in $paths) {
+                if (-not (Test-Path $p)) {
+                    New-Item -Path $p -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                Set-RegistryKey -Path $p -Name "" -Value "Removable Drives" -Type String | Out-Null
+            }
+            Write-Log -Message "Duplicate removable drives restored in Explorer navigation pane." -Level Success
+        }
+    }
+}
+
+#endregion
+
+#region Drive Letter Position
+
+<#
+.SYNOPSIS
+    Configures drive letter display position in File Explorer.
+
+.PARAMETER Position
+    First (e.g. '(C:) Local Disk') or Last (Windows default, e.g. 'Local Disk (C:)').
+#>
+function Set-WinDebloatDriveLetterPosition {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet("First", "Last")]
+        [string]$Position
+    )
+
+    $val = if ($Position -eq "First") { 4 } else { 0 }
+    $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer"
+
+    if ($PSCmdlet.ShouldProcess("Explorer", "Set drive letter position to $Position")) {
+        if (Set-RegistryKey -Path $path -Name "ShowDriveLettersFirst" -Value $val -Type DWord) {
+            Write-Log -Message "Drive letter position set to $Position." -Level Success
+        }
+    }
+}
+
+#endregion
+
 # Backward-compatibility aliases
 Set-Alias -Name 'Set-WinDebloat7TaskbarAlignment' -Value 'Set-WinDebloatTaskbarAlignment' -Description 'Backward-compatibility alias'
 Set-Alias -Name 'Set-WinDebloat7ContextMenu' -Value 'Set-WinDebloatContextMenu' -Description 'Backward-compatibility alias'
@@ -687,6 +771,8 @@ Set-Alias -Name 'Set-WinDebloat7Search' -Value 'Set-WinDebloatSearch' -Descripti
 Set-Alias -Name 'Set-WinDebloat7TaskbarTweaks' -Value 'Set-WinDebloatTaskbarTweaks' -Description 'Backward-compatibility alias'
 Set-Alias -Name 'Set-WinDebloat7ContextMenuItems' -Value 'Set-WinDebloatContextMenuItems' -Description 'Backward-compatibility alias'
 Set-Alias -Name 'Restart-WinDebloat7Explorer' -Value 'Restart-WinDebloatExplorer' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Set-WinDebloat7DuplicateRemovableDrives' -Value 'Set-WinDebloatDuplicateRemovableDrives' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Set-WinDebloat7DriveLetterPosition' -Value 'Set-WinDebloatDriveLetterPosition' -Description 'Backward-compatibility alias'
 
 Export-ModuleMember -Function @(
     'Set-WinDebloatTaskbarAlignment',
@@ -696,7 +782,9 @@ Export-ModuleMember -Function @(
     'Set-WinDebloatSearch',
     'Set-WinDebloatTaskbarTweaks',
     'Set-WinDebloatContextMenuItems',
-    'Restart-WinDebloatExplorer'
+    'Restart-WinDebloatExplorer',
+    'Set-WinDebloatDuplicateRemovableDrives',
+    'Set-WinDebloatDriveLetterPosition'
 ) -Alias @(
     'Set-WinDebloat7TaskbarAlignment',
     'Set-WinDebloat7ContextMenu',
@@ -706,5 +794,7 @@ Export-ModuleMember -Function @(
     'Set-WinDebloat7Search',
     'Set-WinDebloat7TaskbarTweaks',
     'Set-WinDebloat7ContextMenuItems',
-    'Restart-WinDebloat7Explorer'
+    'Restart-WinDebloat7Explorer',
+    'Set-WinDebloat7DuplicateRemovableDrives',
+    'Set-WinDebloat7DriveLetterPosition'
 )

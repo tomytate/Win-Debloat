@@ -845,6 +845,46 @@ function Set-WinDebloatSystemTweaks {
     Write-Log -Message "System & QoL profile tweaks applied." -Level Success
 }
 
+function Disable-WinDebloatMouseAcceleration {
+    <#
+    .SYNOPSIS
+        Disables Windows mouse acceleration (Enhance Pointer Precision) for 1:1 raw input.
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Mouse Pointer Precision", "Disable Acceleration")) {
+        $path = "HKCU:\Control Panel\Mouse"
+        $ok = (Set-RegistryKey -Path $path -Name "MouseSpeed" -Value "0" -Type String) -and
+              (Set-RegistryKey -Path $path -Name "MouseThreshold1" -Value "0" -Type String) -and
+              (Set-RegistryKey -Path $path -Name "MouseThreshold2" -Value "0" -Type String)
+        if ($ok) {
+            Write-Log -Message "Mouse acceleration disabled (1:1 raw input enabled)." -Level Success
+        }
+    }
+}
+
+function Enable-WinDebloatMouseAcceleration {
+    <#
+    .SYNOPSIS
+        Re-enables Windows default mouse acceleration (Enhance Pointer Precision).
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Mouse Pointer Precision", "Enable Acceleration")) {
+        $path = "HKCU:\Control Panel\Mouse"
+        $ok = (Set-RegistryKey -Path $path -Name "MouseSpeed" -Value "1" -Type String) -and
+              (Set-RegistryKey -Path $path -Name "MouseThreshold1" -Value "6" -Type String) -and
+              (Set-RegistryKey -Path $path -Name "MouseThreshold2" -Value "10" -Type String)
+        if ($ok) {
+            Write-Log -Message "Mouse acceleration re-enabled (Windows default)." -Level Success
+        }
+    }
+}
+
 #endregion
 
 # Backward-compatibility aliases
@@ -882,6 +922,8 @@ Set-Alias -Name 'Disable-WinDebloat7ChatTaskbar' -Value 'Disable-WinDebloatChatT
 Set-Alias -Name 'Enable-WinDebloat7ChatTaskbar' -Value 'Enable-WinDebloatChatTaskbar' -Description 'Backward-compatibility alias'
 Set-Alias -Name 'Disable-WinDebloat7StartAllApps' -Value 'Disable-WinDebloatStartAllApps' -Description 'Backward-compatibility alias'
 Set-Alias -Name 'Enable-WinDebloat7StartAllApps' -Value 'Enable-WinDebloatStartAllApps' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Disable-WinDebloat7MouseAcceleration' -Value 'Disable-WinDebloatMouseAcceleration' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Enable-WinDebloat7MouseAcceleration' -Value 'Enable-WinDebloatMouseAcceleration' -Description 'Backward-compatibility alias'
 
 Export-ModuleMember -Function @(
     'Set-WinDebloatSystemTweaks',
@@ -917,7 +959,9 @@ Export-ModuleMember -Function @(
     'Disable-WinDebloatChatTaskbar',
     'Enable-WinDebloatChatTaskbar',
     'Disable-WinDebloatStartAllApps',
-    'Enable-WinDebloatStartAllApps'
+    'Enable-WinDebloatStartAllApps',
+    'Disable-WinDebloatMouseAcceleration',
+    'Enable-WinDebloatMouseAcceleration'
 ) -Alias @(
     'Set-WinDebloat7SystemTweaks',
     'Disable-WinDebloat7FastStartup',
@@ -952,5 +996,7 @@ Export-ModuleMember -Function @(
     'Disable-WinDebloat7ChatTaskbar',
     'Enable-WinDebloat7ChatTaskbar',
     'Disable-WinDebloat7StartAllApps',
-    'Enable-WinDebloat7StartAllApps'
+    'Enable-WinDebloat7StartAllApps',
+    'Disable-WinDebloat7MouseAcceleration',
+    'Enable-WinDebloat7MouseAcceleration'
 )

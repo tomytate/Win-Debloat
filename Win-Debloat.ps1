@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Win-Debloat - The Power User's Windows Optimization Platform
@@ -59,8 +59,21 @@ param(
     
     [switch]$Maintenance,
     
-    [switch]$Gui
+    [switch]$Gui,
+
+    [switch]$Sysprep,
+
+    [string]$TargetUser
 )
+
+# Automatic Mark-of-the-Web (MotW Zone.Identifier) Stripping for corporate/GPO environments
+if ($PSScriptRoot) {
+    Get-ChildItem -LiteralPath $PSScriptRoot -Recurse -File -Filter "*.ps*1" -ErrorAction SilentlyContinue | ForEach-Object {
+        if (Test-Path -LiteralPath "$($_.FullName):Zone.Identifier" -ErrorAction SilentlyContinue) {
+            Unblock-File -LiteralPath $_.FullName -ErrorAction SilentlyContinue
+        }
+    }
+}
 
 # Runtime Compatibility Check: Windows PowerShell 5.1 -> PowerShell 7.6+ (LTS) Re-launch / Auto-Install
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -187,6 +200,8 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
     if ($Unattended) { $boundArgs.Add("-Unattended") }
     if ($Maintenance) { $boundArgs.Add("-Maintenance") }
     if ($Gui) { $boundArgs.Add("-Gui") }
+    if ($Sysprep) { $boundArgs.Add("-Sysprep") }
+    if ($TargetUser) { $boundArgs.Add("-TargetUser `"$TargetUser`"") }
     if ($PSBoundParameters.ContainsKey('Verbose') -and $Verbose) { $boundArgs.Add("-Verbose") }
     foreach ($extra in $args) {
         if ($extra -match '\s') { $boundArgs.Add("`"$extra`"") } else { $boundArgs.Add($extra) }
@@ -222,6 +237,8 @@ if (-not $isAdmin) {
     if ($Unattended) { $boundArgs.Add("-Unattended") }
     if ($Maintenance) { $boundArgs.Add("-Maintenance") }
     if ($Gui) { $boundArgs.Add("-Gui") }
+    if ($Sysprep) { $boundArgs.Add("-Sysprep") }
+    if ($TargetUser) { $boundArgs.Add("-TargetUser `"$TargetUser`"") }
     if ($PSBoundParameters.ContainsKey('Verbose') -and $Verbose) { $boundArgs.Add("-Verbose") }
     foreach ($extra in $args) {
         if ($extra -match '\s') { $boundArgs.Add("`"$extra`"") } else { $boundArgs.Add($extra) }
@@ -342,30 +359,44 @@ if ($ProfileFile) {
     Write-Log -Message "Creating pre-optimization snapshot..." -Level Info
     New-WinDebloat7Snapshot -Name "Pre-$($config.metadata.name)" -Description "Auto-created before $($config.metadata.name) profile" -Encrypt | Out-Null
 
-    # Benchmark Pre
-    Write-Log -Message "Benchmarking system state (Pre-Optimization)..." -Level Info
-    $preBench = Measure-WinDebloat7System
+    $defaultHiveMounted = $false
+    if ($Sysprep) {
+        Write-Log -Message "Sysprep mode enabled: mounting Default User hive (NTUSER.DAT)..." -Level Info
+        $defaultHiveMounted = Mount-WinDebloatDefaultHive
+    }
 
-    # Apply modules (all profile sections)
-    Remove-WinDebloat7Bloatware -Config $config -Confirm:$false
-    Set-WinDebloat7Privacy -Config $config -Confirm:$false
-    Set-WinDebloat7Security -Config $config -Confirm:$false
-    Set-WinDebloat7Performance -Config $config -Confirm:$false
-    Set-WinDebloat7Network -Config $config -Confirm:$false
-    Set-WinDebloat7SystemTweaks -Config $config -Confirm:$false
-    Install-WinDebloat7ProfileSoftware -Config $config -Confirm:$false
+    try {
+        # Benchmark Pre
+        Write-Log -Message "Benchmarking system state (Pre-Optimization)..." -Level Info
+        $preBench = Measure-WinDebloat7System
 
-    # Benchmark Post
-    Write-Log -Message "Benchmarking system state (Post-Optimization)..." -Level Info
-    $postBench = Measure-WinDebloat7System
-    
-    # Generate Report
-    $report = Compare-WinDebloat7Benchmarks -Reference $preBench -Difference $postBench
-    Write-Host "`n$report" -ForegroundColor Gray
-    Write-Log -Message "Optimization Report generated on Desktop." -Level Success
-    
-    Write-Log -Message "Profile '$($config.metadata.name)' applied successfully." -Level Success
-    exit 0
+        # Apply modules (all profile sections)
+        Remove-WinDebloat7Bloatware -Config $config -Confirm:$false
+        Set-WinDebloat7Privacy -Config $config -Confirm:$false
+        Set-WinDebloat7Security -Config $config -Confirm:$false
+        Set-WinDebloat7Performance -Config $config -Confirm:$false
+        Set-WinDebloat7Network -Config $config -Confirm:$false
+        Set-WinDebloat7SystemTweaks -Config $config -Confirm:$false
+        Install-WinDebloat7ProfileSoftware -Config $config -Confirm:$false
+
+        # Benchmark Post
+        Write-Log -Message "Benchmarking system state (Post-Optimization)..." -Level Info
+        $postBench = Measure-WinDebloat7System
+        
+        # Generate Report
+        $report = Compare-WinDebloat7Benchmarks -Reference $preBench -Difference $postBench
+        Write-Host "`n$report" -ForegroundColor Gray
+        Write-Log -Message "Optimization Report generated on Desktop." -Level Success
+        
+        Write-Log -Message "Profile '$($config.metadata.name)' applied successfully." -Level Success
+        exit 0
+    }
+    finally {
+        if ($defaultHiveMounted) {
+            Write-Log -Message "Dismounting Default User hive..." -Level Info
+            Dismount-WinDebloatDefaultHive
+        }
+    }
 }
 else {
     # Interactive Mode
