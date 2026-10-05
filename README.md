@@ -27,7 +27,7 @@
 [![CI Status](https://img.shields.io/github/actions/workflow/status/tomytate/Win-Debloat/ci.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
 
 <!-- Badges: Row 3 - Verification & Supply Chain Quality -->
-[![Test Suite](https://img.shields.io/badge/Pester%20Tests-388%20%2F%20388%20Pass%20(100%25)-22C55E?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
+[![Test Suite](https://img.shields.io/badge/Pester%20Tests-392%20%2F%20392%20Pass%20(100%25)-22C55E?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
 [![AST Parity](https://img.shields.io/badge/AST%20Parity-5--Way%20100%25-00D9FF?style=for-the-badge&logo=powershell&logoColor=white)](https://github.com/tomytate/Win-Debloat)
 [![SPDX SBOM](https://img.shields.io/badge/Supply%20Chain-SPDX%202.3%20SBOM-8B5CF6?style=for-the-badge&logo=spdx&logoColor=white)](dist/win-debloat-sbom.spdx.json)
 
@@ -91,10 +91,10 @@ Unlike legacy debloat scripts that blindly delete registry keys, Win-Debloat tre
 | :--- | :--- | :--- |
 | ⚡ **Performance & Engine** | **Execution Benchmark** | **`< 3.8 ms`** cold dispatch & direct .NET BCL telemetry engine |
 | 📦 **Architecture** | **Module Ecosystem** | **30 modular sub-systems** (100% cohesive domain separation) |
-| 🛠️ **API Surface** | **Functions & Aliases** | **293 canonical functions** + **330 backward-compatible aliases** |
-| 🧪 **Verification** | **Test Suite** | **388 / 388 Pester tests (100% pass)** with 0 PSScriptAnalyzer errors |
+| 🛠️ **API Surface** | **Functions & Aliases** | **297 canonical functions** + **337 backward-compatible aliases** |
+| 🧪 **Verification** | **Test Suite** | **392 / 392 Pester tests (100% pass)** with 0 PSScriptAnalyzer errors |
 | 🔄 **Compatibility** | **5-Way AST Parity** | **100% AST integrity** across PowerShell 5.1, 7.4, 7.5, 7.6.6 & .NET 10 |
-| 🖥️ **Cockpit GUI** | **Asynchronous 60 FPS WPF** | **STA Runspace Pipeline**, **33ms Dispatcher Pump**, **Live Cancellation**, **5-Card Telemetry Dashboard** (DirectStorage BypassIO) |
+| 🖥️ **Cockpit GUI** | **Asynchronous 60 FPS WPF** | **STA Runspace Pipeline**, **16ms (60 FPS) Dispatcher Pump**, **Live Cancellation**, **5-Card Telemetry Dashboard** (DirectStorage BypassIO) |
 | ⌨️ **Modern TUI** | **Spectre/VT100 Engine** | **Alternate Screen Buffer (DECSET 1049)**, **Double-Buffered Atomic Frames (DECSET 2026)**, **Visual Diff Viewer** |
 | 🛡️ **Safety & Rollback** | **Triple-Layer Recovery** | **Native CIM VSS Restore Point (24-hr bypass)** + **DPAPI AES-256 Snapshot** + **UTF-16LE .reg & rollback.cmd** |
 | 🔍 **Privacy Engine** | **11-Vector Scorer** | **100-point closed algorithm** evaluating Recall, Copilot, Telemetry, and Diagnostics |
@@ -102,7 +102,7 @@ Unlike legacy debloat scripts that blindly delete registry keys, Win-Debloat tre
 | 🚀 **Hardware Acceleration** | **Next-Gen CPU/GPU** | **AMD Dual-CCD 3D V-Cache**, **Intel Thread Director**, **DirectStorage 1.2+ BypassIO**, **ReFS Dev Drive**, **Wi-Fi 7 (802.11be MLO)** |
 | 🏢 **Enterprise Ready** | **Hardening Standards** | **SMB NTLM Blocking**, **Intune Win32 App Detection**, **Windows Protected Print (RFC 8011)**, **BitLocker XTS-256** |
 | 📦 **Software Catalog** | **Declarative apps.yaml** | **175 curated packages** across 8+ categories with multi-manager fallback (Winget/Choco/Store) |
-| 🔐 **Supply Chain** | **Provenance & Integrity** | **SPDX 2.3 JSON SBOM** + **Dual-Layer Authenticode Code Signing** |
+| 🔐 **Supply Chain** | **Provenance & Integrity** | **SPDX 2.3 JSON SBOM** + **SLSA Level 3 Build Provenance** + **Dual-Layer Authenticode Code Signing** |
 | 🪟 **Target Environments** | **Operating Systems** | **Windows 11 (24H2/25H2/26H1/26H2 Build 26300+)**, **Windows 10 (22H2)**, **Windows Server 2025** |
 
 ---
@@ -167,10 +167,10 @@ Win-Debloat provides self-contained, native single-file launchers compiled with 
 
 | Edition | Architecture | Binary Name | SHA-256 Checksum | Direct Download |
 | :--- | :--- | :--- | :--- | :--- |
-| **Standard** | **x64** (Intel/AMD) | `Win-Debloat.exe` | `C5280B7A4C25D37751267DBBC4644463B139E27775F967B8C8A1A8AA2AF441FB` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat.exe) |
-| **Standard** | **ARM64** (Snapdragon/Surface) | `Win-Debloat-arm64.exe` | `C07450965F6C9801396C521107E77E217EF25BD5BCCE63BDF6AB3F506755C8B9` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-arm64.exe) |
-| **Extras** ⚠️ | **x64** (Intel/AMD) | `Win-Debloat-Extras.exe` | `147094412CDD87B96AC5F83CC47C632D874FAD222EC524446989E74FF6D03185` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-Extras.exe) |
-| **Extras** ⚠️ | **ARM64** (Snapdragon/Surface) | `Win-Debloat-Extras-arm64.exe` | `65F65AFB7CDE5131CDE9A6944423E027D76CD85EA37CB2E7A0893F5A945B1636` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-Extras-arm64.exe) |
+| **Standard** | **x64** (Intel/AMD) | `Win-Debloat.exe` | `5C1E970BBB9EE096996ECD22FCE902FC35A27B633822EEBEB3FD8962860D2032` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat.exe) |
+| **Standard** | **ARM64** (Snapdragon/Surface) | `Win-Debloat-arm64.exe` | `0672D938F23D3065451B1B0DAEF2511C9C1B67BF5E1860CFDEB15CA6E2DEA2B5` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-arm64.exe) |
+| **Extras** ⚠️ | **x64** (Intel/AMD) | `Win-Debloat-Extras.exe` | `83A00C83B1974FD8EFAB324378E967EE9FAFFE8582F29DE8603B418F00EF6973` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-Extras.exe) |
+| **Extras** ⚠️ | **ARM64** (Snapdragon/Surface) | `Win-Debloat-Extras-arm64.exe` | `2C5D4745E1A752CB5AB88FB599B710B92743435447ED1BB0B7244E0C769FB5CF` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-Extras-arm64.exe) |
 
 #### ⚡ Universal Zero-Friction Smart Bootstrapper (`Run.bat` & `Win-Debloat.exe`)
 When executing `Run.bat` or standalone `Win-Debloat.exe`:

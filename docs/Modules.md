@@ -1,6 +1,6 @@
 # Modules Reference
 
-Win-Debloat is built on a modular architecture. Each feature is encapsulated in a standalone PowerShell Module (`.psm1`) located in `src/modules`, `src/core`, or `src/ui`. The standard manifest registers **30 modules** exporting **293 functions** (and 330 backward-compatible aliases), all engineered with zero-data-loss hardening, full reversibility, and backward-compatible `*-WinDebloat7*` aliases.
+Win-Debloat is built on a modular architecture. Each feature is encapsulated in a standalone PowerShell Module (`.psm1`) located in `src/modules`, `src/core`, or `src/ui`. The standard manifest registers **30 modules** exporting **297 functions** (and 337 backward-compatible aliases), all engineered with zero-data-loss hardening, full reversibility, and backward-compatible `*-WinDebloat7*` aliases.
 
 ---
 

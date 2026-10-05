@@ -1,6 +1,6 @@
 # Features & Capabilities
 
-Win-Debloat is a modular Windows optimization and privacy framework. You can run the entire suite using a YAML Profile, or use individual modules via the CLI, TUI, or GUI. Version 1.7.0 includes **293 exported functions** (and 330 backward-compatible aliases) across **30 registered modules** — engineered with zero-data-loss hardening, full preview capabilities, and complete reversibility.
+Win-Debloat is a modular Windows optimization and privacy framework. You can run the entire suite using a YAML Profile, or use individual modules via the CLI, TUI, or GUI. Version 1.7.0 includes **297 exported functions** (and 337 backward-compatible aliases) across **30 registered modules** — engineered with zero-data-loss hardening, full preview capabilities, and complete reversibility.
 
 ---
 

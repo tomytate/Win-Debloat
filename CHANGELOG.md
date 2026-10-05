@@ -2,9 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.7.0] - 2026-10-04 — "Silicon Mastery & 26H2 Apex"
+## [1.7.0] - 2026-10-06 — "Silicon Mastery & 26H2 Apex"
 
-The definitive **Silicon Mastery & 26H2 Apex** milestone release: **293 exported functions, 330 aliases, 388/388 Pester tests passing with zero defects, Windows 11 26H2 (Build 26300.9550) architecture alignment, hardware-aware silicon scheduling (AMD Dual-CCD X3D, Intel Lunar Lake / Arrow Lake Lion Cove & Skymont Heterogeneous scheduling), ReFS Dev Drive optimization, Server Native NVMe stack, SMB Client Hardening & NTLMv2 enforcement, low-latency kernel timers, network stack acceleration (UDP Receive Offload, Encrypted Client Hello, DoH), Copilot hardware key remapping, modern WPF Cockpit GUI & Spectre ANSI TUI architectures, headless terminal safety, and DirectStorage BypassIO health diagnostics.**
+The definitive **Silicon Mastery & 26H2 Apex** milestone release: **297 exported functions, 337 aliases, 392/392 Pester tests passing with zero defects, Windows 11 26H2 (Build 26300.9550) architecture alignment, hardware-aware silicon scheduling (AMD Dual-CCD X3D, Intel Lunar Lake / Arrow Lake Lion Cove & Skymont Heterogeneous scheduling), ReFS Dev Drive optimization, Server Native NVMe stack, SMB Client Hardening & NTLMv2 enforcement, low-latency kernel timers, network stack acceleration (UDP Receive Offload, Encrypted Client Hello, DoH), Copilot hardware key remapping, modern WPF Cockpit GUI & Spectre ANSI TUI architectures, headless terminal safety, and DirectStorage BypassIO health diagnostics.**
 
 ### 🌟 Release Highlights & The 5 Forensic Upgrades (100.0 / 100 Diamond Standard)
 - **1. Asynchronous Multi-Threaded STA Runspace Pipeline (`GUI.psm1`, `MainWindow.xaml`)**:
@@ -29,6 +29,17 @@ The definitive **Silicon Mastery & 26H2 Apex** milestone release: **293 exported
   - **Layer 3**: Standalone UTF-16LE Windows Registry Editor 5.00 (`.reg`) script with emergency `rollback.cmd`.
   - **Visual Diff Viewer**: Interactive ANSI diff viewer in TUI (`Show-WinDebloatDiffViewer`) with box borders, and in-window syntax-highlighted diff modal (`modalDiffOverlay`) in WPF GUI (`[+]` green `#22C55E`, `[-]` red `#EF4444`, `[~]` amber `#F59E0B`).
 
+### 📦 WinGet CLI v1.29.380 & Manifest Specification v1.28.0 Compliance
+- Modernized all generated WinGet manifests to the official **`ManifestVersion: 1.28.0`** schema with YAML language server directives.
+- Refined portable manifest specification rules (`Commands:` constrained strictly to single canonical `win-debloat`).
+- Verified zero errors locally on host environment with live Microsoft WinGet client `v1.29.380` via `winget validate --manifest dist\winget-manifests`.
+
+### 🛡️ Modern CI/CD Supply Chain (October 2026 Standards)
+- **SLSA Level 3 Cryptographic Provenance**: Configured `actions/attest-build-provenance@v2` on all compiled executables and ZIP release archives.
+- **SPDX 2.3 JSON Software Bill of Materials (SBOM)**: Bidirectional `DESCRIBES` relationships mapping all platform packages.
+- **Automated Secret Scanning**: Upgraded to `gitleaks/gitleaks-action@v2` with `.gitleaks.toml` rules.
+- **Chocolatey CLI v2.x Strictness**: Cleaned shortcut parameters and added uninstall binary cleanup.
+
 ### ⚙️ Servicing, Silicon & Security Enhancements
 - **Windows 11 26H2 Servicing Safety Gate (`Repair.psm1`)**: Added build detection guarding Windows 11 Build 26100+ Checkpoint Cumulative Updates by avoiding `/ResetBase` during DISM component store cleanup to prevent `0x800f081f` corruption errors. Handled reboot-required exit code `3010`.
 - **AMD Dual-CCD X3D Detection (`Gaming.psm1`)**: Expanded regex to include mobile dual-CCD chips (`7945HX3D|9945HX3D`) and dual service name detection (`amd3dvcache` / `Amd3DVCacheService`).
@@ -37,8 +48,8 @@ The definitive **Silicon Mastery & 26H2 Apex** milestone release: **293 exported
 - **Enterprise Security Hardening (`Security.psm1`)**: SMBv3 encryption, mandatory signing, NTLMv2 session security enforcement, and Lanman BlockNTLM configuration.
 
 ### 📊 Verification & Parity
-- **100% 5-Way AST Parity**: Exactly 293 canonical functions, 330 aliases across manifests (`Win-Debloat.psd1`, `Win-Debloat7.psd1`) and module definitions with 0 violations.
-- **388 / 388 Tests Passing**: 100% Pester test pass rate across 18 test suites (0 failed, 0 skipped).
+- **100% 5-Way AST Parity**: Exactly 297 canonical functions, 337 aliases across manifests (`Win-Debloat.psd1`, `Win-Debloat7.psd1`) and module definitions with 0 violations.
+- **392 / 392 Tests Passing**: 100% Pester test pass rate across 19 test suites (0 failed, 0 skipped).
 - **Author & Copyright**: Sole architect and author Tomy Tate (`tomytate`).
 
 ## [1.6.0] - 2026-10-04 — "Zero Technical Debt & Apex Architecture"

@@ -57,7 +57,14 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\deploy\Deploy-WinDebloat.ps1 -Pr
 
 ---
 
-## 🍫 Method 4: Chocolatey Package Manager
+## 📦 Method 4: Windows Package Manager (WinGet)
+```powershell
+winget install TomyTate.WinDebloat
+```
+
+---
+
+## 🍫 Method 5: Chocolatey Package Manager
 
 ```powershell
 choco install win-debloat
@@ -65,18 +72,18 @@ choco install win-debloat
 
 ---
 
-## 📂 Method 5: Portable Single-File Executables
+## 📂 Method 6: Portable Single-File Executables
 
 1.  Go to the **[Releases Page](https://github.com/tomytate/Win-Debloat/releases)**.
 2.  Download the **Single-File Executable**:
     *   **Standard**: `Win-Debloat.exe` (x64) or `Win-Debloat-arm64.exe` (ARM64)
     *   **Extras**: `Win-Debloat-Extras.exe` (x64) or `Win-Debloat-Extras-arm64.exe` (ARM64)
 3.  **Right-click → Run as Administrator.** No extraction needed.
-4.  The launcher verifies your PowerShell version and auto-installs PowerShell 7.6 LTS if missing.
+4.  The launcher verifies your environment and seamlessly falls back to native Windows PowerShell 5.1 if PowerShell 7+ is not installed.
 
 ---
 
-## 🛠️ Method 6: From Source (Developers)
+## 🛠️ Method 7: From Source (Developers)
 
 ```powershell
 git clone https://github.com/tomytate/Win-Debloat.git
@@ -88,7 +95,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\Win-Debloat.ps1
 
 ### Verify Integrity & AST Parity
 ```powershell
-# 1. Run complete Pester test suite (388 tests)
+# 1. Run complete Pester test suite (392 tests)
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\Run-AllTests.ps1
 
 # 2. Verify 5-Way Mathematical AST export parity
