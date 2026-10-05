@@ -1,0 +1,301 @@
+# Win-Debloat Declarative Software & Essentials Catalog
+# Author: Tomy Tate
+# Version: 1.7.0
+# Target OS: Windows 11 (26H2 / 24H2) & Windows 10
+
+version: "1.7.0"
+default_provider: "Winget"
+
+categories:
+  - id: "Browsers"
+    name: "Web Browsers"
+    description: "Fast, privacy-respecting and modern web browsers"
+    apps:
+      - id: "Mozilla.Firefox"
+        name: "Mozilla Firefox"
+        winget: "Mozilla.Firefox"
+        choco: "firefox"
+        recommended: true
+        description: "Open-source, privacy-first independent web browser"
+      - id: "Brave.Brave"
+        name: "Brave Browser"
+        winget: "Brave.Brave"
+        choco: "brave"
+        recommended: true
+        description: "Privacy browser with native ad & tracker blocking"
+      - id: "Google.Chrome"
+        name: "Google Chrome"
+        winget: "Google.Chrome"
+        choco: "googlechrome"
+        recommended: false
+        description: "Standard Chromium-based web browser"
+      - id: "Zen-Team.Zen-Browser"
+        name: "Zen Browser"
+        winget: "Zen-Team.Zen-Browser"
+        choco: ""
+        recommended: true
+        description: "Modern, beautiful Firefox-based minimalist browser"
+      - id: "LibreWolf.LibreWolf"
+        name: "LibreWolf"
+        winget: "LibreWolf.LibreWolf"
+        choco: "librewolf"
+        recommended: false
+        description: "Hardened, telemetry-stripped Firefox fork"
+      - id: "TorProject.TorBrowser"
+        name: "Tor Browser"
+        winget: "TorProject.TorBrowser"
+        choco: "tor-browser"
+        recommended: false
+        description: "Onion routing for maximum anonymity"
+      - id: "Vivaldi.Vivaldi"
+        name: "Vivaldi"
+        winget: "Vivaldi.Vivaldi"
+        choco: "vivaldi"
+        recommended: false
+        description: "Highly customizable power-user browser"
+
+  - id: "Utilities"
+    name: "System Utilities"
+    description: "File archivers, search utilities, and system power tools"
+    apps:
+      - id: "7zip.7zip"
+        name: "7-Zip"
+        winget: "7zip.7zip"
+        choco: "7zip"
+        recommended: true
+        description: "High-compression open-source file archiver"
+      - id: "Microsoft.PowerToys"
+        name: "Microsoft PowerToys"
+        winget: "Microsoft.PowerToys"
+        choco: "powertoys"
+        recommended: true
+        description: "System enhancements, FancyZones, and keyboard manager"
+      - id: "voidtools.Everything"
+        name: "Everything Search"
+        winget: "voidtools.Everything"
+        choco: "everything"
+        recommended: true
+        description: "Instant filename search for NTFS/ReFS volumes"
+      - id: "Notepad++.Notepad++"
+        name: "Notepad++"
+        winget: "Notepad++.Notepad++"
+        choco: "notepadplusplus"
+        recommended: true
+        description: "Lightweight, fast source code and text editor"
+      - id: "AntibodySoftware.WizTree"
+        name: "WizTree"
+        winget: "AntibodySoftware.WizTree"
+        choco: "wiztree"
+        recommended: true
+        description: "High-speed disk space visualization and analyzer"
+      - id: "ShareX.ShareX"
+        name: "ShareX"
+        winget: "ShareX.ShareX"
+        choco: "sharex"
+        recommended: true
+        description: "Screen capture, OCR, and file sharing power tool"
+      - id: "Rufus.Rufus"
+        name: "Rufus"
+        winget: "Rufus.Rufus"
+        choco: "rufus"
+        recommended: false
+        description: "Bootable USB drive creator with bypass options"
+      - id: "BleachBit.BleachBit"
+        name: "BleachBit"
+        winget: "BleachBit.BleachBit"
+        choco: "bleachbit"
+        recommended: false
+        description: "Open-source disk cleaner and privacy guard"
+
+  - id: "Gaming"
+    name: "Gaming & Social"
+    description: "Gaming platforms, voice chat, and game optimization"
+    apps:
+      - id: "Valve.Steam"
+        name: "Steam"
+        winget: "Valve.Steam"
+        choco: "steam"
+        recommended: true
+        description: "Premier digital distribution platform for PC gaming"
+      - id: "Discord.Discord"
+        name: "Discord"
+        winget: "Discord.Discord"
+        choco: "discord"
+        recommended: true
+        description: "Voice, video, and text communication platform"
+      - id: "EpicGames.EpicGamesLauncher"
+        name: "Epic Games Launcher"
+        winget: "EpicGames.EpicGamesLauncher"
+        choco: "epicgameslauncher"
+        recommended: false
+        description: "Digital store for Epic Games and Unreal Engine"
+      - id: "GOG.Galaxy"
+        name: "GOG Galaxy"
+        winget: "GOG.Galaxy"
+        choco: "goggalaxy"
+        recommended: false
+        description: "DRM-free gaming platform and unified game launcher"
+      - id: "PrismLauncher.PrismLauncher"
+        name: "Prism Launcher"
+        winget: "PrismLauncher.PrismLauncher"
+        choco: "prismlauncher"
+        recommended: false
+        description: "Custom open-source launcher for Minecraft"
+
+  - id: "Media"
+    name: "Media & Audio/Video"
+    description: "Media players, recording tools, and editors"
+    apps:
+      - id: "VideoLAN.VLC"
+        name: "VLC Media Player"
+        winget: "VideoLAN.VLC"
+        choco: "vlc"
+        recommended: true
+        description: "Universal open-source multimedia player"
+      - id: "OBSProject.OBSStudio"
+        name: "OBS Studio"
+        winget: "OBSProject.OBSStudio"
+        choco: "obs-studio"
+        recommended: true
+        description: "Free and open-source recording and live streaming"
+      - id: "Spotify.Spotify"
+        name: "Spotify"
+        winget: "Spotify.Spotify"
+        choco: "spotify"
+        recommended: false
+        description: "Digital music and podcast streaming service"
+      - id: "HandBrake.HandBrake"
+        name: "HandBrake"
+        winget: "HandBrake.HandBrake"
+        choco: "handbrake"
+        recommended: false
+        description: "Open-source video transcoder and converter"
+      - id: "dotPDNLLC.paintdotnet"
+        name: "Paint.NET"
+        winget: "dotPDNLLC.paintdotnet"
+        choco: "paint.net"
+        recommended: true
+        description: "Intuitive and powerful image and photo editor"
+      - id: "Audacity.Audacity"
+        name: "Audacity"
+        winget: "Audacity.Audacity"
+        choco: "audacity"
+        recommended: false
+        description: "Multi-track audio recorder and editor"
+
+  - id: "Development"
+    name: "Developer Tools"
+    description: "Code editors, terminal tools, and version control"
+    apps:
+      - id: "Microsoft.VisualStudioCode"
+        name: "Visual Studio Code"
+        winget: "Microsoft.VisualStudioCode"
+        choco: "vscode"
+        recommended: true
+        description: "Extensible code editor with rich language support"
+      - id: "Git.Git"
+        name: "Git for Windows"
+        winget: "Git.Git"
+        choco: "git"
+        recommended: true
+        description: "Fast, distributed version control system"
+      - id: "Microsoft.WindowsTerminal"
+        name: "Windows Terminal"
+        winget: "Microsoft.WindowsTerminal"
+        choco: "microsoft-windows-terminal"
+        recommended: true
+        description: "Modern, high-performance tabbed terminal emulator"
+      - id: "Microsoft.PowerShell"
+        name: "PowerShell 7 (LTS)"
+        winget: "Microsoft.PowerShell"
+        choco: "powershell-core"
+        recommended: true
+        description: "Modern cross-platform command-line shell"
+      - id: "OpenJS.NodeJS.LTS"
+        name: "Node.js (LTS)"
+        winget: "OpenJS.NodeJS.LTS"
+        choco: "nodejs-lts"
+        recommended: false
+        description: "JavaScript runtime built on Chrome's V8 engine"
+      - id: "Python.Python.3.13"
+        name: "Python 3.13"
+        winget: "Python.Python.3.13"
+        choco: "python313"
+        recommended: false
+        description: "Modern high-level general-purpose programming language"
+      - id: "Docker.DockerDesktop"
+        name: "Docker Desktop"
+        winget: "Docker.DockerDesktop"
+        choco: "docker-desktop"
+        recommended: false
+        description: "Container application development and virtualization"
+
+  - id: "Productivity"
+    name: "Productivity & Office"
+    description: "Office suites, note taking, and password security"
+    apps:
+      - id: "TheDocumentFoundation.LibreOffice"
+        name: "LibreOffice"
+        winget: "TheDocumentFoundation.LibreOffice"
+        choco: "libreoffice-fresh"
+        recommended: true
+        description: "Full-featured open-source office productivity suite"
+      - id: "Obsidian.Obsidian"
+        name: "Obsidian"
+        winget: "Obsidian.Obsidian"
+        choco: "obsidian"
+        recommended: true
+        description: "Extensible Markdown-based personal knowledge base"
+      - id: "Bitwarden.Bitwarden"
+        name: "Bitwarden"
+        winget: "Bitwarden.Bitwarden"
+        choco: "bitwarden"
+        recommended: true
+        description: "Open-source zero-knowledge password vault"
+      - id: "KeePassXCTeam.KeePassXC"
+        name: "KeePassXC"
+        winget: "KeePassXCTeam.KeePassXC"
+        choco: "keepassxc"
+        recommended: false
+        description: "Community-driven offline secure password manager"
+      - id: "Thunderbird.Thunderbird"
+        name: "Mozilla Thunderbird"
+        winget: "Thunderbird.Thunderbird"
+        choco: "thunderbird"
+        recommended: false
+        description: "Open-source email, calendar, and chat client"
+
+  - id: "Hardware"
+    name: "Hardware & Diagnostics"
+    description: "Hardware telemetry, thermals, and sensor monitoring"
+    apps:
+      - id: "REALiX.HWiNFO"
+        name: "HWiNFO"
+        winget: "REALiX.HWiNFO"
+        choco: "hwinfo"
+        recommended: true
+        description: "Comprehensive hardware analysis and real-time monitoring"
+      - id: "CPUID.CPU-Z"
+        name: "CPU-Z"
+        winget: "CPUID.CPU-Z"
+        choco: "cpu-z"
+        recommended: true
+        description: "Processor, motherboard, and memory diagnostics"
+      - id: "TechPowerUp.GPU-Z"
+        name: "GPU-Z"
+        winget: "TechPowerUp.GPU-Z"
+        choco: "gpu-z"
+        recommended: true
+        description: "Graphics card details, clocks, sensors, and thermals"
+      - id: "CrystalDewWorld.CrystalDiskInfo"
+        name: "CrystalDiskInfo"
+        winget: "CrystalDewWorld.CrystalDiskInfo"
+        choco: "crystaldiskinfo"
+        recommended: true
+        description: "NVMe/SSD/HDD SMART drive health monitor"
+      - id: "Guru3D.RTSS"
+        name: "RivaTuner Statistics Server"
+        winget: "Guru3D.RTSS"
+        choco: "rtss"
+        recommended: false
+        description: "Framerate monitoring, on-screen display, and frame capping"

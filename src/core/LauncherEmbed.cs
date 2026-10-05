@@ -3,6 +3,21 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+
+[assembly: AssemblyTitle("Win-Debloat")]
+[assembly: AssemblyDescription("Enterprise Windows 11/10 Debloating and Optimization Suite")]
+[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyCompany("Tomy Tate")]
+[assembly: AssemblyProduct("Win-Debloat")]
+[assembly: AssemblyCopyright("Copyright (c) 2026 Tomy Tate. All rights reserved.")]
+[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCulture("")]
+[assembly: ComVisible(false)]
+[assembly: AssemblyVersion("1.7.0.0")]
+[assembly: AssemblyFileVersion("1.7.0.0")]
+[assembly: AssemblyInformationalVersion("1.7.0")]
 
 namespace WinDebloat
 {
@@ -84,15 +99,10 @@ namespace WinDebloat
 
                 // 1. Ensure PowerShell 7.6+ is available (auto-install if needed)
                 string pwshPath = EnsurePowerShell();
+                bool useFallbackPs5 = false;
                 if (pwshPath == null)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Could not install PowerShell " + MinMajor + "." + MinMinor + "+ automatically.");
-                    Console.ResetColor();
-                    Console.WriteLine("Press any key to open the download page...");
-                    SafeReadKey();
-                    Process.Start(new ProcessStartInfo("https://github.com/PowerShell/PowerShell/releases/latest") { UseShellExecute = true });
-                    return;
+                    useFallbackPs5 = true;
                 }
 
                 // 2. Setup Temp Directory
@@ -151,18 +161,40 @@ namespace WinDebloat
                     }
                 }
 
-                string scriptCmd = string.Format(
-                    "$progressPreference='SilentlyContinue'; " +
-                    "Write-Host '🚀 Initializing Win-Debloat...' -ForegroundColor Cyan; " +
-                    "Expand-Archive -LiteralPath '{0}' -DestinationPath '{1}' -Force; " +
-                    "Set-Location '{1}'; " +
-                    "$entry = if (Test-Path './Win-Debloat.ps1') {{ './Win-Debloat.ps1' }} else {{ './Win-Debloat7.ps1' }}; " +
-                    "& $entry{2}",
-                    zipPath.Replace("'", "''"), tempPath.Replace("'", "''"), safeArgs.ToString()
-                );
+                string runnerPath = useFallbackPs5 ? "powershell.exe" : pwshPath;
+                string scriptCmd;
+
+                if (useFallbackPs5)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("[!] Modern PowerShell 7 not detected. Launching Native Windows Engine (PS 5.1)...");
+                    Console.ResetColor();
+
+                    scriptCmd = string.Format(
+                        "$progressPreference='SilentlyContinue'; " +
+                        "Write-Host '🚀 Initializing Win-Debloat (Native Engine)...' -ForegroundColor Cyan; " +
+                        "Expand-Archive -LiteralPath '{0}' -DestinationPath '{1}' -Force; " +
+                        "Set-Location '{1}'; " +
+                        "$entry = if (Test-Path './deploy/Deploy-WinDebloat.ps1') {{ './deploy/Deploy-WinDebloat.ps1' }} else {{ './Win-Debloat.ps1' }}; " +
+                        "& $entry{2}",
+                        zipPath.Replace("'", "''"), tempPath.Replace("'", "''"), safeArgs.ToString()
+                    );
+                }
+                else
+                {
+                    scriptCmd = string.Format(
+                        "$progressPreference='SilentlyContinue'; " +
+                        "Write-Host '🚀 Initializing Win-Debloat...' -ForegroundColor Cyan; " +
+                        "Expand-Archive -LiteralPath '{0}' -DestinationPath '{1}' -Force; " +
+                        "Set-Location '{1}'; " +
+                        "$entry = if (Test-Path './Win-Debloat.ps1') {{ './Win-Debloat.ps1' }} else {{ './Win-Debloat7.ps1' }}; " +
+                        "& $entry{2}",
+                        zipPath.Replace("'", "''"), tempPath.Replace("'", "''"), safeArgs.ToString()
+                    );
+                }
 
                 ProcessStartInfo startInfo = new ProcessStartInfo();
-                startInfo.FileName = pwshPath;
+                startInfo.FileName = runnerPath;
                 string encodedCmd = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(scriptCmd));
                 startInfo.Arguments = "-NoProfile -ExecutionPolicy Bypass -EncodedCommand " + encodedCmd;
                 startInfo.UseShellExecute = false;

@@ -265,8 +265,9 @@ try {
             $cArgs.Add("/o+")
             Write-Host "   Optimization: Enabled (/o+)" -ForegroundColor DarkGray
         }
-        else {
-            $cArgs.Add("/o-")
+        # Deterministic builds (Roslyn)
+        if ($compiler.Type -in @("DotNetSdk", "BuildToolsRoslyn")) {
+            $cArgs.Add("/deterministic")
         }
 
         # Platform targeting

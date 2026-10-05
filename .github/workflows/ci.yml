@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   test:
     name: Test on ${{ matrix.os }}
@@ -17,6 +24,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
 
     - name: Run AST 5-Way Parity Verification
       shell: pwsh
@@ -42,21 +51,24 @@ jobs:
       shell: pwsh
       run: |
         & ./build/Build-DualRelease.ps1 -Version "0.0.0-CI" -OutputDir dist -Platform all
-        if (-not (Test-Path "dist/Win-Debloat.exe")) {
-            Write-Error "Build verification failed: Standard x64 executable missing."
+        
+        $requiredFiles = @(
+            "dist/Win-Debloat.exe",
+            "dist/Win-Debloat-arm64.exe",
+            "dist/Win-Debloat-Extras.exe",
+            "dist/Win-Debloat-Extras-arm64.exe",
+            "dist/Win-Debloat-v0.0.0-CI.zip",
+            "dist/Win-Debloat-Extras-v0.0.0-CI.zip",
+            "dist/win-debloat-sbom.spdx.json",
+            "dist/SHA256SUMS.txt",
+            "dist/RELEASE_NOTES.md"
+        )
+        foreach ($file in $requiredFiles) {
+            if (-not (Test-Path -LiteralPath $file)) {
+                Write-Error "Build verification failed: Required release asset missing: $file"
+            }
         }
-        if (-not (Test-Path "dist/Win-Debloat-arm64.exe")) {
-            Write-Error "Build verification failed: Standard ARM64 executable missing."
-        }
-        if (-not (Test-Path "dist/Win-Debloat-Extras.exe")) {
-            Write-Error "Build verification failed: Extras x64 executable missing."
-        }
-        if (-not (Test-Path "dist/Win-Debloat-Extras-arm64.exe")) {
-            Write-Error "Build verification failed: Extras ARM64 executable missing."
-        }
-        if (-not (Test-Path "dist/win-debloat-sbom.spdx.json")) {
-            Write-Error "Build verification failed: SPDX SBOM missing."
-        }
+        Write-Host "✅ All dual release artifacts verified successfully." -ForegroundColor Green
 
     - name: Upload Test & Coverage Artifacts
       if: always()
@@ -66,13 +78,21 @@ jobs:
         path: |
           tests/TestResults.xml
           tests/Coverage.xml
+        retention-days: 14
+        compression-level: 0
+        overwrite: true
         if-no-files-found: ignore
 
   lint:
     name: Lint & Static Code Analysis
     runs-on: windows-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
 
     - name: Install PSScriptAnalyzer
       shell: pwsh
@@ -84,10 +104,12 @@ jobs:
       shell: pwsh
       run: |
         # Scope to first-party code (vendored powershell-yaml is excluded)
-        $results = @(Invoke-ScriptAnalyzer -Path src -Recurse -Severity Error |
+        $settingsPath = "./PSScriptAnalyzerSettings.psd1"
+        $results = @(Invoke-ScriptAnalyzer -Path src -Settings $settingsPath -Recurse -Severity Error |
             Where-Object { $_.ScriptPath -notlike '*\Vendor\*' })
-        $results += @(Invoke-ScriptAnalyzer -Path Win-Debloat.ps1 -Severity Error)
-        $results += @(Invoke-ScriptAnalyzer -Path Win-Debloat7.ps1 -Severity Error)
+        $results += @(Invoke-ScriptAnalyzer -Path Win-Debloat.ps1 -Settings $settingsPath -Severity Error)
+        $results += @(Invoke-ScriptAnalyzer -Path Win-Debloat7.ps1 -Settings $settingsPath -Severity Error)
+        
         if ($results.Count -gt 0) {
             $results | Format-Table -AutoSize
             exit 1

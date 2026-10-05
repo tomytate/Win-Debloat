@@ -250,8 +250,8 @@ function Disable-WinDebloatAIFabric {
     if ($PSCmdlet.ShouldProcess("AI Fabric & Phi-Silica SLM", "Deactivate background model host & reclaim RAM")) {
         Write-Log -Message "Deactivating AI Fabric background services..." -Level Info
 
-        # Terminate pre-warmed model host if running
-        Get-Process -Name "WorkloadsSessionHost", "AIFabricHost", "AIHost", "DirectMLHost", "ModelHost" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        # Terminate pre-warmed model host if running (reclaiming ~2.5GB RAM leak in 26H2)
+        Get-Process -Name "WorkloadsSessionHost", "WorkloadsSessionManager", "aicontext", "ClickToDo", "aimgr", "AIFabricHost", "AIHost", "DirectMLHost", "ModelHost", "phi-silica" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
         # Disable AI Fabric services
         $aiServices = @('WSAIFabricSvc', 'AIFabricUserSvc', 'NarrativeFlows', 'OneSettingsClientUserSvc', 'ModelCatalogUserSvc', 'SemanticSearchUserSvc')
@@ -268,10 +268,17 @@ function Disable-WinDebloatAIFabric {
             }
         }
 
-        # Prevent automatic model background downloads
+        # Prevent automatic model background downloads and disable agent connectors
         Set-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI\ModelManagement" -Name "DisableModelDownload" -Value 1 -Type "DWord"
         Set-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI\ModelManagement" -Name "DisableBackgroundModelUpdates" -Value 1 -Type "DWord"
         Set-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "DisableAIFeatures" -Value 1 -Type "DWord"
+
+        # AppPrivacy AI Model Access Denial (2 = Deny)
+        $appPrivacy = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy"
+        Set-RegistryKey -Path $appPrivacy -Name "LetAppsAccessSystemAIModels" -Value 2 -Type "DWord"
+        Set-RegistryKey -Path $appPrivacy -Name "LetAppsAccessForegroundText" -Value 2 -Type "DWord"
+        Set-RegistryKey -Path $appPrivacy -Name "ConfigureAgentConnectors" -Value 2 -Type "DWord"
+
         Write-Log -Message "Phi-Silica SLM AI Fabric deactivation complete. RAM reclaimed." -Level Success
     }
 }
@@ -301,6 +308,12 @@ function Enable-WinDebloatAIFabric {
         Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI\ModelManagement" -Name "DisableModelDownload"
         Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI\ModelManagement" -Name "DisableBackgroundModelUpdates"
         Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" -Name "DisableAIFeatures"
+
+        $appPrivacy = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy"
+        Remove-RegistryKey -Path $appPrivacy -Name "LetAppsAccessSystemAIModels"
+        Remove-RegistryKey -Path $appPrivacy -Name "LetAppsAccessForegroundText"
+        Remove-RegistryKey -Path $appPrivacy -Name "ConfigureAgentConnectors"
+
         Write-Log -Message "AI Fabric services and policies restored to default." -Level Success
     }
 }
@@ -387,9 +400,17 @@ function Disable-WinDebloatAI {
             @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI"; Name = "DisableClickToDo"; Value = 1; Type = "DWord" }
             @{ Path = "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI"; Name = "DisableClickToDo"; Value = 1; Type = "DWord" }
             
-            # App-level AI (Paint Cocreator, Notepad AI Rewrite, Photos Super Resolution)
+            # App-level AI (Paint Cocreator / Generative Fill / Generative Erase, Notepad AI Rewrite / Features, Photos Super Resolution)
             @{ Path = "HKCU:\Software\Microsoft\Paint"; Name = "DisableCocreator"; Value = 1; Type = "DWord" }
+            @{ Path = "HKCU:\Software\Microsoft\Paint"; Name = "DisableGenerativeFill"; Value = 1; Type = "DWord" }
+            @{ Path = "HKCU:\Software\Microsoft\Paint"; Name = "DisableGenerativeErase"; Value = 1; Type = "DWord" }
+            @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Paint"; Name = "DisableCocreator"; Value = 1; Type = "DWord" }
+            @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Paint"; Name = "DisableGenerativeFill"; Value = 1; Type = "DWord" }
+            @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Paint"; Name = "DisableGenerativeErase"; Value = 1; Type = "DWord" }
             @{ Path = "HKCU:\Software\Microsoft\Notepad"; Name = "DisableAIRewrite"; Value = 1; Type = "DWord" }
+            @{ Path = "HKCU:\Software\Microsoft\Notepad"; Name = "DisableAIFeaturesInNotepad"; Value = 1; Type = "DWord" }
+            @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Notepad"; Name = "DisableAIRewrite"; Value = 1; Type = "DWord" }
+            @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Notepad"; Name = "DisableAIFeaturesInNotepad"; Value = 1; Type = "DWord" }
             @{ Path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Photos"; Name = "DisableSuperResolution"; Value = 1; Type = "DWord" }
             
             # Edge AI

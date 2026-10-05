@@ -579,12 +579,14 @@ function Set-WinDebloatTcpCongestionProvider {
                 # Apply custom template globally
                 Start-Process -FilePath "netsh.exe" -ArgumentList "int tcp set supplemental custom" -Wait -NoNewWindow | Out-Null
 
-                # If BBR2 is chosen, disable loopback large MTU to avoid local RPC hangs
+                # If BBR2 is chosen, disable loopback large MTU across both IPv4 and IPv6 to avoid local RPC hangs
                 if ($Provider -eq "bbr2") {
-                    Start-Process -FilePath "netsh.exe" -ArgumentList "int ip set global loopbacklargemtu=disable" -Wait -NoNewWindow | Out-Null
+                    Start-Process -FilePath "netsh.exe" -ArgumentList "int ipv4 set global loopbacklargemtu=disable" -Wait -NoNewWindow | Out-Null
+                    Start-Process -FilePath "netsh.exe" -ArgumentList "int ipv6 set global loopbacklargemtu=disable" -Wait -NoNewWindow | Out-Null
                 }
                 else {
-                    Start-Process -FilePath "netsh.exe" -ArgumentList "int ip set global loopbacklargemtu=enable" -Wait -NoNewWindow | Out-Null
+                    Start-Process -FilePath "netsh.exe" -ArgumentList "int ipv4 set global loopbacklargemtu=enable" -Wait -NoNewWindow | Out-Null
+                    Start-Process -FilePath "netsh.exe" -ArgumentList "int ipv6 set global loopbacklargemtu=enable" -Wait -NoNewWindow | Out-Null
                 }
                 Write-Log -Message "TCP Congestion Provider successfully set to '$Provider'." -Level Success
             }
@@ -744,6 +746,138 @@ function Disable-WinDebloatECN {
     }
 }
 
+<#
+.SYNOPSIS
+    Disables UDP Receive Offload (URO) on network adapters to eliminate gaming packet coalescing jitter.
+#>
+function Disable-WinDebloatNetAdapterURO {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Disabling UDP Receive Offload (URO) on active network adapters..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Network Adapters", "Disable UDP Receive Offload (URO)")) {
+        $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Up" }
+        foreach ($adapter in $adapters) {
+            try {
+                if (Get-Command Disable-NetAdapterUro -ErrorAction SilentlyContinue) {
+                    Disable-NetAdapterUro -Name $adapter.Name -IPv4 -IPv6 -Confirm:$false -ErrorAction SilentlyContinue
+                    Write-Log -Message "Disabled URO on adapter: $($adapter.Name)" -Level Success
+                }
+            }
+            catch {
+                Write-Log -Message "Notice: Could not disable URO on $($adapter.Name): $($_.Exception.Message)" -Level Debug
+            }
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Enables UDP Receive Offload (URO) on active network adapters.
+#>
+function Enable-WinDebloatNetAdapterURO {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Network Adapters", "Enable UDP Receive Offload (URO)")) {
+        $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Up" }
+        foreach ($adapter in $adapters) {
+            try {
+                if (Get-Command Enable-NetAdapterUro -ErrorAction SilentlyContinue) {
+                    Enable-NetAdapterUro -Name $adapter.Name -IPv4 -IPv6 -Confirm:$false -ErrorAction SilentlyContinue
+                    Write-Log -Message "Enabled URO on adapter: $($adapter.Name)" -Level Success
+                }
+            }
+            catch {
+                Write-Log -Message "Notice: Could not enable URO on $($adapter.Name): $($_.Exception.Message)" -Level Debug
+            }
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Enables Encrypted Client Hello (ECH) across Microsoft Edge and Google Chrome.
+#>
+function Enable-WinDebloatECH {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Enabling Encrypted Client Hello (ECH) for Edge and Chrome..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Browser Network Security", "Enable Encrypted Client Hello (ECH)")) {
+        Set-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name "EncryptedClientHelloEnabled" -Value 1 -Type DWord | Out-Null
+        Set-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Google\Chrome" -Name "EncryptedClientHelloEnabled" -Value 1 -Type DWord | Out-Null
+        Write-Log -Message "Encrypted Client Hello (ECH) policy enabled." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Disables Encrypted Client Hello (ECH) policy overrides for Edge and Chrome.
+#>
+function Disable-WinDebloatECH {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Browser Network Security", "Disable Encrypted Client Hello (ECH) policy override")) {
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name "EncryptedClientHelloEnabled" | Out-Null
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Google\Chrome" -Name "EncryptedClientHelloEnabled" | Out-Null
+        Write-Log -Message "Encrypted Client Hello (ECH) policy override removed." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Configures Windows DNS-over-HTTPS (DoH) resolution policy.
+.PARAMETER Policy
+    Allow (opportunistic DoH fallback), Require (strict encrypted DoH only), or Prohibit.
+#>
+function Set-WinDebloatDoHPolicy {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("Allow", "Require", "Prohibit")]
+        [string]$Policy = "Allow"
+    )
+
+    $val = switch ($Policy) {
+        "Prohibit" { 1 }
+        "Allow"    { 2 }
+        "Require"  { 3 }
+    }
+
+    Write-Log -Message "Configuring DNS-over-HTTPS resolution policy ($Policy)..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("DNS Client", "Configure DoH policy: $Policy")) {
+        $dnsPolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient"
+        Set-RegistryKey -Path $dnsPolicyPath -Name "DoHPolicy" -Value $val -Type DWord | Out-Null
+        Write-Log -Message "DNS-over-HTTPS policy set to '$Policy'." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores DNS-over-HTTPS resolution policy to Windows defaults.
+#>
+function Reset-WinDebloatDoHPolicy {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("DNS Client", "Restore default DoH policy")) {
+        $dnsPolicyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient"
+        Remove-RegistryKey -Path $dnsPolicyPath -Name "DoHPolicy" | Out-Null
+        Write-Log -Message "DNS-over-HTTPS policy restored to default." -Level Success
+    }
+}
+
 #endregion
 
 # Aliases for backward compatibility
@@ -763,6 +897,12 @@ Set-Alias -Name 'Disable-WinDebloat7NetAdapterLSO' -Value 'Disable-WinDebloatNet
 Set-Alias -Name 'Enable-WinDebloat7NetAdapterLSO' -Value 'Enable-WinDebloatNetAdapterLSO'
 Set-Alias -Name 'Enable-WinDebloat7ECN' -Value 'Enable-WinDebloatECN'
 Set-Alias -Name 'Disable-WinDebloat7ECN' -Value 'Disable-WinDebloatECN'
+Set-Alias -Name 'Disable-WinDebloat7NetAdapterURO' -Value 'Disable-WinDebloatNetAdapterURO'
+Set-Alias -Name 'Enable-WinDebloat7NetAdapterURO' -Value 'Enable-WinDebloatNetAdapterURO'
+Set-Alias -Name 'Enable-WinDebloat7ECH' -Value 'Enable-WinDebloatECH'
+Set-Alias -Name 'Disable-WinDebloat7ECH' -Value 'Disable-WinDebloatECH'
+Set-Alias -Name 'Set-WinDebloat7DoHPolicy' -Value 'Set-WinDebloatDoHPolicy'
+Set-Alias -Name 'Reset-WinDebloat7DoHPolicy' -Value 'Reset-WinDebloatDoHPolicy'
 
 Export-ModuleMember -Function @(
     'Set-WinDebloatDNS',
@@ -780,7 +920,13 @@ Export-ModuleMember -Function @(
     'Disable-WinDebloatNetAdapterLSO',
     'Enable-WinDebloatNetAdapterLSO',
     'Enable-WinDebloatECN',
-    'Disable-WinDebloatECN'
+    'Disable-WinDebloatECN',
+    'Disable-WinDebloatNetAdapterURO',
+    'Enable-WinDebloatNetAdapterURO',
+    'Enable-WinDebloatECH',
+    'Disable-WinDebloatECH',
+    'Set-WinDebloatDoHPolicy',
+    'Reset-WinDebloatDoHPolicy'
 ) -Alias @(
     'Set-WinDebloat7DNS',
     'Get-WinDebloat7DNSProviders',
@@ -797,5 +943,11 @@ Export-ModuleMember -Function @(
     'Disable-WinDebloat7NetAdapterLSO',
     'Enable-WinDebloat7NetAdapterLSO',
     'Enable-WinDebloat7ECN',
-    'Disable-WinDebloat7ECN'
+    'Disable-WinDebloat7ECN',
+    'Disable-WinDebloat7NetAdapterURO',
+    'Enable-WinDebloat7NetAdapterURO',
+    'Enable-WinDebloat7ECH',
+    'Disable-WinDebloat7ECH',
+    'Set-WinDebloat7DoHPolicy',
+    'Reset-WinDebloat7DoHPolicy'
 )

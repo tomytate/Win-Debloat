@@ -1,5 +1,12 @@
 $ErrorActionPreference = 'Stop'
 
+# Enforce TLS 1.2 / TLS 1.3 for secure downloads across PowerShell 5.1 and modern pwsh
+try {
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12 -bor 3072
+} catch {}
+
+$apiHeaders = @{ 'User-Agent' = 'Win-Debloat-Installer/1.7.0' }
+
 Write-Host "== Win-Debloat7 Installer (EXTRAS EDITION) ==" -ForegroundColor Yellow
 Write-Host "=============================================" -ForegroundColor Yellow
 Write-Host "[!] NOTE: This edition includes tools that MAY trigger Antivirus alerts." -ForegroundColor Red
@@ -12,7 +19,7 @@ $ApiUrl = "https://api.github.com/repos/$Repo/releases/latest"
 
 try {
     Write-Host " -> Fetching latest version info..." -NoNewline
-    $Release = Invoke-RestMethod -Uri $ApiUrl
+    $Release = Invoke-RestMethod -Uri $ApiUrl -Headers $apiHeaders
     Write-Host " [OK] ($($Release.tag_name))" -ForegroundColor Green
 }
 catch {
@@ -61,7 +68,7 @@ try {
     }
 
     try {
-        $SumsContent = (Invoke-RestMethod -Uri $SumsAsset.browser_download_url).Trim()
+        $SumsContent = (Invoke-RestMethod -Uri $SumsAsset.browser_download_url -Headers $apiHeaders).Trim()
         Write-Host " [OK]" -ForegroundColor Green
     }
     catch {

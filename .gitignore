@@ -1,5 +1,6 @@
 # Build Artifacts
 dist/
+build/winget-manifests/
 *.zip
 *.7z
 *.exe

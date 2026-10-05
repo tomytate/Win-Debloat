@@ -48,6 +48,46 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function New-DeterministicZip {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationArchive
+    )
+    if (Test-Path -LiteralPath $DestinationArchive) {
+        Remove-Item -LiteralPath $DestinationArchive -Force
+    }
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    $fixedTime = [DateTimeOffset]::new(2026, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
+    $zipStream = [System.IO.File]::Create($DestinationArchive)
+    $zipArchive = [System.IO.Compression.ZipArchive]::new($zipStream, [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        $files = Get-ChildItem -Path $SourceDirectory -Recurse -File | Sort-Object FullName
+        foreach ($file in $files) {
+            $relativePath = $file.FullName.Substring($SourceDirectory.Length).TrimStart('\', '/') -replace '\\', '/'
+            $entry = $zipArchive.CreateEntry($relativePath, [System.IO.Compression.CompressionLevel]::Optimal)
+            $entry.LastWriteTime = $fixedTime
+            $entryStream = $entry.Open()
+            $fileStream = [System.IO.File]::OpenRead($file.FullName)
+            try {
+                $fileStream.CopyTo($entryStream)
+            }
+            finally {
+                $fileStream.Dispose()
+                $entryStream.Dispose()
+            }
+        }
+    }
+    finally {
+        $zipArchive.Dispose()
+        $zipStream.Dispose()
+    }
+}
+
 $Root = (Resolve-Path "$PSScriptRoot\..").Path
 $DistPath = [System.IO.Path]::GetFullPath($OutputDir)
 
@@ -118,6 +158,7 @@ if ($SignCertPath -and (Test-Path -LiteralPath $SignCertPath)) {
 # ═══════════════════════════════════════════════════════════════
 
 $builtExecutables = [System.Collections.Generic.List[PSCustomObject]]::new()
+$builtArchives    = [System.Collections.Generic.List[PSCustomObject]]::new()
 
 foreach ($variant in @("Standard", "Extras")) {
     Write-Host "`n📦 Packaging $variant Edition..." -ForegroundColor Cyan
@@ -145,7 +186,9 @@ foreach ($variant in @("Standard", "Extras")) {
             "config",
             "profiles",
             "assets",
-            "docs"
+            "docs",
+            "deploy",
+            "Run.bat"
         )
 
         foreach ($item in $includeItems) {
@@ -183,10 +226,29 @@ foreach ($variant in @("Standard", "Extras")) {
         $payloadZip = Join-Path $DistPath "payload_$variant.zip"
         if (Test-Path -LiteralPath $payloadZip) { Remove-Item -LiteralPath $payloadZip -Force }
 
-        Write-Host "   📦 Compressing staged payload to ZIP..." -ForegroundColor DarkGray
-        Compress-Archive -Path "$stageDir\*" -DestinationPath $payloadZip -Force -ErrorAction Stop
+        Write-Host "   📦 Compressing staged payload to deterministic ZIP..." -ForegroundColor DarkGray
+        New-DeterministicZip -SourceDirectory $stageDir -DestinationArchive $payloadZip
         $zipSize = [math]::Round((Get-Item -LiteralPath $payloadZip).Length / 1MB, 2)
         Write-Host "   📦 Payload archive created ($zipSize MB)" -ForegroundColor DarkGray
+
+        # Also copy payload to final release archive
+        $finalZipName = switch ($variant) {
+            "Standard" { "Win-Debloat-v$Version.zip" }
+            "Extras"   { "Win-Debloat-Extras-v$Version.zip" }
+        }
+        $finalZipPath = Join-Path $DistPath $finalZipName
+        Copy-Item -Path $payloadZip -Destination $finalZipPath -Force
+        $zipItem = Get-Item -LiteralPath $finalZipPath
+        $finalZipSizeMb = [math]::Round($zipItem.Length / 1MB, 2)
+        $builtArchives.Add([PSCustomObject]@{
+            Name        = $finalZipName
+            Variant     = $variant
+            Arch        = "universal"
+            Path        = $finalZipPath
+            SizeMb      = $finalZipSizeMb
+            LengthBytes = $zipItem.Length
+        })
+        Write-Host "   📦 Release archive created: $finalZipName ($finalZipSizeMb MB)" -ForegroundColor DarkGray
 
         # 4. Compile Executable(s) for each target architecture
         foreach ($arch in $targetArchs) {
@@ -271,18 +333,25 @@ Write-Host "`n🔐 Generating cryptographic SHA256 checksums..." -ForegroundColo
 $checksums = @{}
 $checksumFile = Join-Path $DistPath "SHA256SUMS.txt"
 $sb = [System.Text.StringBuilder]::new()
+$allArtifacts = @($builtExecutables) + @($builtArchives)
 
-foreach ($exe in $builtExecutables) {
-    $hash = (Get-FileHash -Path $exe.Path -Algorithm SHA256).Hash
-    $line = "$hash  $($exe.Name)"
+foreach ($art in $allArtifacts) {
+    $hash = (Get-FileHash -Path $art.Path -Algorithm SHA256).Hash
+    $line = "$hash  $($art.Name)"
     $sb.AppendLine($line) | Out-Null
-    Write-Host "   $($exe.Name.PadRight(30)): $hash" -ForegroundColor Gray
+    Write-Host "   $($art.Name.PadRight(32)): $hash" -ForegroundColor Gray
     
-    if ($exe.Name -eq "Win-Debloat.exe") {
+    if ($art.Name -eq "Win-Debloat.exe") {
         $checksums["Standard"] = $hash
     }
-    elseif ($exe.Name -eq "Win-Debloat-Extras.exe") {
+    elseif ($art.Name -eq "Win-Debloat-Extras.exe") {
         $checksums["Extras"] = $hash
+    }
+    elseif ($art.Name -eq "Win-Debloat-v$Version.zip") {
+        $checksums["StandardZip"] = $hash
+    }
+    elseif ($art.Name -eq "Win-Debloat-Extras-v$Version.zip") {
+        $checksums["ExtrasZip"] = $hash
     }
 }
 
@@ -296,38 +365,50 @@ Write-Host "   ✅ SHA256SUMS.txt written." -ForegroundColor Green
 Write-Host "`n📋 Generating SPDX 2.3 JSON Software Bill of Materials (SBOM)..." -ForegroundColor Cyan
 $sbomPackages = [System.Collections.Generic.List[psobject]]::new()
 
-foreach ($exe in $builtExecutables) {
-    $hash = (Get-FileHash -Path $exe.Path -Algorithm SHA256).Hash
+foreach ($art in $allArtifacts) {
+    $hash = (Get-FileHash -Path $art.Path -Algorithm SHA256).Hash
     $sbomPackages.Add([ordered]@{
-        SPDXID           = "SPDXRef-Package-$($exe.Name -replace '[^a-zA-Z0-9]', '-')"
-        name             = $exe.Name
+        SPDXID           = "SPDXRef-Package-$($art.Name -replace '[^a-zA-Z0-9]', '-')"
+        name             = $art.Name
         versionInfo      = $Version
-        downloadLocation = "https://github.com/tomytate/Win-Debloat/releases/download/v$Version/$($exe.Name)"
+        downloadLocation = "https://github.com/tomytate/Win-Debloat/releases/download/v$Version/$($art.Name)"
         filesAnalyzed    = $false
         checksums        = @(
             @{
-                algorithm = "SHA256"
+                algorithm     = "SHA256"
                 checksumValue = $hash
             }
         )
         licenseConcluded = "MIT"
         licenseDeclared  = "MIT"
         copyrightText    = "Copyright (c) 2026 Tomy Tate"
-        description      = "$($exe.Variant) Edition standalone binary for Windows ($($exe.Arch))"
+        description      = "$($art.Variant) Edition release artifact ($($art.Name))"
+    })
+}
+
+$relationships = [System.Collections.Generic.List[psobject]]::new()
+foreach ($pkg in $sbomPackages) {
+    $relationships.Add([ordered]@{
+        spdxElementId      = "SPDXRef-DOCUMENT"
+        relationshipType   = "DESCRIBES"
+        relatedSpdxElement = $pkg.SPDXID
     })
 }
 
 $sbom = [ordered]@{
-    spdxVersion    = "SPDX-2.3"
-    dataLicense    = "CC0-1.0"
-    SPDXID         = "SPDXRef-DOCUMENT"
-    name           = "Win-Debloat-v$Version-SBOM"
-    documentNamespace = "https://github.com/tomytate/Win-Debloat/releases/tag/v$Version/sbom.spdx.json"
-    creationInfo   = [ordered]@{
-        created  = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-        creators = @("Tool: WinDebloat-Builder-2.2", "Person: Tomy Tate")
+    '$schema'          = "https://spdx.org/schema/2.3/spdx-json-schema.json"
+    spdxVersion        = "SPDX-2.3"
+    dataLicense        = "CC0-1.0"
+    SPDXID             = "SPDXRef-DOCUMENT"
+    name               = "Win-Debloat-v$Version-SBOM"
+    documentNamespace  = "https://github.com/tomytate/Win-Debloat/releases/tag/v$Version/win-debloat-sbom.spdx.json"
+    creationInfo       = [ordered]@{
+        created            = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+        creators           = @("Tool: WinDebloat-Builder-2.2", "Organization: Win-Debloat Project", "Person: Tomy Tate")
+        licenseListVersion = "3.22"
     }
-    packages       = $sbomPackages
+    packages           = $sbomPackages
+    relationships      = $relationships
 }
 
 $sbomPath = Join-Path $DistPath "win-debloat-sbom.spdx.json"
@@ -361,7 +442,7 @@ Includes advanced tools such as Defender Remover and MAS.
 - **Supply Chain Security**: Dual-Layer Authenticode Signing & SPDX 2.3 JSON SBOM
 
 ## 📋 Requirements
-- Windows 10 (Build 19041+) or Windows 11 (23H2 / 24H2 / 25H2 / 26H1)
+- Windows 10 (Build 19041+), Windows 11 (23H2 / 24H2 / 25H2 / 26H1 / 26H2), or Windows Server 2025
 - PowerShell 7.6+ LTS or Windows PowerShell 5.1
 - Administrator Privileges
 
@@ -398,16 +479,31 @@ if (Test-Path -LiteralPath $chocoInstallPath) {
     $content = Get-Content -LiteralPath $chocoInstallPath -Raw
     $content = $content -replace "(?m)^\s*\`$version\s*=\s*'.*'", "`$version     = '$Version'"
     if ($checksums["Standard"]) {
-        $content = $content -replace "(?m)^\s*\`$checksum\s*=\s*`".*`"", "`$checksum    = `"$($checksums["Standard"])`""
+        $content = $content -replace "(?m)^\s*\`$checksumX64\s*=\s*`".*`"", "`$checksumX64   = `"$($checksums["Standard"])`""
+    }
+    $arm64StandardExe = $builtExecutables | Where-Object { $_.Name -eq "Win-Debloat-arm64.exe" } | Select-Object -First 1
+    if ($arm64StandardExe) {
+        $arm64Hash = (Get-FileHash -Path $arm64StandardExe.Path -Algorithm SHA256).Hash
+        $content = $content -replace "(?m)^\s*\`$checksumArm64\s*=\s*`".*`"", "`$checksumArm64 = `"$arm64Hash`""
     }
     Set-Content -LiteralPath $chocoInstallPath -Value $content -Encoding UTF8
-    Write-Host "   ✅ Updated Chocolatey install script version & checksum" -ForegroundColor Gray
+    Write-Host "   ✅ Updated Chocolatey install script version & dual-arch checksums" -ForegroundColor Gray
+}
+
+# 3. Update Winget Manifests
+$wingetScript = Join-Path $PSScriptRoot "New-WingetManifest.ps1"
+if (Test-Path -LiteralPath $wingetScript) {
+    & $wingetScript -Version $Version -OutputDirectory (Join-Path $DistPath "winget-manifests")
+    $buildWingetDir = Join-Path $PSScriptRoot "winget-manifests"
+    & $wingetScript -Version $Version -OutputDirectory $buildWingetDir
+    Write-Host "   ✅ Generated Winget v1.28.0 manifests in dist and build" -ForegroundColor Gray
 }
 
 Write-Host "`n═══════════════════════════════════════════════════════════════" -ForegroundColor Green
 Write-Host "🎉 BUILD SUCCEEDED: Win-Debloat v$Version" -ForegroundColor Green
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
-foreach ($exe in $builtExecutables) {
-    Write-Host "   📦 $($exe.Name.PadRight(30)) | $($exe.Arch.PadRight(8)) | $($exe.SizeMb) MB" -ForegroundColor White
+foreach ($art in $allArtifacts) {
+    $archLabel = if ($art.PSObject.Properties['Arch']) { $art.Arch } else { "universal" }
+    Write-Host "   📦 $($art.Name.PadRight(32)) | $([string]$archLabel.PadRight(10)) | $($art.SizeMb) MB" -ForegroundColor White
 }
 Write-Host "   📁 Artifacts directory: $DistPath`n" -ForegroundColor Gray

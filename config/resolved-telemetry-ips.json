@@ -1,8 +1,8 @@
 {
     "Version": "1.0.0",
-    "LastUpdated": "2026-10-03T16:31:01Z",
+    "LastUpdated": "2026-10-04T12:00:00Z",
     "Description": "Locally cached telemetry IPs for Win-Debloat offline resilience",
-    "TotalIPs": 83,
+    "TotalIPs": 82,
     "IPs": [
         "104.18.22.222",
         "104.18.23.222",
@@ -13,7 +13,6 @@
         "104.254.151.60",
         "104.254.151.68",
         "104.254.151.69",
-        "127.0.0.1",
         "129.151.218.5",
         "13.69.116.109",
         "13.89.179.12",

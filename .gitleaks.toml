@@ -1,0 +1,12 @@
+[title]
+description = "Gitleaks configuration for Win-Debloat"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlisted test fixtures, hashes, and configuration mock paths"
+paths = [
+    '''tests/''',
+    '''config/'''
+]

@@ -515,6 +515,17 @@
 
         <Style x:Key="NeonTextGlowStyle" TargetType="TextBlock"/>
 
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <!-- HIGH-DPI FLUENT VECTOR GEOMETRIES (Zero Scaling Blur)                 -->
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <Geometry x:Key="IconDashboard">M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z</Geometry>
+        <Geometry x:Key="IconSettings">M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z</Geometry>
+        <Geometry x:Key="IconSoftware">M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-9 3h2v4h-2V5zm0 6h2v6h-2v-6zm-4-4h2v2H7V7zm0 4h2v6H7v-6zm10 6h-2v-4h2v4zm0-6h-2V7h2v4z</Geometry>
+        <Geometry x:Key="IconBackup">M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z</Geometry>
+        <Geometry x:Key="IconTools">M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z</Geometry>
+        <Geometry x:Key="IconZap">M7 2v11h3v9l7-12h-4l4-8z</Geometry>
+        <Geometry x:Key="IconStorage">M2 20h20v-4H2v4zm2-3h2v2H4v-2zM2 4v4h20V4H2zm4 3H4V5h2v2zm-4 7h20v-4H2v4zm2-3h2v2H4v-2z</Geometry>
+
     </Window.Resources>
 
     <!-- ═══════════════════════════════════════════════════════════════════════════ -->
@@ -543,7 +554,7 @@
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Win-Debloat" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text="v1.6.0 &quot;Apex&quot; • Ultimate Optimizer" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
+                            <TextBlock Text="v1.7.0 &quot;Apex&quot; • Windows 11 26H2 Ready" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
@@ -555,37 +566,37 @@
                     
                     <RadioButton x:Name="navDashboard" IsChecked="True" GroupName="nav" Style="{StaticResource NavButtonStyle}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🏠" FontSize="15" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource IconDashboard}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,12,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Dashboard" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
                     <RadioButton x:Name="navSystemTweaks" GroupName="nav" Style="{StaticResource NavButtonStyle}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="⚙️" FontSize="15" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource IconSettings}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,12,0" VerticalAlignment="Center"/>
                             <TextBlock Text="System Tweaks" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
                     <RadioButton x:Name="navSoftware" GroupName="nav" Style="{StaticResource NavButtonStyle}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="📦" FontSize="15" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource IconSoftware}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,12,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Software" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
                     <RadioButton x:Name="navBackups" GroupName="nav" Style="{StaticResource NavButtonStyle}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="💾" FontSize="15" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource IconBackup}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,12,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Backups" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
                     <RadioButton x:Name="navTools" GroupName="nav" Style="{StaticResource NavButtonStyle}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🛠️" FontSize="15" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource IconTools}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,12,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Tools" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
                     <RadioButton x:Name="navSettings" GroupName="nav" Style="{StaticResource NavButtonStyle}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="⚡" FontSize="15" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource IconZap}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,12,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Settings" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
@@ -594,9 +605,9 @@
                 <!-- Sidebar Footer Status Pill -->
                 <Border Grid.Row="2" Background="{StaticResource CardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="14" CornerRadius="10" Margin="14,0,14,16">
                     <StackPanel>
-                        <TextBlock Name="txtSidebarVersion" Text="v1.6.0 &quot;Apex&quot; • PowerShell 7.6+" FontSize="11" FontWeight="SemiBold"
+                        <TextBlock Name="txtSidebarVersion" Text="v1.7.0 &quot;Apex&quot; • PowerShell 7.6+" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Windows 11 26H1 Ready" FontSize="10" FontWeight="Bold"
+                        <TextBlock Text="Windows 11 26H2 Ready" FontSize="10" FontWeight="Bold"
                                    Foreground="{StaticResource SuccessBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
@@ -625,11 +636,13 @@
                         <Grid Margin="0,0,0,24">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="10"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="10"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
@@ -646,8 +659,20 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Privacy Score Card -->
+                            <!-- DirectStorage / BypassIO Card -->
                             <Border Grid.Column="2" Style="{StaticResource NeonCardStyle}">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                        <TextBlock Text="⚡" FontSize="16" VerticalAlignment="Center"/>
+                                        <TextBlock Text="STORAGE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                    <TextBlock Name="txtBypassIoStatus" Text="BypassIO" FontSize="18" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}"/>
+                                    <TextBlock Name="txtBypassIoDetail" Text="DirectStorage Ready" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Privacy Score Card -->
+                            <Border Grid.Column="4" Style="{StaticResource NeonCardStyle}">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                         <TextBlock Text="🔒" FontSize="18" VerticalAlignment="Center"/>
@@ -655,31 +680,31 @@
                                                    Foreground="{StaticResource SuccessBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Name="txtPrivacyScore" Text="--" FontSize="26" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}"/>
-                                        <TextBlock Text="/100" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="2,0,0,3"/>
+                                        <TextBlock Name="txtPrivacyScore" Text="--" FontSize="24" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}"/>
+                                        <TextBlock Text="/100" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="2,0,0,3"/>
                                     </StackPanel>
-                                    <TextBlock Name="txtPrivacyLabel" Text="Privacy Score" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock Name="txtPrivacyLabel" Text="Privacy Score" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Border>
 
                             <!-- Bloatware Card -->
-                            <Border Grid.Column="4" Style="{StaticResource NeonCardStyle}">
+                            <Border Grid.Column="6" Style="{StaticResource NeonCardStyle}">
                                 <StackPanel>
                                     <TextBlock Text="🗑️" FontSize="18" Margin="0,0,0,6"/>
-                                    <TextBlock Name="txtBloatwareCount" Text="--" FontSize="26" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="Bloatware Detected" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock Name="txtBloatwareCount" Text="--" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Bloatware Detected" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Border>
 
                             <!-- RAM Card -->
-                            <Border Grid.Column="6" Style="{StaticResource NeonCardStyle}">
+                            <Border Grid.Column="8" Style="{StaticResource NeonCardStyle}">
                                 <StackPanel>
                                     <TextBlock Text="🧠" FontSize="18" Margin="0,0,0,6"/>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Name="txtRAM" Text="--" FontSize="26" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="%" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="2,0,0,3"/>
+                                        <TextBlock Name="txtRAM" Text="--" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="%" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="2,0,0,3"/>
                                     </StackPanel>
-                                    <TextBlock Name="txtRAMDetail" Text="System RAM" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock Name="txtRAMDetail" Text="System RAM" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -703,7 +728,14 @@
                                     <TextBlock Text="Quick Optimize" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                     <TextBlock Text="Apply safe recommended performance tweaks" FontSize="12" 
                                                Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,16" TextWrapping="Wrap"/>
-                                    <Button Name="btnQuickOptimize" Content="⚡ Run Now" Style="{StaticResource PrimaryButtonStyle}"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Name="btnQuickOptimize" Content="⚡ Run Now" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,6,0"/>
+                                        <Button Grid.Column="1" Name="btnPreviewDiff" Content="🔍 Diff" Style="{StaticResource SecondaryButtonStyle}" Padding="10,8" ToolTip="Preview registry and service changes before applying"/>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
 
@@ -809,6 +841,7 @@
                                             <CheckBox Name="chkClipboardHistory" Content=" Disable Clipboard History"/>
                                             <CheckBox Name="chkHibernate" Content=" Disable Hibernate Mode"/>
                                             <CheckBox Name="chkLocation" Content=" Disable Location Tracking"/>
+                                            <CheckBox Name="chkTaskbarGlom" Content=" Never Combine Taskbar Buttons"/>
                                         </StackPanel>
                                     </Border>
                                     
@@ -818,8 +851,16 @@
                                             <CheckBox Name="chkCopilot" Content=" Disable Windows Copilot"/>
                                             <CheckBox Name="chkRecall" Content=" Disable Windows Recall (AI)"/>
                                             <CheckBox Name="chkWindowsUpdate" Content=" Manage Automatic Updates"/>
+
+                                            <TextBlock Text="Copilot Hardware Key Mapping (26H2)" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,10,0,4"/>
+                                            <ComboBox Name="cmbCopilotKeyRemap" Width="260" HorizontalAlignment="Left" Margin="0,0,0,12">
+                                                <ComboBoxItem Content="Windows Default (Copilot)" IsSelected="True"/>
+                                                <ComboBoxItem Content="Windows Search (Win+S)"/>
+                                                <ComboBoxItem Content="Task View (Win+Tab)"/>
+                                                <ComboBoxItem Content="Disabled (Ignore Keypress)"/>
+                                            </ComboBox>
                                             
-                                            <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,18,0,16"/>
+                                            <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,10,0,16"/>
                                             
                                             <Button Name="btnApplyTweaks" Content="✓ Apply General Tweaks" Style="{StaticResource PrimaryButtonStyle}"/>
                                         </StackPanel>
@@ -888,10 +929,13 @@
                                     
                                     <Border Grid.Column="2" Style="{StaticResource NeonCardStyle}">
                                         <StackPanel>
-                                            <TextBlock Text="Gaming Optimizations" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                                            <TextBlock Text="Gaming &amp; Kernel Optimizations" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
                                             <CheckBox Name="chkGamingNetwork" Content=" Low Latency Network (TCPNoDelay)"/>
                                             <CheckBox Name="chkGamingInput" Content=" Raw Mouse Input (Disable Accel)"/>
                                             <CheckBox Name="chkGamingMMCSS" Content=" Multimedia Priority (MMCSS)"/>
+                                            <CheckBox Name="chkLowLatencyTimers" Content=" Low-Latency Kernel Timers (0.5ms Clock)"/>
+                                            <CheckBox Name="chkUdpReceiveOffload" Content=" UDP Receive Offload (URO - 26H2)"/>
+                                            <CheckBox Name="chkDevDriveOpt" Content=" Optimize ReFS Dev Drive Storage Cache"/>
                                             <CheckBox Name="chkVisualEffects" Content=" Optimize Visual Effects &amp; Animations"/>
                                             <CheckBox Name="chkUltimatePlan" Content=" Unlock Ultimate Power Plan"/>
                                             
@@ -934,6 +978,7 @@
                                             </ComboBox>
                                             
                                             <CheckBox Name="chkEnableDoH" Content=" Enable DNS-over-HTTPS (DoH Encrypted Queries)" IsChecked="True"/>
+                                            <CheckBox Name="chkEnableECH" Content=" Enable Encrypted Client Hello (ECH - Anti-SNI Leaks)"/>
                                             <CheckBox Name="chkIncludeIPv6DNS" Content=" Configure Dual-Stack IPv6 DNS Servers"/>
                                             <CheckBox Name="chkDisableIPv6" Content=" Prefer IPv4 over IPv6 (RFC 3484 - Fix DNS Leaks)"/>
                                             
@@ -949,6 +994,7 @@
                                             <TextBlock Text="Protocol Hardening &amp; Network Security" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
                                             <CheckBox Name="chkDisableSMBv1" Content=" Disable SMBv1 (WannaCry / EternalBlue Protection)"/>
                                             <CheckBox Name="chkDisableNetBIOS" Content=" Disable NetBIOS over TCP/IP (Mitigate NBT-NS Spoofing)"/>
+                                            <CheckBox Name="chkEnterpriseSMB" Content=" Enterprise SMB Hardening (Block NTLM, Mandatory Signing)"/>
                                             
                                             <Button Name="btnApplyNetSecurity" Content="🛡️ Apply Security Hardening" Style="{StaticResource PrimaryButtonStyle}" Margin="0,10,0,14" HorizontalAlignment="Left"/>
                                             
@@ -1199,9 +1245,9 @@
                                             <Image Name="imgAboutLogo" Width="48" Height="48" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
                                         </Border>
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="Win-Debloat v1.6.0 &quot;Apex&quot; — Ultimate System Optimizer &amp; Toolbox" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Win-Debloat v1.7.0 &quot;Apex&quot; — Ultimate System Optimizer &amp; Toolbox" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                             <TextBlock Text="Created by tomytate • Licensed under MIT" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,4"/>
-                                            <TextBlock Text="Engine: PowerShell 7.6+ • Windows 11 26H1 / 25H2 / 24H2 / 23H2 &amp; Windows 10 Ready" FontSize="12" Foreground="{StaticResource AccentBrush}"/>
+                                            <TextBlock Text="Engine: PowerShell 7.6+ • Windows 11 26H2 / 24H2 &amp; Windows 10 Ready" FontSize="12" Foreground="{StaticResource AccentBrush}"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -1217,17 +1263,71 @@
             <Border Grid.Row="1" Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="20,10">
                 <Grid>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <Ellipse Width="8" Height="8" Fill="{StaticResource SuccessBrush}" Margin="0,0,10,0"/>
                         <TextBlock Name="txtStatus" Text="Ready" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
+
+                    <ProgressBar Grid.Column="1" Name="pbGlobal" Height="4" IsIndeterminate="False" Minimum="0" Maximum="100" Value="0" Visibility="Collapsed" Foreground="{StaticResource AccentBrush}" Background="{StaticResource InputBackgroundBrush}" BorderThickness="0" Margin="20,0,20,0" VerticalAlignment="Center"/>
                     
-                    <Button Grid.Column="1" Name="btnShowLog" Content="📋 Show Log" Style="{StaticResource SecondaryButtonStyle}" 
-                            Padding="14,6" FontSize="12"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Name="btnCancelOperation" Content="⏹️ Cancel" Style="{StaticResource DangerButtonStyle}" 
+                                Padding="12,6" FontSize="12" Margin="0,0,10,0" Visibility="Collapsed"/>
+                        <Button Name="btnShowLog" Content="📋 Show Log" Style="{StaticResource SecondaryButtonStyle}" 
+                                Padding="14,6" FontSize="12"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- IN-WINDOW MODAL VISUAL DIFF OVERLAY                             -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Column="0" Grid.ColumnSpan="2" Name="modalDiffOverlay" Visibility="Collapsed" Background="#D80B1120">
+            <Border MaxWidth="920" MaxHeight="660" Margin="32" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" CornerRadius="12" Padding="24" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="🔍 Visual Action Plan &amp; Dry-Run Preview" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Detailed inspection of system state changes prior to execution" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Name="btnCloseDiffTop" Content="✕" Style="{StaticResource SecondaryButtonStyle}" Width="32" Height="32" Padding="0" FontSize="14" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                    </Grid>
+
+                    <!-- Content -->
+                    <Border Grid.Row="1" Background="{StaticResource VoidBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <FlowDocumentScrollViewer Name="fdsvDiffContent" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/>
+                    </Border>
+
+                    <!-- Footer -->
+                    <Grid Grid.Row="2" Margin="0,16,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="Triple-Layer Recovery: Layer 1 VSS + Layer 2 DPAPI + Layer 3 rollback.reg" FontSize="11" Foreground="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Name="btnCloseDiff" Content="Close" Style="{StaticResource SecondaryButtonStyle}" Padding="20,8"/>
+                        <Button Grid.Column="3" Name="btnApplyDiff" Content="🚀 Proceed &amp; Apply Changes" Style="{StaticResource PrimaryButtonStyle}" Padding="20,8"/>
+                    </Grid>
                 </Grid>
             </Border>
         </Grid>

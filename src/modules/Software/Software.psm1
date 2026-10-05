@@ -500,6 +500,147 @@ function Get-WinDebloatEssentialsList {
     return $Script:EssentialsApps
 }
 
+<#
+.SYNOPSIS
+    Retrieves the declarative software and essentials catalog.
+.DESCRIPTION
+    Loads the structured application catalog from config/apps.yaml. If the YAML file
+    or parser is unavailable, seamlessly falls back to the in-memory essentials matrix.
+.OUTPUTS
+    [psobject] or [hashtable] The application catalog.
+#>
+function Get-WinDebloatAppCatalog {
+    [CmdletBinding()]
+    param(
+        [string]$Path = (Join-Path $PSScriptRoot "..\..\..\config\apps.yaml"),
+        [string]$Category
+    )
+
+    $result = $null
+
+    if (Test-Path -LiteralPath $Path) {
+        try {
+            if (-not (Get-Module -Name "powershell-yaml" -ErrorAction SilentlyContinue)) {
+                $vendorPath = "$PSScriptRoot\..\Vendor\powershell-yaml"
+                if (Test-Path $vendorPath) {
+                    $manifest = Get-ChildItem -Path $vendorPath -Filter "powershell-yaml.psd1" -Recurse | Select-Object -First 1
+                    if ($manifest) {
+                        Import-Module $manifest.FullName -Force -ErrorAction SilentlyContinue
+                    }
+                }
+            }
+
+            if (Get-Command ConvertFrom-Yaml -ErrorAction SilentlyContinue) {
+                $rawYaml = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+                $catalog = ConvertFrom-Yaml -Yaml $rawYaml
+                if ($catalog) {
+                    $result = $catalog
+                }
+            }
+        }
+        catch {
+            Write-Verbose "Could not parse apps.yaml: $($_.Exception.Message). Falling back to built-in catalog."
+        }
+    }
+
+    if ($null -eq $result) {
+        $result = $Script:EssentialsApps
+    }
+
+    if ($Category) {
+        if ($result.categories) {
+            foreach ($cat in $result.categories) {
+                if ($cat.id -eq $Category -or $cat.name -eq $Category) {
+                    return @($cat.apps)
+                }
+            }
+            return @()
+        }
+        elseif ($result -is [hashtable] -and $result.ContainsKey($Category)) {
+            return @($result[$Category].Apps)
+        }
+        return @()
+    }
+
+    return $result
+}
+
+<#
+.SYNOPSIS
+    Installs software packages from the declarative application catalog.
+.PARAMETER PackageIds
+    List of Package IDs (e.g., 'Mozilla.Firefox', '7zip.7zip') to install.
+.PARAMETER Category
+    Optional category name to install all apps from that category.
+.PARAMETER Provider
+    Package manager to use: Winget, Chocolatey, or Auto.
+.PARAMETER RecommendedOnly
+    Only install packages marked as recommended.
+#>
+function Install-WinDebloatAppCatalog {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([pscustomobject])]
+    param(
+        [Alias('AppIds', 'Apps')]
+        [string[]]$PackageIds,
+
+        [string]$Category,
+
+        [ValidateSet("Winget", "Chocolatey", "Auto")]
+        [string]$Provider = "Auto",
+
+        [switch]$RecommendedOnly
+    )
+
+    $catalog = Get-WinDebloatAppCatalog
+    $appsToInstall = [System.Collections.Generic.List[hashtable]]::new()
+
+    if ($catalog -is [hashtable] -or ($catalog.psobject -and $catalog.categories)) {
+        if ($catalog.categories) {
+            foreach ($cat in $catalog.categories) {
+                if ($Category -and $cat.id -ne $Category -and $cat.name -ne $Category) {
+                    continue
+                }
+                foreach ($app in $cat.apps) {
+                    if ($PackageIds -and $PackageIds -notcontains $app.id -and $PackageIds -notcontains $app.name) {
+                        continue
+                    }
+                    if ($RecommendedOnly -and -not $app.recommended) {
+                        continue
+                    }
+                    $appsToInstall.Add(@{
+                        Name   = $app.name
+                        Winget = $app.winget
+                        Choco  = $app.choco
+                    })
+                }
+            }
+        }
+        else {
+            foreach ($catName in $catalog.Keys) {
+                if ($Category -and $catName -ne $Category) {
+                    continue
+                }
+                $catObj = $catalog[$catName]
+                foreach ($app in $catObj.Apps) {
+                    if ($PackageIds -and $PackageIds -notcontains $app.Winget -and $PackageIds -notcontains $app.Name) {
+                        continue
+                    }
+                    $appsToInstall.Add($app)
+                }
+            }
+        }
+    }
+
+    if ($appsToInstall.Count -eq 0) {
+        Write-Log -Message "No matching applications found to install in catalog." -Level Warning
+        return [PSCustomObject]@{ Total = 0; Successful = 0; Skipped = 0; Failed = 0; Details = @() }
+    }
+
+    Write-Log -Message "Installing $($appsToInstall.Count) application(s) from catalog..." -Level Info
+    return Install-WinDebloatSoftware -Apps $appsToInstall -PackageManager $Provider
+}
+
 #endregion
 
 #region Installation Functions
@@ -533,11 +674,18 @@ function Invoke-WD7PackageInstall {
 
     switch ($Provider) {
         "Winget" {
-            $cmdArgs = @("install", "--id", $PackageId, "--source", "winget", "--accept-source-agreements", "--accept-package-agreements", "--disable-interactivity")
+            $cmdArgs = @("install", "--id", $PackageId, "--exact", "--source", "winget", "--accept-source-agreements", "--accept-package-agreements", "--disable-interactivity")
             if ($Quiet) { $cmdArgs += "--silent" }
             try {
                 $null = & winget @cmdArgs 2> variable:pkgError
-                $exitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+                $rawExit = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+                # 0 = success, 3010 = reboot required, -1978236885 (0x8A15002B) = already installed
+                if ($rawExit -eq 0 -or $rawExit -eq 3010 -or $rawExit -eq -1978236885) {
+                    $exitCode = 0
+                }
+                else {
+                    $exitCode = $rawExit
+                }
             }
             catch {
                 $pkgError = $_.Exception.Message
@@ -549,7 +697,13 @@ function Invoke-WD7PackageInstall {
             if ($Quiet) { $cmdArgs += "--no-progress" }
             try {
                 $null = & choco @cmdArgs 2> variable:pkgError
-                $exitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+                $rawExit = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+                if ($rawExit -eq 0 -or $rawExit -eq 3010) {
+                    $exitCode = 0
+                }
+                else {
+                    $exitCode = $rawExit
+                }
             }
             catch {
                 $pkgError = $_.Exception.Message
@@ -574,11 +728,17 @@ function Invoke-WD7PackageInstall {
         "Msstore" {
             # Official Microsoft Store channel via winget (free apps install
             # without a Microsoft account)
-            $cmdArgs = @("install", "--id", $PackageId, "--source", "msstore", "--accept-source-agreements", "--accept-package-agreements", "--disable-interactivity")
+            $cmdArgs = @("install", "--id", $PackageId, "--exact", "--source", "msstore", "--accept-source-agreements", "--accept-package-agreements", "--disable-interactivity")
             if ($Quiet) { $cmdArgs += "--silent" }
             try {
                 $null = & winget @cmdArgs 2> variable:pkgError
-                $exitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+                $rawExit = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+                if ($rawExit -eq 0 -or $rawExit -eq 3010 -or $rawExit -eq -1978236885) {
+                    $exitCode = 0
+                }
+                else {
+                    $exitCode = $rawExit
+                }
             }
             catch {
                 $pkgError = $_.Exception.Message
@@ -1252,13 +1412,19 @@ Set-Alias -Name 'Install-WinDebloat7Essentials' -Value 'Install-WinDebloatEssent
 Set-Alias -Name 'Install-WinDebloat7ProfileSoftware' -Value 'Install-WinDebloatProfileSoftware'
 Set-Alias -Name 'Optimize-WinDebloat7WinGetSettings' -Value 'Optimize-WinDebloatWinGetSettings'
 Set-Alias -Name 'Reset-WinDebloat7WinGetSettings' -Value 'Reset-WinDebloatWinGetSettings'
+Set-Alias -Name 'Get-WinDebloat7AppCatalog' -Value 'Get-WinDebloatAppCatalog'
+Set-Alias -Name 'Get-WD7AppCatalog' -Value 'Get-WinDebloatAppCatalog'
+Set-Alias -Name 'Install-WinDebloat7AppCatalog' -Value 'Install-WinDebloatAppCatalog'
+Set-Alias -Name 'Install-WD7AppCatalog' -Value 'Install-WinDebloatAppCatalog'
 
 Export-ModuleMember -Function @(
     'Test-PackageManager',
     'Install-PackageManager',
     'Invoke-WD7PackageInstall',
     'Get-WinDebloatEssentialsList',
+    'Get-WinDebloatAppCatalog',
     'Install-WinDebloatSoftware',
+    'Install-WinDebloatAppCatalog',
     'Update-WinDebloatSoftware',
     'Install-WinDebloatEssentials',
     'Install-WinDebloatProfileSoftware',
@@ -1271,5 +1437,9 @@ Export-ModuleMember -Function @(
     'Install-WinDebloat7Essentials',
     'Install-WinDebloat7ProfileSoftware',
     'Optimize-WinDebloat7WinGetSettings',
-    'Reset-WinDebloat7WinGetSettings'
+    'Reset-WinDebloat7WinGetSettings',
+    'Get-WinDebloat7AppCatalog',
+    'Get-WD7AppCatalog',
+    'Install-WinDebloat7AppCatalog',
+    'Install-WD7AppCatalog'
 )

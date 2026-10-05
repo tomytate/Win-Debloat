@@ -6,9 +6,11 @@
 *   **Cause**: You tried to stop a protected Windows service.
 *   **Fix**: This is normal behavior. Win-Debloat handles this error gracefully in logs. Rebooting usually forces the service into the disabled state if registry keys were set.
 
-### "PowerShell 7.6 required"
-*   **Cause**: You are running in legacy Windows PowerShell 5.1 (blue icon).
-*   **Fix**: Install PowerShell 7 (black icon) from the [Microsoft Store](https://apps.microsoft.com/detail/9mz1sn7389xv) or [GitHub](https://github.com/PowerShell/PowerShell/releases).
+### "PowerShell 7.6 required" or Running in Windows PowerShell 5.1
+*   **Cause**: You invoked `Win-Debloat.ps1` directly inside legacy Windows PowerShell 5.1 (blue console).
+*   **Fix**:
+    1.  **Zero-Prerequisite Solution**: Simply double-click `Run.bat` or `Win-Debloat.exe`. The Universal Smart Bootstrapper autodetects the environment and automatically runs the native Windows PowerShell 5.1 deployment engine (`deploy\Deploy-WinDebloat.ps1`) with zero setup!
+    2.  Alternatively, install modern PowerShell 7 from the [Microsoft Store](https://apps.microsoft.com/detail/9mz1sn7389xv) or [GitHub](https://github.com/PowerShell/PowerShell/releases) for the modern TUI/GUI experience.
 
 ### "Windows protected your PC" or Smart App Control Block
 *   **Cause**: Windows 11 Smart App Control (SAC) or Microsoft Defender SmartScreen blocks unsigned binaries downloaded from the internet.
@@ -17,8 +19,8 @@
     2.  If using the single-file executable: Click **More info** -> **Run anyway** on the SmartScreen prompt.
     3.  If extracting manually without `Run.bat`: Right-click the downloaded `.zip` -> **Properties** -> Check **Unblock** -> Apply, or run `Unblock-File .\Win-Debloat.ps1`.
 
-### Windows 11 24H2 DISM Error 0x800f081f
-*   **Cause**: On Windows 11 24H2 / 25H2 (Build 26100+), executing `dism /online /cleanup-image /startcomponentcleanup /resetbase` breaks Checkpoint Cumulative Updates, causing subsequent update failures (`0x800f081f`).
+### Windows 11 24H2 / 26H2 DISM Error 0x800f081f
+*   **Cause**: On Windows 11 24H2 / 25H2 / 26H2 (Build 26100–26300+), executing `dism /online /cleanup-image /startcomponentcleanup /resetbase` breaks Checkpoint Cumulative Updates, causing subsequent update failures (`0x800f081f`).
 *   **Fix**: Win-Debloat v1.7.0 includes built-in checkpoint safety gates (`Repair.psm1`) that automatically detect Build 26100+ and execute safe component cleanup without `/ResetBase`, preventing update corruption.
 
 ### WSL2 Network NAT or Windows Hello PIN Inactivity
@@ -49,29 +51,37 @@
 
 ---
 
-## How to Restore
+## 🔄 How to Restore (Triple-Layer Disaster Recovery)
 
-If a tweak broke something (e.g., Xbox Login, Store):
+Win-Debloat includes a comprehensive **Triple-Layer Disaster Recovery** architecture:
 
-1.  Open Win-Debloat GUI.
-2.  Go to the **Restore / Snapshots** tab.
-3.  Select the snapshot created *before* you applied the tweak.
-4.  Click **Restore System**.
-5.  Reboot.
+### 1. Visual State Diff Inspection
+Before restoring or applying tweaks, inspect exact state differences:
+- **TUI**: Run `Show-WinDebloatDiffViewer` to compare current live settings against a prior snapshot.
+- **GUI**: Click **Visual Diff Preview** (`btnPreviewDiff`) to inspect planned registry modifications.
 
-### Restore via Dual-Layer Human-Readable `.reg` File
-Every snapshot automatically generates a standard Windows Registry Editor (`rollback.reg`) file in the `backups/` folder:
-- **Inspect**: Open `backups\<Snapshot-Id>\rollback.reg` in Notepad to inspect every exact key and value.
-- **Apply**: Double-click `rollback.reg` or run `reg import backups\<Snapshot-Id>\rollback.reg` from an elevated prompt.
+### 2. Restore via GUI Cockpit
+1. Open the GUI Cockpit (`.\Win-Debloat.ps1 -Gui` or via `Run.bat`).
+2. Navigate to the **Restore / Snapshots** tab.
+3. Select the snapshot created prior to your changes.
+4. Click **Restore System** and reboot.
 
-### Restore via CLI
-If the GUI is inaccessible:
+### 3. Restore via Emergency `rollback.cmd` (Offline & WinRE Safe)
+Every snapshot exports an offline emergency rollback suite to `backups\<Snapshot-Id>\`:
+- **In Windows**: Right-click `backups\<Snapshot-Id>\rollback.cmd` → **Run as Administrator**.
+- **In Windows Recovery Environment (WinRE)**: Boot to WinRE Command Prompt, navigate to your backup folder, and execute `rollback.cmd`. It imports `rollback.reg` via `reg.exe` and restores service startup states via `sc.exe` with zero PowerShell dependencies.
+
+### 4. Restore via Native Windows System Restore (Layer 1 VSS Checkpoint)
+Win-Debloat automatically creates an atomic VSS restore point with 24-hr frequency bypass:
+- Press `Win + R`, type `rstrui.exe`, and select the restore point labeled `Win-Debloat: Pre-Optimization Baseline`.
+
+### 5. Restore via CLI
 ```powershell
 # List available snapshots
 Get-WinDebloatSnapshot
 
 # Restore a specific snapshot
-Restore-WinDebloatSnapshot -SnapshotId "<Id from Get-WinDebloatSnapshot>"
+Restore-WinDebloatSnapshot -SnapshotId "<Snapshot-GUID>"
 ```
 
 ---
@@ -91,11 +101,11 @@ Attach the latest log file when [reporting an issue](https://github.com/tomytate
 
 Run the built-in test suite to verify your installation:
 ```powershell
-# 1. Run complete Pester test suite (336 tests, 100% pass)
+# 1. Run complete Pester test suite (388 tests, 100% pass)
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\Run-AllTests.ps1
 
 # 2. Verify 5-Way Mathematical AST export parity (0 violations)
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\AST\Test-WinDebloatAstExportParity.ps1
 ```
-All 336 tests should pass with 0 failures and 0 AST violations. If any fail, your installation may be corrupted — re-download from the [Releases Page](https://github.com/tomytate/Win-Debloat/releases).
+All 388 tests should pass with 0 failures and 0 AST violations. If any fail, your installation may be corrupted — re-download from the [Releases Page](https://github.com/tomytate/Win-Debloat/releases).
 

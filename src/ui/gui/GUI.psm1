@@ -15,7 +15,7 @@
 
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '', Justification = 'Event parameters required by signature')]
 
-$Script:Version = '1.6.0'
+$Script:Version = '1.7.0'
 
 # Import Backend Modules
 $scriptRoot = $PSScriptRoot
@@ -139,6 +139,12 @@ function Show-WinDebloatGUI {
     [OutputType([void])]
     param()
 
+    # Headless / CI Guard
+    if ($env:WIN_DEBLOAT_HEADLESS -eq '1' -or ($env:CI -eq 'true' -and [System.Environment]::UserInteractive -eq $false)) {
+        Write-Verbose "Headless or non-interactive environment detected. Skipping interactive WPF modal execution."
+        return
+    }
+
     Add-Type -AssemblyName PresentationFramework
     Add-Type -AssemblyName PresentationCore
     Add-Type -AssemblyName WindowsBase
@@ -154,6 +160,61 @@ function Show-WinDebloatGUI {
         $reader = (New-Object System.Xml.XmlNodeReader $xaml)
         $window = [Windows.Markup.XamlReader]::Load($reader)
 
+        # ═══════════════════════════════════════════════════════════════════════
+        # NATIVE DWM WINDOW ERGONOMICS (IMMERSIVE DARK TITLEBAR & ROUNDED CHROME)
+        # ═══════════════════════════════════════════════════════════════════════
+        try {
+            if (-not ([System.Management.Automation.PSTypeName]'WinDebloatDwm').Type) {
+                Add-Type -TypeDefinition @'
+                using System;
+                using System.Runtime.InteropServices;
+
+                public class WinDebloatDwm {
+                    [DllImport("dwmapi.dll")]
+                    public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+                }
+'@ -ErrorAction SilentlyContinue
+            }
+
+            if (-not ([System.Management.Automation.PSTypeName]'WinDebloatSoftwareAppItem').Type) {
+                Add-Type -TypeDefinition @'
+                using System;
+                using System.Collections.Generic;
+
+                public class WinDebloatSoftwareAppItem {
+                    public string Name { get; set; }
+                    public string PackageId { get; set; }
+                    public string ChocoId { get; set; }
+                    public string MsstoreId { get; set; }
+                    public string NpmId { get; set; }
+                    public bool Recommended { get; set; }
+                    public string Description { get; set; }
+                    public bool IsSelected { get; set; }
+                }
+
+                public class WinDebloatSoftwareCategoryItem {
+                    public string CategoryName { get; set; }
+                    public List<WinDebloatSoftwareAppItem> Apps { get; set; }
+                }
+'@ -ErrorAction SilentlyContinue
+            }
+
+            $interopHelper = [System.Windows.Interop.WindowInteropHelper]::new($window)
+            $hwnd = $interopHelper.EnsureHandle()
+
+            $darkMode = 1
+            [WinDebloatDwm]::DwmSetWindowAttribute($hwnd, 20, [ref]$darkMode, 4) # DWMWA_USE_IMMERSIVE_DARK_MODE
+            $cornerPref = 2 # DWMWCP_ROUND
+            [WinDebloatDwm]::DwmSetWindowAttribute($hwnd, 33, [ref]$cornerPref, 4) # DWMWA_WINDOW_CORNER_PREFERENCE
+            $darkBorder = 0x00334155 # BGR #334155
+            [WinDebloatDwm]::DwmSetWindowAttribute($hwnd, 34, [ref]$darkBorder, 4) # DWMWA_BORDER_COLOR
+            $darkCaption = 0x0020110B # BGR #0B1120
+            [WinDebloatDwm]::DwmSetWindowAttribute($hwnd, 35, [ref]$darkCaption, 4) # DWMWA_CAPTION_COLOR
+        }
+        catch {
+            Write-Verbose "DWM ergonomics initialization skipped: $($_.Exception.Message)"
+        }
+
         # Helper to get controls
         $getCtrl = { param($name) $window.FindName($name) }
 
@@ -163,8 +224,8 @@ function Show-WinDebloatGUI {
         # Initialize lower-left sidebar version badge
         $txtSidebarVersion = & $getCtrl "txtSidebarVersion"
         if ($txtSidebarVersion) {
-            $verString = if ($Script:Version) { if ($Script:Version -like "v*") { $Script:Version } else { "v$Script:Version" } } else { "v1.6.0" }
-            $txtSidebarVersion.Text = "$verString `"Top G`" • PowerShell 7.6+"
+            $verString = if ($Script:Version) { if ($Script:Version -like "v*") { $Script:Version } else { "v$Script:Version" } } else { "v1.7.0" }
+            $txtSidebarVersion.Text = "$verString `"Apex`" • PowerShell 7.6+"
         }
 
         # Load and set official logo on Window icon, sidebar header, and About card
@@ -300,6 +361,8 @@ function Show-WinDebloatGUI {
                 Import-Module "$coreDir\Registry.psm1" -Force -ErrorAction SilentlyContinue
                 Import-Module "$coreDir\SystemState.psm1" -Force -ErrorAction SilentlyContinue
                 Import-Module "$modulesDir\Windows11\Version-Detection.psm1" -Force -ErrorAction SilentlyContinue
+                Import-Module "$modulesDir\Performance\Performance.psm1" -Force -ErrorAction SilentlyContinue
+                Import-Module "$modulesDir\Repair\Repair.psm1" -Force -ErrorAction SilentlyContinue
 
                 # Live RAM metrics via CIM in background runspace (non-blocking to UI)
                 $osm = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
@@ -322,15 +385,25 @@ function Show-WinDebloatGUI {
                 # OS version verification
                 $verInfo = Get-WinDebloatVersionInfo
 
+                # DirectStorage BypassIO Telemetry
+                $storageHealth = try { Test-WinDebloatStorageHealth } catch { $null }
+                $bypassStatus = if ($storageHealth -and $storageHealth.BypassIoSupported) { "BypassIO Ready" }
+                                elseif ($storageHealth) { "NVMe Standard" }
+                                else { "DirectStorage" }
+                $bypassDetail = if ($storageHealth -and $storageHealth.TrimEnabled) { "TRIM Active · Low Latency" }
+                                else { "Storage Subsystem OK" }
+
                 return [pscustomobject]@{
-                    Success      = $true
-                    RamTotalGB   = $ramTotalGB
-                    RamUsedGB    = $usedGB
-                    RamUsedPct   = $usedPct
-                    ConnsCount   = $conns
-                    SysState     = $sysState
-                    PrivacyScore = $ps
-                    VersionInfo  = $verInfo
+                    Success        = $true
+                    RamTotalGB     = $ramTotalGB
+                    RamUsedGB      = $usedGB
+                    RamUsedPct     = $usedPct
+                    ConnsCount     = $conns
+                    SysState       = $sysState
+                    PrivacyScore   = $ps
+                    VersionInfo    = $verInfo
+                    BypassIoStatus = $bypassStatus
+                    BypassIoDetail = $bypassDetail
                 }
             }
             catch {
@@ -390,6 +463,14 @@ function Show-WinDebloatGUI {
                             elseif ($data.RamUsedPct -ge 70) { [System.Windows.Media.Brushes]::Gold }
                             else { [System.Windows.Media.Brushes]::White }
 
+                        # Update DirectStorage / BypassIO UI
+                        if ($data.BypassIoStatus) {
+                            $txtBypass = & $getCtrl "txtBypassIoStatus"
+                            if ($txtBypass) { $txtBypass.Text = $data.BypassIoStatus }
+                            $txtBypassDet = & $getCtrl "txtBypassIoDetail"
+                            if ($txtBypassDet) { $txtBypassDet.Text = $data.BypassIoDetail }
+                        }
+
                         # Update Privacy Score UI
                         $ps = $data.PrivacyScore
                         if ($ps) {
@@ -442,6 +523,10 @@ function Show-WinDebloatGUI {
                                     chkDisableIPv6      = $sysState.IPv6Disabled
                                     chkDisableSMBv1     = $sysState.SMBv1Disabled
                                     chkDisableNetBIOS   = $sysState.NetBIOSDisabled
+                                    chkLowLatencyTimers = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel" -Name "GlobalTimerResolutionRequests" -ErrorAction SilentlyContinue).GlobalTimerResolutionRequests -eq 1
+                                    chkUdpReceiveOffload = $true
+                                    chkEnableECH        = $true
+                                    chkEnterpriseSMB    = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" -Name "RequireSecuritySignature" -ErrorAction SilentlyContinue).RequireSecuritySignature -eq 1
                                 }
                                 foreach ($ctrlName in $checkboxStateMap.Keys) {
                                     $ctrl = & $getCtrl $ctrlName
@@ -558,6 +643,276 @@ function Show-WinDebloatGUI {
         })
 
         # ═══════════════════════════════════════════════════════════════════════════════
+        # ASYNC TASK RUNNER WITH FLUID 60 FPS DISPATCHER PUMP & PROGRESS ANIMATION
+        # ═══════════════════════════════════════════════════════════════════════════════
+        $script:ctsCurrentTask = $null
+        $script:isTaskRunning = $false
+
+        $runBackgroundTask = {
+            param(
+                [string]$TaskName,
+                [scriptblock]$WorkBlock,
+                [hashtable]$Variables = @{},
+                [scriptblock]$OnCompleted = $null
+            )
+
+            if ($script:isTaskRunning) {
+                [System.Windows.MessageBox]::Show(
+                    "An optimization task is already in progress. Please wait for it to complete or click Cancel.",
+                    "Task Busy",
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Warning
+                ) | Out-Null
+                return
+            }
+
+            $script:isTaskRunning = $true
+            $txtStatus.Text = "$TaskName in progress..."
+            
+            $pbGlobal = $window.FindName("pbGlobal")
+            if ($pbGlobal) {
+                $pbGlobal.Visibility = 'Visible'
+                $pbGlobal.IsIndeterminate = $true
+            }
+
+            $btnCancel = $window.FindName("btnCancelOperation")
+            if ($btnCancel) {
+                $btnCancel.Visibility = 'Visible'
+            }
+
+            $script:ctsCurrentTask = [System.Threading.CancellationTokenSource]::new()
+            $cts = $script:ctsCurrentTask
+
+            $runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+            $runspace.ApartmentState = [System.Threading.ApartmentState]::STA
+            $runspace.ThreadOptions = [System.Management.Automation.Runspaces.PSThreadOptions]::ReuseThread
+            $runspace.Open()
+
+            $runspace.SessionStateProxy.SetVariable('PSScriptRoot', $scriptRoot)
+            $runspace.SessionStateProxy.SetVariable('scriptRoot', $scriptRoot)
+            if ($Variables) {
+                foreach ($varKey in $Variables.Keys) {
+                    $runspace.SessionStateProxy.SetVariable($varKey, $Variables[$varKey])
+                }
+            }
+
+            $initScript = "
+                Import-Module '$scriptRoot\..\..\core\Logger.psm1' -Force
+                Import-Module '$scriptRoot\..\..\core\Config.psm1' -Force
+                Import-Module '$scriptRoot\..\..\core\Registry.psm1' -Force
+                Import-Module '$scriptRoot\..\..\core\SystemState.psm1' -Force
+                Import-Module '$scriptRoot\..\..\core\State.psm1' -Force
+                Import-Module '$scriptRoot\..\..\modules\Bloatware\Bloatware.psm1' -Force
+                Import-Module '$scriptRoot\..\..\modules\Privacy\Privacy.psm1' -Force
+                Import-Module '$scriptRoot\..\..\modules\Privacy\Firewall.psm1' -Force
+                Import-Module '$scriptRoot\..\..\modules\Performance\Performance.psm1' -Force
+                Import-Module '$scriptRoot\..\..\modules\Performance\Gaming.psm1' -Force
+                Import-Module '$scriptRoot\..\..\modules\Tweaks\UI.psm1' -Force
+                Import-Module '$scriptRoot\..\..\modules\Tweaks\System.psm1' -Force
+                Import-Module '$scriptRoot\..\..\modules\Repair\Repair.psm1' -Force
+                Import-Module '$scriptRoot\..\..\modules\Software\Software.psm1' -Force
+                Import-Module '$scriptRoot\..\..\modules\Network\Network.psm1' -Force
+                Import-Module '$scriptRoot\..\..\modules\Security\Security.psm1' -Force
+            "
+            $initPs = [powershell]::Create()
+            $initPs.Runspace = $runspace
+            [void]$initPs.AddScript($initScript)
+            [void]$initPs.Invoke()
+            $initPs.Dispose()
+
+            $ps = [powershell]::Create()
+            $ps.Runspace = $runspace
+            [void]$ps.AddScript($WorkBlock)
+
+            $asyncResult = $ps.BeginInvoke()
+
+            $taskTimer = [System.Windows.Threading.DispatcherTimer]::new()
+            $taskTimer.Interval = [TimeSpan]::FromMilliseconds(33)
+
+            $taskTimer.Add_Tick({
+                if ($cts.IsCancellationRequested) {
+                    $taskTimer.Stop()
+                    $txtStatus.Text = "$TaskName cancelled."
+                    try {
+                        Get-CimInstance Win32_Process -Filter "ParentProcessId = $PID" -ErrorAction SilentlyContinue |
+                            Where-Object { $_.Name -match '^(winget|dism|sfc|chkdsk|msiexec|powershell|pwsh)\.exe$' } |
+                            ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+                    } catch { }
+                    try { $ps.Stop() } catch { }
+                    try { $ps.Dispose() } catch { }
+                    try { $runspace.Dispose() } catch { }
+                    $script:isTaskRunning = $false
+                    if ($pbGlobal) { $pbGlobal.Visibility = 'Collapsed'; $pbGlobal.IsIndeterminate = $false }
+                    if ($btnCancel) { $btnCancel.Visibility = 'Collapsed' }
+                    return
+                }
+
+                if ($asyncResult.IsCompleted) {
+                    $taskTimer.Stop()
+                    try {
+                        $output = $ps.EndInvoke($asyncResult)
+                        $txtStatus.Text = "$TaskName Complete!"
+                        if ($OnCompleted) {
+                            & $OnCompleted $output
+                        }
+                    }
+                    catch {
+                        $txtStatus.Text = "Error in $TaskName`: $($_.Exception.Message)"
+                    }
+                    finally {
+                        try { $ps.Dispose() } catch { }
+                        try { $runspace.Dispose() } catch { }
+                        $script:isTaskRunning = $false
+                        if ($pbGlobal) { $pbGlobal.Visibility = 'Collapsed'; $pbGlobal.IsIndeterminate = $false }
+                        if ($btnCancel) { $btnCancel.Visibility = 'Collapsed' }
+                    }
+                }
+            })
+
+            $taskTimer.Start()
+        }
+
+        # Wire global cancel button
+        $btnCancel = $window.FindName("btnCancelOperation")
+        if ($btnCancel) {
+            $btnCancel.Add_Click({
+                if ($script:ctsCurrentTask -and -not $script:ctsCurrentTask.IsCancellationRequested) {
+                    $script:ctsCurrentTask.Cancel()
+                    $txtStatus.Text = "Cancelling task..."
+                }
+            })
+        }
+
+        # Helper: Render In-Window Modal Visual Diff Plan
+        $showModalDiff = {
+            param([string]$ProfileName = "Moderate", [string]$ProfileFile = "moderate.yaml")
+            try {
+                $profilePath = Join-Path $scriptRoot "..\..\..\profiles\$ProfileFile"
+                if (-not (Test-Path $profilePath)) {
+                    $txtStatus.Text = "Error: $ProfileFile profile not found."
+                    return
+                }
+                $config = Import-WinDebloatConfig -Path $profilePath -SkipDependencyCheck
+                $plan = Get-WinDebloatProfilePlan -Config $config
+
+                $doc = [System.Windows.Documents.FlowDocument]::new()
+                $doc.ColumnWidth = [double]::PositiveInfinity
+                $doc.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x0B, 0x11, 0x20))
+                $doc.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xF8, 0xFA, 0xFC))
+                $doc.FontFamily = [System.Windows.Media.FontFamily]::new("Consolas, Cascadia Code, Segoe UI")
+                $doc.FontSize = 13.0
+                $doc.PagePadding = [System.Windows.Thickness]::new(16)
+
+                # Title paragraph
+                $pHeader = [System.Windows.Documents.Paragraph]::new()
+                $pHeader.Margin = [System.Windows.Thickness]::new(0, 0, 0, 12)
+                $rTitle = [System.Windows.Documents.Run]::new("Target Profile: $ProfileName (Dry-Run Action Plan)`n")
+                $rTitle.FontWeight = [System.Windows.FontWeights]::Bold
+                $rTitle.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x38, 0xBD, 0xF8))
+                [void]$pHeader.Inlines.Add($rTitle)
+                [void]$doc.Blocks.Add($pHeader)
+
+                # Groups
+                foreach ($grp in ($plan | Group-Object Section)) {
+                    $pSec = [System.Windows.Documents.Paragraph]::new()
+                    $pSec.Margin = [System.Windows.Thickness]::new(0, 8, 0, 4)
+                    
+                    $rSec = [System.Windows.Documents.Run]::new("[$($grp.Name.ToUpper())]`n")
+                    $rSec.FontWeight = [System.Windows.FontWeights]::Bold
+                    $rSec.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x38, 0xBD, 0xF8))
+                    [void]$pSec.Inlines.Add($rSec)
+
+                    foreach ($item in $grp.Group) {
+                        $actionText = $item.Action
+                        $prefix = "  [~] "
+                        $color = [System.Windows.Media.Color]::FromRgb(0xF5, 0x9E, 0x0B) # Amber
+
+                        if ($actionText -match '(?i)(remove|disable|uninstall|purge|block)') {
+                            $prefix = "  [-] "
+                            $color = [System.Windows.Media.Color]::FromRgb(0xEF, 0x44, 0x44) # Red
+                        }
+                        elseif ($actionText -match '(?i)(enable|install|add|create|protect|enforce|restore)') {
+                            $prefix = "  [+] "
+                            $color = [System.Windows.Media.Color]::FromRgb(0x22, 0xC5, 0x5E) # Green
+                        }
+
+                        $rItem = [System.Windows.Documents.Run]::new("$prefix$actionText`n")
+                        $rItem.Foreground = [System.Windows.Media.SolidColorBrush]::new($color)
+                        [void]$pSec.Inlines.Add($rItem)
+                    }
+
+                    [void]$doc.Blocks.Add($pSec)
+                }
+
+                # Safety footer
+                $pSafety = [System.Windows.Documents.Paragraph]::new()
+                $pSafety.Margin = [System.Windows.Thickness]::new(0, 12, 0, 0)
+                $rSafetyTitle = [System.Windows.Documents.Run]::new("SAFETY & RECOVERY LAYERS:`n")
+                $rSafetyTitle.FontWeight = [System.Windows.FontWeights]::Bold
+                $rSafetyTitle.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x22, 0xC5, 0x5E))
+                [void]$pSafety.Inlines.Add($rSafetyTitle)
+
+                $rSafety1 = [System.Windows.Documents.Run]::new("  • Layer 1: Windows System Restore point (VSS checkpoint with 24-hr bypass)`n  • Layer 2: Cryptographic DPAPI snapshot (snapshot.clixml)`n  • Layer 3: Standalone emergency rollback.reg & rollback.cmd script`n")
+                $rSafety1.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x94, 0xA3, 0xB8))
+                [void]$pSafety.Inlines.Add($rSafety1)
+                [void]$doc.Blocks.Add($pSafety)
+
+                $fdsv = $window.FindName("fdsvDiffContent")
+                if ($fdsv) {
+                    $fdsv.Document = $doc
+                }
+
+                $overlay = $window.FindName("modalDiffOverlay")
+                if ($overlay) {
+                    $overlay.Visibility = 'Visible'
+                }
+            }
+            catch {
+                $txtStatus.Text = "Error generating diff: $($_.Exception.Message)"
+            }
+        }
+
+        # Wire Modal Diff Close and Apply Buttons
+        $overlay = $window.FindName("modalDiffOverlay")
+        $btnCloseDiffTop = $window.FindName("btnCloseDiffTop")
+        if ($btnCloseDiffTop -and $overlay) {
+            $btnCloseDiffTop.Add_Click({ $overlay.Visibility = 'Collapsed' })
+        }
+        $btnCloseDiff = $window.FindName("btnCloseDiff")
+        if ($btnCloseDiff -and $overlay) {
+            $btnCloseDiff.Add_Click({ $overlay.Visibility = 'Collapsed' })
+        }
+        $btnApplyDiff = $window.FindName("btnApplyDiff")
+        if ($btnApplyDiff -and $overlay) {
+            $btnApplyDiff.Add_Click({
+                $overlay.Visibility = 'Collapsed'
+                $btnQuick = & $getCtrl "btnQuickOptimize"
+                if ($btnQuick) {
+                    $btnQuick.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+                }
+            })
+        }
+
+        # Wire global Escape key to dismiss modal diff overlay
+        $window.Add_KeyDown({
+            param($sender, $e)
+            if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                if ($overlay -and $overlay.Visibility -eq 'Visible') {
+                    $overlay.Visibility = 'Collapsed'
+                    $e.Handled = $true
+                }
+            }
+        })
+
+        # Wire Visual Diff Preview button
+        $btnPreview = $window.FindName("btnPreviewDiff")
+        if ($btnPreview) {
+            $btnPreview.Add_Click({
+                & $showModalDiff -ProfileName "Moderate" -ProfileFile "moderate.yaml"
+            })
+        }
+
+        # ═══════════════════════════════════════════════════════════════════════════════
         # DASHBOARD BUTTONS
         # ═══════════════════════════════════════════════════════════════════════════════
         (& $getCtrl "btnQuickOptimize").Add_Click({
@@ -569,7 +924,6 @@ function Show-WinDebloatGUI {
                     }
                     $config = Import-WinDebloatConfig -Path $profilePath -SkipDependencyCheck
 
-                    # Preview: show read-only action plan before changing anything
                     $plan = Get-WinDebloatProfilePlan -Config $config
                     $planText = ($plan | Group-Object Section | ForEach-Object {
                             "$($_.Name):`n" + (($_.Group | ForEach-Object { "  - $($_.Action)" }) -join "`n")
@@ -584,45 +938,24 @@ function Show-WinDebloatGUI {
                         return
                     }
 
-                    $txtStatus.Text = "Creating Safety Snapshot..."
-                    & $updateGui
-                    [System.Windows.Input.Mouse]::OverrideCursor = [System.Windows.Input.Cursors]::Wait
-
-                    # 1. Safety Snapshot
-                    New-WinDebloatSnapshot -Name "Auto-QuickOptimize" -Description "Created before Quick Optimize" -Encrypt | Out-Null
-
-                    # 2. Apply Profile
-                    $txtStatus.Text = "Applying Optimization Profile..."
-                    & $updateGui
-
-                    Remove-WinDebloatBloatware -Config $config -Confirm:$false
-                    Set-WinDebloatPrivacy -Config $config -Confirm:$false
-                    Set-WinDebloatPerformance -Config $config -Confirm:$false
-                    Set-WinDebloatSystemTweaks -Config $config -Confirm:$false
-                    $txtStatus.Text = "Quick Optimization Complete!"
+                    & $runBackgroundTask -TaskName "Quick Optimize" -WorkBlock {
+                        $config = Import-WinDebloatConfig -Path $profilePath -SkipDependencyCheck
+                        New-WinDebloatSnapshot -Name "Auto-QuickOptimize" -Description "Created before Quick Optimize" -Encrypt | Out-Null
+                        Remove-WinDebloatBloatware -Config $config -Confirm:$false
+                        Set-WinDebloatPrivacy -Config $config -Confirm:$false
+                        Set-WinDebloatPerformance -Config $config -Confirm:$false
+                        Set-WinDebloatSystemTweaks -Config $config -Confirm:$false
+                    } -Variables @{ profilePath = $profilePath }
                 }
                 catch {
                     $txtStatus.Text = "Error: $($_.Exception.Message)"
-                }
-                finally {
-                    [System.Windows.Input.Mouse]::OverrideCursor = $null
                 }
             })
 
         (& $getCtrl "btnRemoveBloatware").Add_Click({
-                $txtStatus.Text = "Removing Bloatware..."
-                & $updateGui
-                [System.Windows.Input.Mouse]::OverrideCursor = [System.Windows.Input.Cursors]::Wait
-                try {
+                & $runBackgroundTask "Bloatware Removal" {
                     $config = [pscustomobject]@{ bloatware = @{ removal_mode = "Moderate" } }
                     Remove-WinDebloatBloatware -Config $config -Confirm:$false
-                    $txtStatus.Text = "Bloatware Removed!"
-                }
-                catch {
-                    $txtStatus.Text = "Error: $($_.Exception.Message)"
-                }
-                finally {
-                    [System.Windows.Input.Mouse]::OverrideCursor = $null
                 }
             })
 
@@ -692,6 +1025,26 @@ function Show-WinDebloatGUI {
                         Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "NoAutoUpdate" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
                     }
 
+                    # 7. Taskbar Grouping (Never Combine)
+                    $chkGlom = & $getCtrl "chkTaskbarGlom"
+                    if ($chkGlom -and $chkGlom.IsChecked) {
+                        Set-WinDebloatTaskbarGrouping -GlomLevel Never
+                    }
+                    elseif ($chkGlom) {
+                        Set-WinDebloatTaskbarGrouping -GlomLevel Always
+                    }
+
+                    # 8. Copilot Hardware Key Remap (26H2)
+                    $cmbCopilot = & $getCtrl "cmbCopilotKeyRemap"
+                    if ($cmbCopilot) {
+                        switch ($cmbCopilot.SelectedIndex) {
+                            0 { Enable-WinDebloatCopilotKey }
+                            1 { Set-WinDebloatCopilotKeyRemap }
+                            2 { Set-WinDebloatCopilotKeyRemap -CustomAppPath "shell:::{3080F90E-D7AD-11D9-BD98-0000947B0257}" }
+                            3 { Disable-WinDebloatCopilotKey }
+                        }
+                    }
+
                     $txtStatus.Text = "General Tweaks Applied!"
                 }
                 catch {
@@ -755,6 +1108,30 @@ function Show-WinDebloatGUI {
                         # Unlock Ultimate Plan checkbox (if not already activated via radio button)
                         if ((& $getCtrl "chkUltimatePlan").IsChecked -and -not ($radUlt -and $radUlt.IsChecked)) {
                             Enable-WinDebloatUltimatePower
+                        }
+
+                        # Low-Latency Kernel Timers (0.5ms resolution)
+                        $chkTimers = & $getCtrl "chkLowLatencyTimers"
+                        if ($chkTimers -and $chkTimers.IsChecked) {
+                            Enable-WinDebloatLowLatencyTimers
+                        }
+                        elseif ($chkTimers) {
+                            Disable-WinDebloatLowLatencyTimers
+                        }
+
+                        # UDP Receive Offload (URO - 26H2)
+                        $chkUro = & $getCtrl "chkUdpReceiveOffload"
+                        if ($chkUro -and $chkUro.IsChecked) {
+                            Enable-WinDebloatURO
+                        }
+                        elseif ($chkUro) {
+                            Disable-WinDebloatURO
+                        }
+
+                        # Dev Drive ReFS Storage Cache
+                        $chkDev = & $getCtrl "chkDevDriveOpt"
+                        if ($chkDev -and $chkDev.IsChecked) {
+                            Optimize-WinDebloatDevDrive
                         }
 
                         $txtStatus.Text = "Performance Optimized!"
@@ -987,26 +1364,51 @@ function Show-WinDebloatGUI {
         # ═══════════════════════════════════════════════════════════════════════════════
         try {
             $icSoftware = & $getCtrl "icSoftwareCategories"
-            $essentials = Get-WinDebloatEssentialsList
-            $categoriesList = [System.Collections.ArrayList]@()
+            $catalog = Get-WinDebloatAppCatalog
+            $categoriesList = [System.Collections.Generic.List[WinDebloatSoftwareCategoryItem]]::new()
 
-            # Sorted for a stable category order
-            foreach ($catKey in ($essentials.Keys | Sort-Object)) {
-                $appsList = [System.Collections.ArrayList]@()
-                foreach ($appDef in $essentials[$catKey].Apps) {
-                    $appsList.Add([pscustomobject]@{
-                            Name       = $appDef.Name
-                            PackageId  = $appDef.Winget
-                            ChocoId    = $appDef.Choco
-                            MsstoreId  = $appDef.Msstore
-                            NpmId      = $appDef.Npm
-                            IsSelected = $false
-                        }) | Out-Null
+            if ($catalog -and $catalog.categories) {
+                foreach ($cat in $catalog.categories) {
+                    $catItem = [WinDebloatSoftwareCategoryItem]::new()
+                    $catItem.CategoryName = [string]$cat.name
+                    $catItem.Apps = [System.Collections.Generic.List[WinDebloatSoftwareAppItem]]::new()
+
+                    foreach ($app in $cat.apps) {
+                        $appItem = [WinDebloatSoftwareAppItem]::new()
+                        $appItem.Name        = [string]$app.name
+                        $appItem.PackageId   = [string]$app.winget
+                        $appItem.ChocoId     = [string]$app.choco
+                        $appItem.MsstoreId   = ""
+                        $appItem.NpmId       = ""
+                        $appItem.Recommended = [bool]$app.recommended
+                        $appItem.Description = [string]$app.description
+                        $appItem.IsSelected  = [bool]$app.recommended
+                        $catItem.Apps.Add($appItem)
+                    }
+                    $categoriesList.Add($catItem)
                 }
-                $categoriesList.Add([pscustomobject]@{
-                        CategoryName = $essentials[$catKey].DisplayName
-                        Apps         = $appsList
-                    }) | Out-Null
+            }
+            else {
+                $essentials = Get-WinDebloatEssentialsList
+                foreach ($catKey in ($essentials.Keys | Sort-Object)) {
+                    $catItem = [WinDebloatSoftwareCategoryItem]::new()
+                    $catItem.CategoryName = [string]$essentials[$catKey].DisplayName
+                    $catItem.Apps = [System.Collections.Generic.List[WinDebloatSoftwareAppItem]]::new()
+
+                    foreach ($appDef in $essentials[$catKey].Apps) {
+                        $appItem = [WinDebloatSoftwareAppItem]::new()
+                        $appItem.Name        = [string]$appDef.Name
+                        $appItem.PackageId   = [string]$appDef.Winget
+                        $appItem.ChocoId     = [string]$appDef.Choco
+                        $appItem.MsstoreId   = [string]$appDef.Msstore
+                        $appItem.NpmId       = [string]$appDef.Npm
+                        $appItem.Recommended = $false
+                        $appItem.Description = ""
+                        $appItem.IsSelected  = $false
+                        $catItem.Apps.Add($appItem)
+                    }
+                    $categoriesList.Add($catItem)
+                }
             }
             $icSoftware.ItemsSource = $categoriesList
         }
@@ -1023,14 +1425,19 @@ function Show-WinDebloatGUI {
                         $icSoftware.ItemsSource = $categoriesList
                         return
                     }
-                    $filtered = [System.Collections.ArrayList]@()
+                    $filtered = [System.Collections.Generic.List[WinDebloatSoftwareCategoryItem]]::new()
                     foreach ($cat in $categoriesList) {
-                        $matchApps = @($cat.Apps | Where-Object { $_.Name -like "*$filter*" })
-                        if ($matchApps.Count -gt 0) {
-                            $filtered.Add([pscustomobject]@{
-                                    CategoryName = $cat.CategoryName
-                                    Apps         = $matchApps
-                                }) | Out-Null
+                        $matchingApps = [System.Collections.Generic.List[WinDebloatSoftwareAppItem]]::new()
+                        foreach ($app in $cat.Apps) {
+                            if ($app.Name -like "*$filter*" -or $app.PackageId -like "*$filter*") {
+                                $matchingApps.Add($app)
+                            }
+                        }
+                        if ($matchingApps.Count -gt 0) {
+                            $catMatch = [WinDebloatSoftwareCategoryItem]::new()
+                            $catMatch.CategoryName = $cat.CategoryName
+                            $catMatch.Apps = $matchingApps
+                            $filtered.Add($catMatch)
                         }
                     }
                     $icSoftware.ItemsSource = $filtered
@@ -1077,19 +1484,10 @@ function Show-WinDebloatGUI {
                     return
                 }
 
-                $txtStatus.Text = "Installing $($selectedApps.Count) apps..."
-                & $updateGui
-                [System.Windows.Input.Mouse]::OverrideCursor = [System.Windows.Input.Cursors]::Wait
-                try {
-                    $result = Install-WinDebloatSoftware -Apps $selectedApps -Quiet
-                    $txtStatus.Text = "Installation Complete! $($result.Successful) installed, $($result.Failed) failed."
-                }
-                catch {
-                    $txtStatus.Text = "Error: $($_.Exception.Message)"
-                }
-                finally {
-                    [System.Windows.Input.Mouse]::OverrideCursor = $null
-                }
+                $count = $selectedApps.Count
+                & $runBackgroundTask -TaskName "Install Software ($count packages)" -WorkBlock {
+                    Install-WinDebloatSoftware -Apps $appsToInstall -Quiet
+                } -Variables @{ appsToInstall = $selectedApps }
             })
 
         # ═══════════════════════════════════════════════════════════════════════════════
@@ -1136,6 +1534,16 @@ function Show-WinDebloatGUI {
                         else {
                             Enable-WinDebloatIPv6 -Confirm:$false
                         }
+
+                        # Encrypted Client Hello (ECH - 26H2 Anti-SNI Leak)
+                        $chkEch = $window.FindName("chkEnableECH")
+                        if ($chkEch -and $chkEch.IsChecked) {
+                            Enable-WinDebloatECH
+                        }
+                        elseif ($chkEch) {
+                            Disable-WinDebloatECH
+                        }
+
                         $txtStatus.Text = "DNS and protocol settings applied successfully!"
                     }
                     catch {
@@ -1147,7 +1555,7 @@ function Show-WinDebloatGUI {
                 })
         }
 
-        # Network Security & Protocol Hardening (SMBv1, NetBIOS)
+        # Network Security & Protocol Hardening (SMBv1, NetBIOS, Enterprise SMB)
         $btnApplyNetSec = $window.FindName("btnApplyNetSecurity")
         if ($btnApplyNetSec) {
             $btnApplyNetSec.Add_Click({
@@ -1171,6 +1579,20 @@ function Show-WinDebloatGUI {
                         }
                         else {
                             Enable-WinDebloatNetBIOS -Confirm:$false
+                        }
+
+                        # 3. Enterprise SMB Hardening Suite (Signing, NTLM Blocking, Client Security)
+                        $chkEntSMB = $window.FindName("chkEnterpriseSMB")
+                        if ($chkEntSMB -and $chkEntSMB.IsChecked) {
+                            Disable-WinDebloatSMBv1
+                            Enable-WinDebloatSMBSigning
+                            Enable-WinDebloatSMBNTLMBlock
+                            Enable-WinDebloatSMBClientHardening
+                        }
+                        elseif ($chkEntSMB) {
+                            Disable-WinDebloatSMBSigning
+                            Disable-WinDebloatSMBNTLMBlock
+                            Disable-WinDebloatSMBClientHardening
                         }
 
                         $txtStatus.Text = "Network security hardening applied!"
@@ -1228,20 +1650,10 @@ function Show-WinDebloatGUI {
         $btnResetNetQuick = $window.FindName("btnResetNetworkQuick")
         if ($btnResetNetQuick) {
             $btnResetNetQuick.Add_Click({
-                    $txtStatus.Text = "Resetting network adapter stack (IP/DNS/Winsock)..."
-                    & $updateGui
-                    [System.Windows.Input.Mouse]::OverrideCursor = [System.Windows.Input.Cursors]::Wait
-                    try {
-                        Reset-WinDebloatNetwork -Confirm:$false
-                        $txtStatus.Text = "Network stack reset complete! (Restart recommended)"
-                    }
-                    catch {
-                        $txtStatus.Text = "Network Reset Error: $($_.Exception.Message)"
-                    }
-                    finally {
-                        [System.Windows.Input.Mouse]::OverrideCursor = $null
-                    }
-                })
+                & $runBackgroundTask -TaskName "Reset Network Stack" -WorkBlock {
+                    Reset-WinDebloatNetwork -Confirm:$false
+                }
+            })
         }
 
         # ═══════════════════════════════════════════════════════════════════════════════
@@ -1258,26 +1670,17 @@ function Show-WinDebloatGUI {
         }
 
         (& $getCtrl "btnCreateSnapshot").Add_Click({
-                $txtStatus.Text = "Creating Snapshot..."
-                & $updateGui
-                [System.Windows.Input.Mouse]::OverrideCursor = [System.Windows.Input.Cursors]::Wait
-                try {
+                & $runBackgroundTask -TaskName "Create Snapshot" -WorkBlock {
                     New-WinDebloatSnapshot -Name "GUI-Snapshot" -Description "Created via GUI" -Encrypt | Out-Null
-                    $txtStatus.Text = "Snapshot Created!"
-
-                    # Refresh list
+                } -OnCompleted {
                     $lstSnapshots = $window.FindName("lstSnapshots")
-                    $snaps = Get-WinDebloatSnapshot
-                    $lstSnapshots.Items.Clear()
-                    foreach ($snap in $snaps) {
-                        $lstSnapshots.Items.Add("$($snap.Timestamp) - $($snap.Name) [$($snap.Id)]")
+                    if ($lstSnapshots) {
+                        $snaps = Get-WinDebloatSnapshot
+                        $lstSnapshots.Items.Clear()
+                        foreach ($snap in $snaps) {
+                            $lstSnapshots.Items.Add("$($snap.Timestamp) - $($snap.Name) [$($snap.Id)]")
+                        }
                     }
-                }
-                catch {
-                    $txtStatus.Text = "Error: $($_.Exception.Message)"
-                }
-                finally {
-                    [System.Windows.Input.Mouse]::OverrideCursor = $null
                 }
             })
 
@@ -1285,22 +1688,12 @@ function Show-WinDebloatGUI {
         if ($btnRestore) {
             $btnRestore.Add_Click({
                     $lstSnapshots = $window.FindName("lstSnapshots")
-                    if ($lstSnapshots.SelectedItem) {
-                        $txtStatus.Text = "Restoring Snapshot..."
-                        & $updateGui
-                        [System.Windows.Input.Mouse]::OverrideCursor = [System.Windows.Input.Cursors]::Wait
-                        try {
-                            if ($lstSnapshots.SelectedItem -match '\[(.*?)\]$') {
-                                $snapId = $matches[1]
+                    if ($lstSnapshots -and $lstSnapshots.SelectedItem) {
+                        if ($lstSnapshots.SelectedItem -match '\[(.*?)\]$') {
+                            $snapId = $matches[1]
+                            & $runBackgroundTask -TaskName "Restore Snapshot ($snapId)" -WorkBlock {
                                 Restore-WinDebloatSnapshot -SnapshotId $snapId -Confirm:$false
-                                $txtStatus.Text = "System Restored Successfully!"
-                            }
-                        }
-                        catch {
-                            $txtStatus.Text = "Error: $($_.Exception.Message)"
-                        }
-                        finally {
-                            [System.Windows.Input.Mouse]::OverrideCursor = $null
+                            } -Variables @{ snapId = $snapId }
                         }
                     }
                 })
@@ -1368,46 +1761,20 @@ function Show-WinDebloatGUI {
             })
 
         (& $getCtrl "btnRepairSystem").Add_Click({
-                $txtStatus.Text = "Running System Repair (SFC). Please wait..."
-                & $updateGui
-                [System.Windows.Input.Mouse]::OverrideCursor = [System.Windows.Input.Cursors]::Wait
-                try {
+                & $runBackgroundTask -TaskName "System Repair (SFC / DISM)" -WorkBlock {
                     Repair-WinDebloatSystem -Confirm:$false
-                    $txtStatus.Text = "Repair Complete!"
                 }
-                catch { $txtStatus.Text = "Error: $($_.Exception.Message)" }
-                finally { [System.Windows.Input.Mouse]::OverrideCursor = $null }
             })
 
         (& $getCtrl "btnResetNetwork").Add_Click({
-                $txtStatus.Text = "Resetting Network Stack..."
-                & $updateGui
-                [System.Windows.Input.Mouse]::OverrideCursor = [System.Windows.Input.Cursors]::Wait
-                try {
+                & $runBackgroundTask -TaskName "Reset Network Stack" -WorkBlock {
                     Reset-WinDebloatNetwork -Confirm:$false
-                    $txtStatus.Text = "Network Reset Complete!"
-                }
-                catch {
-                    $txtStatus.Text = "Error: $($_.Exception.Message)"
-                }
-                finally {
-                    [System.Windows.Input.Mouse]::OverrideCursor = $null
                 }
             })
 
         (& $getCtrl "btnWinUpdateReset").Add_Click({
-                $txtStatus.Text = "Resetting Update Components..."
-                & $updateGui
-                [System.Windows.Input.Mouse]::OverrideCursor = [System.Windows.Input.Cursors]::Wait
-                try {
+                & $runBackgroundTask -TaskName "Reset Update Components" -WorkBlock {
                     Reset-WinDebloatUpdate -Confirm:$false
-                    $txtStatus.Text = "Update Components Reset!"
-                }
-                catch {
-                    $txtStatus.Text = "Error: $($_.Exception.Message)"
-                }
-                finally {
-                    [System.Windows.Input.Mouse]::OverrideCursor = $null
                 }
             })
 

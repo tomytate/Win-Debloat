@@ -410,12 +410,48 @@ Write-Host "  Total PSD1 AliasesToExport  : $($psd1Aliases.Count)"
 Write-Host "  Parity Violations Detected  : $($parityViolations.Count)" -ForegroundColor $(if ($parityViolations.Count -eq 0) { "Green" } else { "Red" })
 
 if ($parityViolations.Count -gt 0) {
+    if ($env:GITHUB_STEP_SUMMARY) {
+        $astSummaryMd = @"
+
+## 📐 Win-Debloat AST 5-Way Parity Verification
+
+| Layer / Metric | Count | Status |
+| :--- | :--- | :--- |
+| **AST Defined Functions** | $($allDefinedFunctions.Count) | ℹ️ |
+| **PSM1 Exported Functions** | $($allPsm1ExportedFunctions.Count) | ℹ️ |
+| **PSD1 FunctionsToExport** | $($psd1Functions.Count) | ℹ️ |
+| **PSM1 Exported Aliases** | $($allPsm1ExportedAliases.Count) | ℹ️ |
+| **PSD1 AliasesToExport** | $($psd1Aliases.Count) | ℹ️ |
+| **Parity Violations** | $($parityViolations.Count) | ❌ $($parityViolations.Count) Mismatch(es) |
+
+"@
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $astSummaryMd -Encoding UTF8
+    }
+
     Write-Host "`n[!] PARITY VIOLATIONS FOUND:" -ForegroundColor Red
     foreach ($violation in $parityViolations) {
         Write-Host "  [FAIL] $violation" -ForegroundColor Red
     }
     Write-Host "`n❌ TEST FAILED: 5-way AST parity was not achieved." -ForegroundColor Red
     exit 1
+}
+
+if ($env:GITHUB_STEP_SUMMARY) {
+    $astSummaryMd = @"
+
+## 📐 Win-Debloat AST 5-Way Parity Verification
+
+| Layer / Metric | Count | Status |
+| :--- | :--- | :--- |
+| **AST Defined Functions** | $($allDefinedFunctions.Count) | ℹ️ |
+| **PSM1 Exported Functions** | $($allPsm1ExportedFunctions.Count) | ℹ️ |
+| **PSD1 FunctionsToExport** | $($psd1Functions.Count) | ℹ️ |
+| **PSM1 Exported Aliases** | $($allPsm1ExportedAliases.Count) | ℹ️ |
+| **PSD1 AliasesToExport** | $($psd1Aliases.Count) | ℹ️ |
+| **Parity Violations** | $($parityViolations.Count) | ✅ 100% Mathematical Parity |
+
+"@
+    Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $astSummaryMd -Encoding UTF8
 }
 
 Write-Host "`n✅ SUCCESS: 100% Mathematical Parity Verified Across All 5 AST & Manifest Layers!" -ForegroundColor Green

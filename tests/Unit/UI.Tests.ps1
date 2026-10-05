@@ -157,10 +157,40 @@ Describe "UI.Menu Module" {
             (Get-Command "Show-RepairMenu" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
             (Get-Command "Show-FeaturesMenu" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
             (Get-Command "Show-IntegrationsMenu" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Show-SiliconSchedulingMenu" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Show-TransportSecurityMenu" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Show-StorageSubsystemMenu" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Show-SMBHardeningMenu" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Show-WDInteractiveMenu" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Show-WD7InteractiveMenu" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
             (Get-Command "Get-WinDebloatProfileSummary" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
             (Get-Command "Get-WinDebloat7ProfileSummary" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
             (Get-Command "Invoke-WinDebloatBenchmark" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
             (Get-Command "Invoke-WinDebloat7Benchmark" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+        }
+    }
+
+    Context "Modern TUI Virtual Terminal and Sub-Character Rendering" {
+        It "Executes buffer management, frame rendering, and smooth progress without error" {
+            (Get-Command "Enter-WDAlternateBuffer" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Exit-WDAlternateBuffer" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Enter-WD7AlternateBuffer" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Exit-WD7AlternateBuffer" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Render-WDFrame" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Render-WD7Frame" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Show-WD7SmoothProgress" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Show-WinDebloat7SmoothProgress" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Invoke-WDTaskWithSpinner" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+            (Get-Command "Invoke-WD7TaskWithSpinner" -ErrorAction SilentlyContinue) | Should -Not -BeNullOrEmpty
+
+            { Enter-WDAlternateBuffer } | Should -Not -Throw
+            { Exit-WDAlternateBuffer } | Should -Not -Throw
+            { Render-WDFrame -FrameContent "  Atomic Frame Test Content" } | Should -Not -Throw
+            { Show-WD7SmoothProgress -Percent 50 -Width 20 -Label "Unit Test" } | Should -Not -Throw
+            {
+                $res = Invoke-WDTaskWithSpinner -Message "Unit Spinner" -ScriptBlock { 42 }
+                $res | Should -Be 42
+            } | Should -Not -Throw
         }
     }
 }

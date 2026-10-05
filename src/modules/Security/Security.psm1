@@ -617,6 +617,90 @@ function Disable-WinDebloatSMBNTLMBlock {
     }
 }
 
+<#
+.SYNOPSIS
+    Enforces enterprise SMB client security hardening (encryption, signing, guest logon restriction).
+#>
+function Enable-WinDebloatSMBClientHardening {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Enforcing SMB client security hardening..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("SMB Client", "Require encryption, signing, and disable insecure guest logons")) {
+        $lmPath = "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters"
+        Set-RegistryKey -Path $lmPath -Name "RequireSecuritySignature" -Value 1 -Type DWord | Out-Null
+        Set-RegistryKey -Path $lmPath -Name "EnableSecuritySignature" -Value 1 -Type DWord | Out-Null
+        Set-RegistryKey -Path $lmPath -Name "RequireEncryption" -Value 1 -Type DWord | Out-Null
+        Set-RegistryKey -Path $lmPath -Name "EnableInsecureGuestLogons" -Value 0 -Type DWord | Out-Null
+        Set-RegistryKey -Path $lmPath -Name "AllowInsecureGuestAuth" -Value 0 -Type DWord | Out-Null
+        Write-Log -Message "SMB client hardening policies enabled." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores default Windows SMB client configuration.
+#>
+function Disable-WinDebloatSMBClientHardening {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("SMB Client", "Restore default SMB client settings")) {
+        $lmPath = "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters"
+        Set-RegistryKey -Path $lmPath -Name "RequireSecuritySignature" -Value 0 -Type DWord | Out-Null
+        Set-RegistryKey -Path $lmPath -Name "EnableSecuritySignature" -Value 1 -Type DWord | Out-Null
+        Remove-RegistryKey -Path $lmPath -Name "RequireEncryption" | Out-Null
+        Remove-RegistryKey -Path $lmPath -Name "EnableInsecureGuestLogons" | Out-Null
+        Remove-RegistryKey -Path $lmPath -Name "AllowInsecureGuestAuth" | Out-Null
+        Write-Log -Message "SMB client configuration restored to default." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Enforces strict NTLMv2 session security and 128-bit minimum client encryption.
+#>
+function Enable-WinDebloatNTLMv2Enforcement {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Enforcing NTLMv2 and 128-bit session security..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("LSA Subsystem", "Enforce NTLMv2 response only and 128-bit minimum encryption")) {
+        $lsaPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa"
+        Set-RegistryKey -Path $lsaPath -Name "LmCompatibilityLevel" -Value 5 -Type DWord | Out-Null
+        
+        $msvPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
+        Set-RegistryKey -Path $msvPath -Name "NtlmMinClientSec" -Value 536870912 -Type DWord | Out-Null
+        Set-RegistryKey -Path $msvPath -Name "NtlmMinServerSec" -Value 536870912 -Type DWord | Out-Null
+        Write-Log -Message "NTLMv2 enforcement and 128-bit minimum session security enabled." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores default Windows NTLM compatibility and session security levels.
+#>
+function Disable-WinDebloatNTLMv2Enforcement {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("LSA Subsystem", "Restore default NTLM compatibility")) {
+        $lsaPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa"
+        Set-RegistryKey -Path $lsaPath -Name "LmCompatibilityLevel" -Value 3 -Type DWord | Out-Null
+        
+        $msvPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
+        Remove-RegistryKey -Path $msvPath -Name "NtlmMinClientSec" | Out-Null
+        Remove-RegistryKey -Path $msvPath -Name "NtlmMinServerSec" | Out-Null
+        Write-Log -Message "NTLM compatibility restored to Windows client default." -Level Success
+    }
+}
+
 # Aliases for backward compatibility
 Set-Alias -Name 'Set-WinDebloat7Security' -Value 'Set-WinDebloatSecurity'
 Set-Alias -Name 'Disable-WinDebloat7SMBv1' -Value 'Disable-WinDebloatSMBv1'
@@ -647,6 +731,10 @@ Set-Alias -Name 'Get-WD7LanguageMode' -Value 'Get-WinDebloatLanguageMode'
 Set-Alias -Name 'Get-WinDebloat7SecurityStatus' -Value 'Get-WinDebloatSecurityStatus'
 Set-Alias -Name 'Enable-WinDebloat7SMBNTLMBlock' -Value 'Enable-WinDebloatSMBNTLMBlock'
 Set-Alias -Name 'Disable-WinDebloat7SMBNTLMBlock' -Value 'Disable-WinDebloatSMBNTLMBlock'
+Set-Alias -Name 'Enable-WinDebloat7SMBClientHardening' -Value 'Enable-WinDebloatSMBClientHardening'
+Set-Alias -Name 'Disable-WinDebloat7SMBClientHardening' -Value 'Disable-WinDebloatSMBClientHardening'
+Set-Alias -Name 'Enable-WinDebloat7NTLMv2Enforcement' -Value 'Enable-WinDebloatNTLMv2Enforcement'
+Set-Alias -Name 'Disable-WinDebloat7NTLMv2Enforcement' -Value 'Disable-WinDebloatNTLMv2Enforcement'
 
 Export-ModuleMember -Function @(
     "Set-WinDebloatSecurity",
@@ -674,7 +762,11 @@ Export-ModuleMember -Function @(
     "Get-WinDebloatLanguageMode",
     "Get-WinDebloatSecurityStatus",
     "Enable-WinDebloatSMBNTLMBlock",
-    "Disable-WinDebloatSMBNTLMBlock"
+    "Disable-WinDebloatSMBNTLMBlock",
+    "Enable-WinDebloatSMBClientHardening",
+    "Disable-WinDebloatSMBClientHardening",
+    "Enable-WinDebloatNTLMv2Enforcement",
+    "Disable-WinDebloatNTLMv2Enforcement"
 ) -Alias @(
     "Set-WinDebloat7Security",
     "Disable-WinDebloat7SMBv1",
@@ -704,5 +796,9 @@ Export-ModuleMember -Function @(
     "Get-WD7LanguageMode",
     "Get-WinDebloat7SecurityStatus",
     "Enable-WinDebloat7SMBNTLMBlock",
-    "Disable-WinDebloat7SMBNTLMBlock"
+    "Disable-WinDebloat7SMBNTLMBlock",
+    "Enable-WinDebloat7SMBClientHardening",
+    "Disable-WinDebloat7SMBClientHardening",
+    "Enable-WinDebloat7NTLMv2Enforcement",
+    "Disable-WinDebloat7NTLMv2Enforcement"
 )

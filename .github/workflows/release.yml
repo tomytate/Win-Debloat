@@ -7,6 +7,12 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -17,6 +23,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Build Dual Release with SPDX 2.3 SBOM
         shell: pwsh
@@ -24,6 +31,17 @@ jobs:
           $tag = "${{ github.ref_name }}"
           $version = $tag.TrimStart('v')
           & ./build/Build-DualRelease.ps1 -Version $version -OutputDir dist -Platform all
+
+      - name: Attest Build Provenance (SLSA Level 3)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/Win-Debloat.exe
+            dist/Win-Debloat-arm64.exe
+            dist/Win-Debloat-Extras.exe
+            dist/Win-Debloat-Extras-arm64.exe
+            dist/Win-Debloat-v*.zip
+            dist/Win-Debloat-Extras-v*.zip
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -34,8 +52,12 @@ jobs:
             dist/Win-Debloat-arm64.exe
             dist/Win-Debloat-Extras.exe
             dist/Win-Debloat-Extras-arm64.exe
+            dist/Win-Debloat-v*.zip
+            dist/Win-Debloat-Extras-v*.zip
             dist/win-debloat-sbom.spdx.json
             dist/SHA256SUMS.txt
           body_path: dist/RELEASE_NOTES.md
+          generate_release_notes: true
+          fail_on_unmatched_files: true
           draft: false
           prerelease: false

@@ -14,14 +14,21 @@ We built Win-Debloat to be the **"Gold Standard"**:
 
 ## 📊 v1.7.0 at a Glance
 - **30** registered modules
-- **261** exported functions (plus 290 backward-compatible aliases)
+- **293** exported functions (plus 330 backward-compatible aliases)
 - **11-Vector 100-Point Privacy Scoring Engine** with dynamic A–F grading
-- **Full reversibility**: every tweak has a revert counterpart; dual-layer DPAPI-encrypted snapshots + human-readable `.reg` exports before any change
-- **Preview before apply**: profiles show a read-only action plan and require confirmation
+- **Asynchronous 60 FPS WPF Cockpit GUI & Spectre ANSI TUI**: STA background runspace pump, 33ms message dispatcher, live cancellation, in-window modal visual diff overlay (`modalDiffOverlay`), 5-card live telemetry (DirectStorage BypassIO), Alternate Screen Buffer (DECSET 1049), atomic frame rendering (DECSET 2026), 8x sub-character progress, and Braille spinners
+- **Triple-Layer Disaster Recovery**:
+  - *Layer 1*: Native CIM (`root\default:SystemRestore`) VSS System Restore Point with 24-hr frequency bypass (`SystemRestorePointCreationFrequency = 0`).
+  - *Layer 2*: Cryptographic DPAPI-encrypted state snapshot (`.clixml`) with lightweight JSON metadata sidecars (`meta.json`).
+  - *Layer 3*: Standalone UTF-16LE `rollback.reg` with companion zero-dependency `rollback.cmd` for offline recovery in WinRE Command Prompt.
+  - *Visual State Diff Viewer*: Colorized interactive diff inspector in both TUI (`Show-WinDebloatDiffViewer`) and GUI.
+- **Universal Zero-Friction Smart Bootstrapper**: Double-clicking `Run.bat` or `Win-Debloat.exe` autodetects PowerShell 7+ and falls back seamlessly to native Windows PowerShell 5.1 (`deploy\Deploy-WinDebloat.ps1`) with zero prerequisites.
+- **Network Security & Firewall Loopback Guard**: `Test-IsSafeExternalIp` RFC 1122/6890/1918 filter protecting localhost/loopback/private IP blocking + 82 verified offline telemetry endpoints.
+- **Declarative Essential Apps Catalog**: Curated `config/apps.yaml` schema with Winget integration, `Get-WinDebloatAppCatalog`, and `Install-WinDebloatAppCatalog`.
 - **Enterprise Deployment**: Standalone headless Intune / OOBE Shift+F10 deployment (`deploy/Deploy-WinDebloat.ps1`), custom Intune detection (`deploy/Detect-WinDebloat.ps1`), and zero-binary `Run.bat` launcher
-- **Enterprise Security**: SMB NTLM Relay Blocking, Windows Protected Print (RFC 8011), Sudo Isolation, BitLocker XTS-256
-- **Next-Gen Hardware Tuning**: AMD Dual-CCD X3D Core Parking, Intel Thread Director, Server Native NVMe Stack, ReFS Dev Drive, DirectStorage 1.2+ BypassIO, TCP CUBIC/BBR2
-- **Test Integrity**: Full Pester compliance suite enforced in CI (**100% pass rate, 355/355 tests passed**, 0 failures, 0 skipped)
+- **Enterprise Security**: SMB Client Hardening, NTLMv2 Enforcement, SMB NTLM Relay Blocking, Windows Protected Print (RFC 8011), Sudo Isolation, BitLocker XTS-256
+- **Next-Gen Hardware Tuning**: AMD Dual-CCD X3D Core Parking, Intel Thread Director Heterogeneous Scheduling, Low-Latency Kernel Timers, Server Native NVMe Stack, ReFS Dev Drive, DirectStorage 1.2+ BypassIO, TCP CUBIC/BBR
+- **Test Integrity**: Full Pester compliance suite enforced in CI (**100% pass rate, 388/388 tests passed**, 0 failures, 0 skipped)
 - **0** PSScriptAnalyzer errors and **100% 5-way AST parity** across all layers
 - **11** DNS providers with native Windows 11 DoH encryption
 - **139** bloatware apps (tiered removal)

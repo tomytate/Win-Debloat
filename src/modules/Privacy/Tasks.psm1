@@ -57,8 +57,11 @@ $Script:TelemetryTasks = @{
         # Application Experience Extensions
         @{ Path = "\Microsoft\Windows\Application Experience"; Name = "MareBackup" }
         @{ Path = "\Microsoft\Windows\Application Experience"; Name = "PautoRequest" }
+        @{ Path = "\Microsoft\Windows\Application Experience"; Name = "Microsoft Compatibility Appraiser Exp" }
+        @{ Path = "\Microsoft\Windows\Application Experience"; Name = "PcaPatchDbTask" }
+        @{ Path = "\Microsoft\Windows\Application Experience"; Name = "SdbinstMergeDbTask" }
         
-        # Windows 11 24H2/25H2/26H1 AI / Copilot+ / Flighting Tasks
+        # Windows 11 24H2/25H2/26H2 AI / Copilot+ / Flighting / Sustainability Tasks
         @{ Path = "\Microsoft\Windows\WindowsAI"; Name = "ClickToDo" }
         @{ Path = "\Microsoft\Windows\WindowsAI"; Name = "RecallSnapshot" }
         @{ Path = "\Microsoft\Windows\WindowsAI"; Name = "ModelMaintenance" }
@@ -71,8 +74,11 @@ $Script:TelemetryTasks = @{
         @{ Path = "\Microsoft\Windows\NarrativeFlows"; Name = "UserJourneyTracker" }
         @{ Path = "\Microsoft\Windows\Flighting\OneSettings"; Name = "RefreshCache" }
         @{ Path = "\Microsoft\Windows\Flighting\OneSettings"; Name = "QuerySettings" }
+        @{ Path = "\Microsoft\Windows\Flighting\OneSettings"; Name = "OneSettingsTask" }
         @{ Path = "\Microsoft\Windows\Flighting\FeatureConfig"; Name = "UsageDataReporting" }
         @{ Path = "\Microsoft\Windows\Flighting\FeatureConfig"; Name = "ReconcileFeatures" }
+        @{ Path = "\Microsoft\Windows\Sustainability"; Name = "EnergyEstimation" }
+        @{ Path = "\Microsoft\Windows\Sustainability"; Name = "EmissionsLogging" }
         @{ Path = "\Microsoft\Windows\UNP"; Name = "RunCampaignManager" }
         @{ Path = "\Microsoft\Windows\Setup"; Name = "EOSNotify" }
         @{ Path = "\Microsoft\Windows\Setup"; Name = "EOSNotify2" }

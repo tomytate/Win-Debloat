@@ -304,4 +304,34 @@ Describe "Security Hardening Subsystem" {
             Should -Invoke -CommandName Remove-RegistryKey -ModuleName Security -Times 2
         }
     }
+
+    Context "Enterprise SMB Client Hardening" {
+        It "Enable-WinDebloatSMBClientHardening sets signing, encryption, and guest block" {
+            Mock -ModuleName Security Set-RegistryKey { return $true }
+            { Enable-WinDebloatSMBClientHardening -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloat7SMBClientHardening -Confirm:$false } | Should -Not -Throw
+        }
+
+        It "Disable-WinDebloatSMBClientHardening cleans up SMB client overrides" {
+            Mock -ModuleName Security Set-RegistryKey { return $true }
+            Mock -ModuleName Security Remove-RegistryKey { return $true }
+            { Disable-WinDebloatSMBClientHardening -Confirm:$false } | Should -Not -Throw
+            { Disable-WinDebloat7SMBClientHardening -Confirm:$false } | Should -Not -Throw
+        }
+    }
+
+    Context "Enterprise NTLMv2 Enforcement" {
+        It "Enable-WinDebloatNTLMv2Enforcement configures LmCompatibilityLevel 5 and 128-bit min sec" {
+            Mock -ModuleName Security Set-RegistryKey { return $true }
+            { Enable-WinDebloatNTLMv2Enforcement -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloat7NTLMv2Enforcement -Confirm:$false } | Should -Not -Throw
+        }
+
+        It "Disable-WinDebloatNTLMv2Enforcement restores Windows client default compatibility" {
+            Mock -ModuleName Security Set-RegistryKey { return $true }
+            Mock -ModuleName Security Remove-RegistryKey { return $true }
+            { Disable-WinDebloatNTLMv2Enforcement -Confirm:$false } | Should -Not -Throw
+            { Disable-WinDebloat7NTLMv2Enforcement -Confirm:$false } | Should -Not -Throw
+        }
+    }
 }

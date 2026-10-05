@@ -138,12 +138,12 @@ function Test-WinDebloatDualCcdX3D {
         }
     }
 
-    return [bool]($procName -match '\b(7900X3D|7950X3D|9900X3D|9950X3D)\b')
+    return [bool]($procName -match '\b(7900X3D|7950X3D|9900X3D|9950X3D|7945HX3D|9945HX3D)\b')
 }
 
 <#
 .SYNOPSIS
-    Protects AMD Dual-CCD 3D V-Cache CPUs (7900X3D/7950X3D/9900X3D/9950X3D) from cross-CCD latency penalties.
+    Protects AMD Dual-CCD 3D V-Cache CPUs (7900X3D/7950X3D/9900X3D/9950X3D/7945HX3D/9945HX3D) from cross-CCD latency penalties.
 #>
 function Protect-WinDebloatAMDX3D {
     [CmdletBinding(SupportsShouldProcess)]
@@ -157,21 +157,22 @@ function Protect-WinDebloatAMDX3D {
         Set-RegistryKey -Path "HKCU:\Software\Microsoft\GameBar" -Name "AllowAutoGameMode" -Value 1 -Type DWord
         Set-RegistryKey -Path "HKCU:\Software\Microsoft\GameBar" -Name "AutoGameModeEnabled" -Value 1 -Type DWord
         
-        # Ensure amd3dvcache service is running if present
-        $amdService = Get-Service -Name "amd3dvcache" -ErrorAction SilentlyContinue
+        # Ensure amd3dvcache or Amd3DVCacheService is running if present
+        $amdService = Get-Service -Name "amd3dvcache", "Amd3DVCacheService" -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($amdService) {
-            Set-Service -Name "amd3dvcache" -StartupType Automatic -ErrorAction SilentlyContinue
-            Start-Service -Name "amd3dvcache" -ErrorAction SilentlyContinue
-            Write-Log -Message "AMD 3D V-Cache Optimizer Service verified and running." -Level Success
+            Set-Service -Name $amdService.Name -StartupType Automatic -ErrorAction SilentlyContinue
+            Start-Service -Name $amdService.Name -ErrorAction SilentlyContinue
+            Write-Log -Message "AMD 3D V-Cache Optimizer Service ($($amdService.Name)) verified and running." -Level Success
         }
         else {
             Write-Log -Message "AMD 3D V-Cache driver not present on this system (skipped)." -Level Debug
         }
 
-        # If Dual-CCD X3D CPU is detected, enforce CPMINCORES = 0 so driver can park standard CCD cores during games
+        # If Dual-CCD X3D CPU is detected, enforce CPMINCORES = 0 and CPMINCORES1 = 0 so driver can park standard CCD cores during games
         if (Test-WinDebloatDualCcdX3D) {
-            Write-Log -Message "AMD Dual-CCD 3D V-Cache CPU detected. Enforcing core parking headroom (CPMINCORES = 0)..." -Level Info
+            Write-Log -Message "AMD Dual-CCD 3D V-Cache CPU detected. Enforcing core parking headroom (CPMINCORES = 0, CPMINCORES1 = 0)..." -Level Info
             & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES 0 2>$null
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES1 0 2>$null
             & powercfg /setactive SCHEME_CURRENT 2>$null
         }
     }
@@ -341,6 +342,9 @@ function Set-WinDebloatMMCSSPriority {
         Set-RegistryKey -Path $tasksGames -Name "Scheduling Category" -Value "High" -Type String | Out-Null
         Set-RegistryKey -Path $tasksGames -Name "SFIO Priority" -Value "High" -Type String | Out-Null
 
+        # Low-latency foreground quantum (0x26 = 38 decimal: short, variable, 3:1 foreground boost)
+        Set-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 38 -Type DWord | Out-Null
+
         Write-Log -Message "MMCSS gaming priorities configured with network throttling disabled." -Level Success
     }
 }
@@ -359,6 +363,7 @@ function Reset-WinDebloatMMCSSPriority {
         Set-RegistryKey -Path $sysProfile -Name "NetworkThrottlingIndex" -Value 10 -Type DWord | Out-Null
         Set-RegistryKey -Path $sysProfile -Name "SystemResponsiveness" -Value 20 -Type DWord | Out-Null
         Remove-RegistryKey -Path $sysProfile -Name "NoLazyMode" | Out-Null
+        Set-RegistryKey -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 2 -Type DWord | Out-Null
         Write-Log -Message "MMCSS defaults restored." -Level Success
     }
 }

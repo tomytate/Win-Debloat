@@ -479,12 +479,17 @@ Describe "Tweaks Module" {
     }
 
     Context "Taskbar Grouping & Explorer Performance Tweaks" {
-        It "Set-WinDebloatTaskbarGrouping configures TaskbarGlomLevel correctly" {
+        It "Set-WinDebloatTaskbarGrouping configures TaskbarGlomLevel and MMTaskbarGlomLevel correctly" {
             Mock -ModuleName UI Set-RegistryKey { return $true }
             { Set-WinDebloatTaskbarGrouping -Grouping Never -Confirm:$false } | Should -Not -Throw
             Should -Invoke -CommandName Set-RegistryKey -ModuleName UI -Times 1 -ParameterFilter {
                 $Path -eq "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -and
                 $Name -eq "TaskbarGlomLevel" -and
+                $Value -eq 2
+            }
+            Should -Invoke -CommandName Set-RegistryKey -ModuleName UI -Times 1 -ParameterFilter {
+                $Path -eq "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -and
+                $Name -eq "MMTaskbarGlomLevel" -and
                 $Value -eq 2
             }
 
@@ -496,11 +501,20 @@ Describe "Tweaks Module" {
             }
         }
 
-        It "Optimize-WinDebloatExplorerPerformance disables cloud files and recommendations" {
+        It "Optimize-WinDebloatExplorerPerformance disables cloud files, recommendations, sniffing, and graph items" {
             Mock -ModuleName UI Set-RegistryKey { return $true }
             { Optimize-WinDebloatExplorerPerformance -Confirm:$false } | Should -Not -Throw
             { Optimize-WinDebloat7ExplorerPerformance -Confirm:$false } | Should -Not -Throw
-            Should -Invoke -CommandName Set-RegistryKey -ModuleName UI -Times 4
+            Should -Invoke -CommandName Set-RegistryKey -ModuleName UI -Times 12
+        }
+
+        It "Set-WinDebloatCopilotKey configures Copilot key action without error" {
+            Mock -ModuleName UI Set-RegistryKey { return $true }
+            Mock -ModuleName UI Remove-RegistryKey { return $true }
+            { Set-WinDebloatCopilotKey -Action "Search" -Confirm:$false } | Should -Not -Throw
+            { Set-WinDebloatCopilotKey -Action "Disabled" -Confirm:$false } | Should -Not -Throw
+            { Set-WinDebloatCopilotKey -Action "Default" -Confirm:$false } | Should -Not -Throw
+            { Set-WinDebloat7CopilotKey -Action "Search" -Confirm:$false } | Should -Not -Throw
         }
     }
 }

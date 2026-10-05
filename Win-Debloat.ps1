@@ -29,8 +29,8 @@
     Applies the moderate profile without prompts (for automation).
     
 .NOTES
-    Version: 1.6.0
-    Author: tomytate
+    Version: 1.7.0
+    Author: Tomy Tate
     License: MIT
     Requires: PowerShell 7.6+, Administrator privileges
     
@@ -277,7 +277,7 @@ try {
         throw "Module manifest not found at $manifestPath"
     }
     
-    Import-Module $manifestPath -Force -ErrorAction Stop
+    Import-Module $manifestPath -Force -DisableNameChecking -ErrorAction Stop
     
     # Validate critical modules loaded
     $requiredFunctions = @(

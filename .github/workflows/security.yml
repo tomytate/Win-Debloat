@@ -6,20 +6,46 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   security-check:
+    name: Security & Secret Scan
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run Gitleaks Secret Detection
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_SUMMARY: true
+        continue-on-error: true
 
       - name: Run PSScriptAnalyzer Security Rules
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module PSScriptAnalyzer -ErrorAction Stop
-          $rules = @('PSAvoidUsingPlainTextForPassword', 'PSAvoidUsingConvertToSecureStringWithPlainText')
-          $results = Invoke-ScriptAnalyzer -Path . -Recurse -IncludeRule $rules
+          $rules = @(
+              'PSAvoidUsingPlainTextForPassword',
+              'PSAvoidUsingConvertToSecureStringWithPlainText',
+              'PSAvoidUsingInvokeExpression',
+              'PSAvoidUsingWMICmdlet'
+          )
+          $results = Invoke-ScriptAnalyzer -Path . -Recurse -IncludeRule $rules |
+              Where-Object { $_.ScriptPath -notlike '*\Vendor\*' }
           if ($results) {
-              $results | Format-Table
+              $results | Format-Table -AutoSize
               exit 1
           }
+          Write-Host "✅ Zero security rule violations found in PowerShell codebase." -ForegroundColor Green

@@ -27,7 +27,7 @@
 [![CI Status](https://img.shields.io/github/actions/workflow/status/tomytate/Win-Debloat/ci.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
 
 <!-- Badges: Row 3 - Verification & Supply Chain Quality -->
-[![Test Suite](https://img.shields.io/badge/Pester%20Tests-355%20%2F%20355%20Pass%20(100%25)-22C55E?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
+[![Test Suite](https://img.shields.io/badge/Pester%20Tests-388%20%2F%20388%20Pass%20(100%25)-22C55E?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
 [![AST Parity](https://img.shields.io/badge/AST%20Parity-5--Way%20100%25-00D9FF?style=for-the-badge&logo=powershell&logoColor=white)](https://github.com/tomytate/Win-Debloat)
 [![SPDX SBOM](https://img.shields.io/badge/Supply%20Chain-SPDX%202.3%20SBOM-8B5CF6?style=for-the-badge&logo=spdx&logoColor=white)](dist/win-debloat-sbom.spdx.json)
 
@@ -91,15 +91,19 @@ Unlike legacy debloat scripts that blindly delete registry keys, Win-Debloat tre
 | :--- | :--- | :--- |
 | ⚡ **Performance & Engine** | **Execution Benchmark** | **`< 3.8 ms`** cold dispatch & direct .NET BCL telemetry engine |
 | 📦 **Architecture** | **Module Ecosystem** | **30 modular sub-systems** (100% cohesive domain separation) |
-| 🛠️ **API Surface** | **Functions & Aliases** | **261 canonical functions** + **290 backward-compatible aliases** |
-| 🧪 **Verification** | **Test Suite** | **355 / 355 Pester tests (100% pass)** with 0 PSScriptAnalyzer errors |
+| 🛠️ **API Surface** | **Functions & Aliases** | **293 canonical functions** + **330 backward-compatible aliases** |
+| 🧪 **Verification** | **Test Suite** | **388 / 388 Pester tests (100% pass)** with 0 PSScriptAnalyzer errors |
 | 🔄 **Compatibility** | **5-Way AST Parity** | **100% AST integrity** across PowerShell 5.1, 7.4, 7.5, 7.6.6 & .NET 10 |
-| 🛡️ **Safety & Rollback** | **Encrypted Snapshots** | **DPAPI AES-256 state snapshots** with granular value-level restoration (~85 keys) |
+| 🖥️ **Cockpit GUI** | **Asynchronous 60 FPS WPF** | **STA Runspace Pipeline**, **33ms Dispatcher Pump**, **Live Cancellation**, **5-Card Telemetry Dashboard** (DirectStorage BypassIO) |
+| ⌨️ **Modern TUI** | **Spectre/VT100 Engine** | **Alternate Screen Buffer (DECSET 1049)**, **Double-Buffered Atomic Frames (DECSET 2026)**, **Visual Diff Viewer** |
+| 🛡️ **Safety & Rollback** | **Triple-Layer Recovery** | **Native CIM VSS Restore Point (24-hr bypass)** + **DPAPI AES-256 Snapshot** + **UTF-16LE .reg & rollback.cmd** |
 | 🔍 **Privacy Engine** | **11-Vector Scorer** | **100-point closed algorithm** evaluating Recall, Copilot, Telemetry, and Diagnostics |
-| 🚀 **Hardware Acceleration** | **Next-Gen CPU/GPU** | **AMD Dual-CCD 3D V-Cache**, **Intel Thread Director**, **DirectStorage 1.2**, **Server Native NVMe**, **ReFS Dev Drive** |
+| 🌐 **Network Defense** | **Firewall Loopback Guard** | **Test-IsSafeExternalIp** RFC 1122/6890/1918 filter + **82 verified offline telemetry endpoints** |
+| 🚀 **Hardware Acceleration** | **Next-Gen CPU/GPU** | **AMD Dual-CCD 3D V-Cache**, **Intel Thread Director**, **DirectStorage 1.2+ BypassIO**, **ReFS Dev Drive**, **Wi-Fi 7 (802.11be MLO)** |
 | 🏢 **Enterprise Ready** | **Hardening Standards** | **SMB NTLM Blocking**, **Intune Win32 App Detection**, **Windows Protected Print (RFC 8011)**, **BitLocker XTS-256** |
+| 📦 **Software Catalog** | **Declarative apps.yaml** | **175 curated packages** across 8+ categories with multi-manager fallback (Winget/Choco/Store) |
 | 🔐 **Supply Chain** | **Provenance & Integrity** | **SPDX 2.3 JSON SBOM** + **Dual-Layer Authenticode Code Signing** |
-| 🪟 **Target Environments** | **Operating Systems** | **Windows 11 (24H2/25H2/26H1/26H2)**, **Windows 10 (22H2)**, **Windows Server 2025** |
+| 🪟 **Target Environments** | **Operating Systems** | **Windows 11 (24H2/25H2/26H1/26H2 Build 26300+)**, **Windows 10 (22H2)**, **Windows Server 2025** |
 
 ---
 
@@ -163,17 +167,17 @@ Win-Debloat provides self-contained, native single-file launchers compiled with 
 
 | Edition | Architecture | Binary Name | SHA-256 Checksum | Direct Download |
 | :--- | :--- | :--- | :--- | :--- |
-| **Standard** | **x64** (Intel/AMD) | `Win-Debloat.exe` | `FFD2FABD772E94C85598B48B17912EBB449AC989D43FFC1F3CE16AE2E2492697` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat.exe) |
-| **Standard** | **ARM64** (Snapdragon/Surface) | `Win-Debloat-arm64.exe` | `74541F63A5EB1033E976521E23534F9AD6BF2D43B279DFE1C2157C39AC4A9CF7` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-arm64.exe) |
-| **Extras** ⚠️ | **x64** (Intel/AMD) | `Win-Debloat-Extras.exe` | `BA19F3B71F5B758B03530C2297CC7A98EE7879C60E0BBE237D0828DC0DF5818E` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-Extras.exe) |
-| **Extras** ⚠️ | **ARM64** (Snapdragon/Surface) | `Win-Debloat-Extras-arm64.exe` | `914ED748F77CA1232944AE4C34305DE89F51C0B9F159B8B0479C9AE2649FB298` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-Extras-arm64.exe) |
+| **Standard** | **x64** (Intel/AMD) | `Win-Debloat.exe` | `C5280B7A4C25D37751267DBBC4644463B139E27775F967B8C8A1A8AA2AF441FB` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat.exe) |
+| **Standard** | **ARM64** (Snapdragon/Surface) | `Win-Debloat-arm64.exe` | `C07450965F6C9801396C521107E77E217EF25BD5BCCE63BDF6AB3F506755C8B9` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-arm64.exe) |
+| **Extras** ⚠️ | **x64** (Intel/AMD) | `Win-Debloat-Extras.exe` | `147094412CDD87B96AC5F83CC47C632D874FAD222EC524446989E74FF6D03185` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-Extras.exe) |
+| **Extras** ⚠️ | **ARM64** (Snapdragon/Surface) | `Win-Debloat-Extras-arm64.exe` | `65F65AFB7CDE5131CDE9A6944423E027D76CD85EA37CB2E7A0893F5A945B1636` | [Download](https://github.com/tomytate/Win-Debloat/releases/latest/download/Win-Debloat-Extras-arm64.exe) |
 
-#### ⚡ Automatic PowerShell 7.6 LTS Bootstrap
-When running any standalone `.exe` binary:
-1. **Version Detection**: The launcher probes for modern **PowerShell 7.6+ LTS** (built on .NET 10).
-2. **Automated Provisioning**: If PowerShell 7.6 is missing, the launcher silently fetches and installs PowerShell 7.6.5 via `winget` (forcing WiX MSI to avoid MSIX sandbox limits) or direct GitHub release fallback.
-3. **Seamless Elevation**: Built-in `runas` auto-elevation ensures administrative tokens with zero manual setup.
-4. **Clean Execution**: Extracts embedded payload to a transient memory/temp folder and self-cleans on exit.
+#### ⚡ Universal Zero-Friction Smart Bootstrapper (`Run.bat` & `Win-Debloat.exe`)
+When executing `Run.bat` or standalone `Win-Debloat.exe`:
+1. **Intelligent Engine Autodetection**: Probes the host system for modern **PowerShell 7.6+ LTS** across PATH and standard installation trees (`%ProgramFiles%\PowerShell\7\pwsh.exe`).
+2. **Transparent Zero-Prerequisite Fallback**: If PowerShell 7+ is not detected, it **seamlessly and transparently falls back to native Windows PowerShell 5.1 (`deploy\Deploy-WinDebloat.ps1`) with ZERO prerequisites**, requiring no internet access, no winget installations, and no manual downloads.
+3. **Smart App Control (SAC) & MotW Bypass**: Automatically strips NTFS Mark-of-the-Web (`Zone.Identifier`) alternate data streams from all project files and executes via native batch/PowerShell trampolines to bypass Smart App Control blocks without compromising system security.
+4. **Automated UAC Elevation**: Automatically spawns an elevated session using Windows Terminal (`wt.exe`) or native `runas` verbs.
 
 </details>
 
@@ -250,7 +254,7 @@ pwsh .\Win-Debloat.ps1 -Gui
 
 ## 🆚 Editions: Standard vs Extras
 
-Both editions share the exact same core PowerShell 7.6.6 LTS engine, DPAPI snapshot rollback architecture, YAML profile system, GUI dashboard, and 239+ system optimization cmdlets.
+Both editions share the exact same core PowerShell 7.6.6 LTS engine, DPAPI snapshot rollback architecture, YAML profile system, GUI dashboard, and 275+ system optimization cmdlets.
 
 | Capability / Feature | 🛡️ Standard Edition | ⚠️ Extras Edition |
 | :--- | :---: | :---: |
@@ -324,7 +328,7 @@ graph TD
 
 ## 🔒 100-Point 11-Vector Privacy Scoring Engine
 
-Win-Debloat v1.7.0 features a deterministic, real-time **11-Vector Privacy Scoring Engine** implemented in [`SystemState.psm1`](file:///c:/Users/Tate%20Studio/Documents/Tomy%20Tate/Win-Debloat/src/core/SystemState.psm1) and hardened via [`Privacy.psm1`](file:///c:/Users/Tate%20Studio/Documents/Tomy%20Tate/Win-Debloat/src/modules/Privacy/Privacy.psm1). The engine calculates a live system privacy score ($S \in [0, 100]$) by inspecting low-level registry policies, service run-states, and UWP sensor capabilities:
+Win-Debloat v1.7.0 features a deterministic, real-time **11-Vector Privacy Scoring Engine** implemented in [`SystemState.psm1`](src/core/SystemState.psm1) and hardened via [`Privacy.psm1`](src/modules/Privacy/Privacy.psm1). The engine calculates a live system privacy score ($S \in [0, 100]$) by inspecting low-level registry policies, service run-states, and UWP sensor capabilities:
 
 $$\text{Privacy Score} = 100 - \sum_{i=1}^{11} \left( \text{Weight}_i \times \mathbb{I}(\text{Vector}_i \text{ is Active/Exposed}) \right)$$
 
@@ -349,7 +353,7 @@ $$\text{Privacy Score} = 100 - \sum_{i=1}^{11} \left( \text{Weight}_i \times \ma
 
 ## 📖 Features Overview
 
-Win-Debloat ships with **239 functions** across **30 modules**, organized into 14 feature areas (with full backward-compatible `*-WinDebloat7*` and `WD7*` aliases):
+Win-Debloat ships with **293 canonical functions** (and 330 backward-compatible aliases) across **30 modules**, organized into 14 feature areas (with full backward-compatible `*-WinDebloat7*` and `WD7*` aliases):
 
 | Feature | Description | Key Functions |
 |---------|-------------|---------------|
@@ -540,35 +544,50 @@ Set-WinDebloatTcpCongestionProvider -Provider CUBIC
 
 ## 🖥️ Windows 11 UI & System Customization
 
-Customize Windows 11 to look and behave like a high-productivity workstation:
+Customize Windows 11 (24H2 / 25H2 / 26H2) to look and behave like a high-productivity workstation:
 
+* **Modern WPF Cockpit GUI**: Immersive DWM Dark Titlebar (`DwmSetWindowAttribute`), rounded borders (`#334155`), Per-Monitor v2 vector geometries, and a 5-card live telemetry dashboard (Hardware Profile, DirectStorage BypassIO, 11-Vector Privacy Score, Bloatware status, RAM usage).
+* **Spectre ANSI TUI Engine**: Seamless Alternate Screen Buffer (`DECSET 1049`), double-buffered zero-flicker frame rendering (`DECSET 2026`), 8x sub-character smooth fractional progress bars (`Show-WD7SmoothProgress`), non-blocking Unicode Braille spinners (`Invoke-WDTaskWithSpinner`), and interactive arrow-key navigation (`Show-WDInteractiveMenu`).
+* **26H2 Hardware & Shell Ergonomics**: Remap or disable physical Copilot hardware keys (`Set-WinDebloatCopilotKey`), ungroup taskbar items with labels (`Set-WinDebloatTaskbarGrouping`), and eradicate Explorer cloud/recommendations latency (`Optimize-WinDebloatExplorerPerformance`).
 * **Classic Context Menu**: Restores Windows 10 full context menu (`Shift+F10` bypass) with zero restart delay.
-* **Taskbar Customization**: Center or Left alignment, search icon modes, Widgets button hide, Task View hide.
-* **File Explorer Optimization**: Show hidden files, show known file extensions, launch to *This PC*, hide Gallery/Home icons.
-* **Start Menu Ads Suppression**: Disables *Recommended* section, tips, and promotional suggestions.
 * **System QoL**: Disables Fast Startup (prevents kernel state degradation), disables Sticky Keys prompts, enables Storage Sense.
 
 ```powershell
-# Restore Classic Context Menu
-Set-WinDebloatClassicContextMenu -Enable
+# Remap physical Copilot key to Windows Search
+Set-WinDebloatCopilotKey -Action Search
 
-# Align Taskbar to Left
-Set-WinDebloatTaskbarAlignment -Alignment Left
+# Ungroup taskbar items with labels (Always show labels)
+Set-WinDebloatTaskbarGrouping -Mode Never
+
+# Optimize File Explorer performance (disable cloud & recommendations indexing)
+Optimize-WinDebloatExplorerPerformance
 ```
 
 ---
 
-## 🛡️ Safety, DPAPI Encrypted Rollback & Supply Chain Trust
+## 🛡️ Triple-Layer Disaster Recovery & Supply Chain Trust
 
-Win-Debloat treats Windows configuration **as code**, guaranteeing deterministic rollbacks, cryptographically protected snapshots, and an auditable software supply chain:
+Win-Debloat treats Windows configuration **as code**, guaranteeing 100% deterministic rollbacks, cryptographically protected snapshots, and an auditable software supply chain:
 
-1. **DPAPI AES-256 Snapshots (`Protect-WDData` / `Unprotect-WDData`)**: Encrypts machine state snapshots at rest with OS-bound user keys.
-2. **Dual-Layer Human-Readable Rollback (`rollback.reg`)**: Exports a standard Windows Registry Editor `.reg` file in `backups/` alongside DPAPI snapshots for transparent manual inspection and double-click restoration.
-3. **4-Tier Sidecar (`meta.json`) Resilience**: Fast-path metadata reading ensures instant GUI dashboard loading with self-healing recovery for damaged files.
-4. **Value-Level Registry Rollback**: Targets specific property values only, strictly preserving sibling keys, OEM drivers, and third-party software settings.
-5. **Supply Chain Security**: Dual-layer Authenticode signing with RFC 3161 timestamps, **SPDX 2.3 JSON SBOM** (`win-debloat-sbom.spdx.json`), and published SHA-256 checksums.
-6. **AST 5-Way Mathematical Parity**: 0 parity violations across 261 functions, 290 aliases, and 30 modules.
-7. **355 / 355 Pester Tests Passing (100% Pass Rate)** with 0 PSScriptAnalyzer errors in CI.
+### 🏛️ The Triple-Layer Disaster Recovery Architecture
+1. **Layer 1: Native CIM VSS System Restore Point (`New-WinDebloatSystemRestorePoint`)**
+   - Creates an atomic Volume Shadow Copy (VSS) checkpoint directly via native CIM (`root\default:SystemRestore`).
+   - Automatically sets `HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore\SystemRestorePointCreationFrequency = 0` to bypass Windows' default 24-hour restore point rate limit.
+   - Proactively adjusts the VSS service startup from Disabled to Manual and verifies Group Policy (`DisableSR`).
+2. **Layer 2: Cryptographic DPAPI-Encrypted State Snapshot (`.clixml`)**
+   - Deep capture across ~85 cataloged registry keys, preserving exact value kinds (`DWord`, `QWord`, `String`, `ExpandString`, `MultiString`, `Binary`) and default unnamed values.
+   - Encrypted at rest via Windows Data Protection API (`Protect-WDData` / `Unprotect-WDData`) bound to user credentials with LocalMachine fallback.
+   - Fast-path plaintext metadata sidecar (`meta.json`) for instant UI dashboard loading.
+3. **Layer 3: Standalone UTF-16LE `.reg` Script & Emergency `rollback.cmd`**
+   - Automatically generates a standard Unicode UTF-16LE `rollback.reg` (`Windows Registry Editor Version 5.00`) alongside every snapshot in `backups/`.
+   - Generates a zero-dependency companion batch script `rollback.cmd` that executes `reg.exe import` and `sc.exe config` to restore registry values and services.
+   - **Offline Resilience:** Fully executable from Windows Recovery Environment (WinRE) Command Prompt or Safe Mode with zero PowerShell dependencies!
+4. **Interactive Visual Diff Viewer (`Show-WinDebloatDiffViewer`)**
+   - High-fidelity visual diff visualizer in both TUI and GUI ("Visual Diff Preview"), color-coding Added Keys (`[+]`), Removed Keys (`[-]`), Modified Values (`[~]`), and Service Changes (`[*]`).
+5. **Supply Chain Assurance**
+   - Dual-layer Authenticode code signing with RFC 3161 timestamps.
+   - **SPDX 2.3 JSON SBOM** (`dist/win-debloat-sbom.spdx.json`) documenting full dependency provenance.
+   - **100% 5-Way AST Parity (293 functions, 330 aliases, 30 modules)** and **388 / 388 Passing Pester Tests (100% Pass Rate)** with 0 PSScriptAnalyzer errors in CI.
 
 ---
 
@@ -579,11 +598,11 @@ Win-Debloat treats Windows configuration **as code**, guaranteeing deterministic
 | **Engine** | Fragile `.bat` / nested WMI loops | **PowerShell 7.6.6 LTS (.NET 10) + Direct BCL** |
 | **Telemetry Latency** | ~520 ms (WMI COM marshaling) | **< 3.8 ms (Direct .NET memory/process APIs)** |
 | **Registry Writes** | Slow PSDrive provider (4.8s) | **Direct Win32 BCL (194ms, 25x faster)** |
-| **Rollback Safety** | Destructive / irreversible | **DPAPI AES-256 snapshots + human-readable .reg undo** |
+| **Rollback Safety** | Destructive / irreversible | **Triple-Layer: VSS Restore Point + DPAPI snapshot + .reg undo** |
 | **Hardware Awareness** | Breaks AMD X3D core parking | **AMD Dual-CCD X3D, Intel Thread Director, DirectStorage 1.2** |
-| **Interface** | Raw terminal only | **WPF Cyber-OLED Cockpit + 24-bit TrueColor TUI** |
+| **Interface** | Raw terminal only | **WPF Cyber-OLED Cockpit (60 FPS STA) + 24-bit TrueColor TUI** |
 | **Supply Chain** | Unsigned scripts | **SPDX 2.3 SBOM + Dual Authenticode Signing** |
-| **Code Quality** | Unverified / tech debt | **100% 5-Way AST Parity, 355/355 Tests Passed** |
+| **Code Quality** | Unverified / tech debt | **100% 5-Way AST Parity, 388/388 Tests Passed** |
 
 ---
 
@@ -595,9 +614,9 @@ Win-Debloat treats Windows configuration **as code**, guaranteeing deterministic
 
 **Yes, Win-Debloat is designed with safety as its primary architectural requirement.**
 - **Encrypted Pre-Change Snapshots:** Before any registry key or service state is modified, a DPAPI-encrypted snapshot captures original values and types with full fidelity.
-- **Dual-Layer .reg File Export:** A standard human-readable `rollback.reg` is created alongside every snapshot, allowing transparent auditing in Notepad and instant manual recovery.
+- **Triple-Layer Disaster Recovery:** System Restore Point (VSS snapshot), DPAPI-encrypted binary snapshot, and standard human-readable `rollback.reg` export allow transparent auditing and instant multi-layer recovery.
 - **Zero Compiled Binaries (Standard Edition):** The Standard edition is 100% open PowerShell code that you can inspect and verify, or run directly via `Run.bat`.
-- **Strict Testing Pipeline:** Every commit is validated against a 336-test Pester test harness and enforces 0 PSScriptAnalyzer errors in CI.
+- **Strict Testing Pipeline:** Every commit is validated against a 388-test Pester test harness and enforces 0 PSScriptAnalyzer errors in CI.
 - **Non-Destructive Defaults:** Core Windows components (Windows Update, Microsoft Store, essential framework libraries) are protected and untouched in Standard and Moderate removal profiles.
 </details>
 
@@ -706,7 +725,7 @@ All operations are logged with timestamps, severity levels, and execution metada
 We welcome contributions! Whether you want to add support for new bloatware packages, enhance performance tweaks, or improve UI components:
 
 ```powershell
-# 1. Run the complete test suite (336 tests, 100% pass)
+# 1. Run the complete test suite (366 tests, 100% pass)
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\Run-AllTests.ps1
 
 # 2. Verify 5-Way Mathematical AST export parity (0 violations)
@@ -735,7 +754,7 @@ This project is licensed under the **[MIT License](LICENSE)**.
 
 ```
 MIT License
-Copyright (c) 2026 Tomy Tolledo
+Copyright (c) 2026 Tomy Tate
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

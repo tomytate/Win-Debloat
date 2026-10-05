@@ -163,4 +163,8 @@ catch {
 
 # 8. Finalize
 Write-DeployLog "=== Win-Debloat Enterprise Deployment Completed Successfully ===" "Success"
+if ([Environment]::UserInteractive -and -not $env:UNATTENDED -and -not $env:CI) {
+    Write-Host "`nPress Enter to exit..." -ForegroundColor Gray
+    [void][System.Console]::ReadLine()
+}
 exit 0

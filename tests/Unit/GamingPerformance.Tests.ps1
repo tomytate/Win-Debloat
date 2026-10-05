@@ -235,4 +235,46 @@ Describe "Gaming & Performance Subsystem" {
             { Disable-WinDebloat7ECN -Confirm:$false } | Should -Not -Throw
         }
     }
+
+    Context "Low-Latency Timers and 26H2 Kernel Dispatching" {
+        It "Enable-WinDebloatLowLatencyTimers and Reset-WinDebloatLowLatencyTimers execute safely" {
+            Mock -ModuleName Performance Set-RegistryKey { return $true }
+            Mock -ModuleName Performance Remove-RegistryKey { return $true }
+            { Enable-WinDebloatLowLatencyTimers -Confirm:$false } | Should -Not -Throw
+            { Reset-WinDebloatLowLatencyTimers -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloat7LowLatencyTimers -Confirm:$false } | Should -Not -Throw
+            { Reset-WinDebloat7LowLatencyTimers -Confirm:$false } | Should -Not -Throw
+        }
+    }
+
+    Context "Network URO, ECH, and DoH Policies" {
+        It "Disable-WinDebloatNetAdapterURO and Enable-WinDebloatNetAdapterURO execute safely" {
+            Mock -ModuleName Network Get-NetAdapter { return @([pscustomobject]@{ Name = "Wi-Fi"; Status = "Up" }) }
+            Mock -ModuleName Network Get-Command { return $true }
+            Mock -ModuleName Network Disable-NetAdapterUro { }
+            Mock -ModuleName Network Enable-NetAdapterUro { }
+            { Disable-WinDebloatNetAdapterURO -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloatNetAdapterURO -Confirm:$false } | Should -Not -Throw
+            { Disable-WinDebloat7NetAdapterURO -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloat7NetAdapterURO -Confirm:$false } | Should -Not -Throw
+        }
+
+        It "Enable-WinDebloatECH and Disable-WinDebloatECH configure browser policies" {
+            Mock -ModuleName Network Set-RegistryKey { return $true }
+            Mock -ModuleName Network Remove-RegistryKey { return $true }
+            { Enable-WinDebloatECH -Confirm:$false } | Should -Not -Throw
+            { Disable-WinDebloatECH -Confirm:$false } | Should -Not -Throw
+            { Enable-WinDebloat7ECH -Confirm:$false } | Should -Not -Throw
+            { Disable-WinDebloat7ECH -Confirm:$false } | Should -Not -Throw
+        }
+
+        It "Set-WinDebloatDoHPolicy and Reset-WinDebloatDoHPolicy configure DNS client policy" {
+            Mock -ModuleName Network Set-RegistryKey { return $true }
+            Mock -ModuleName Network Remove-RegistryKey { return $true }
+            { Set-WinDebloatDoHPolicy -Policy "Require" -Confirm:$false } | Should -Not -Throw
+            { Reset-WinDebloatDoHPolicy -Confirm:$false } | Should -Not -Throw
+            { Set-WinDebloat7DoHPolicy -Policy "Allow" -Confirm:$false } | Should -Not -Throw
+            { Reset-WinDebloat7DoHPolicy -Confirm:$false } | Should -Not -Throw
+        }
+    }
 }

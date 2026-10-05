@@ -2,13 +2,14 @@
 
 Win-Debloat is designed to run on **Windows 10 (22H2+)**, **Windows 11 (23H2 / 24H2 / 25H2 / 26H1 / 26H2)**, and **Windows Server 2025**.
 
-## Prerequisites
+## Prerequisites & Runtime Compatibility
 
-1.  **PowerShell 7.6+ LTS**: The framework targets modern PowerShell 7.6 LTS (built on .NET 10).
-    *   **Auto-Bootstrapped**: If you use `Run.bat` or `Win-Debloat.exe`, it automatically verifies your installed version and installs PowerShell 7.6 LTS if missing or outdated.
-    *   **Manual**: Only required if invoking `Win-Debloat.ps1` directly in a fresh console. [Download Here](https://github.com/PowerShell/PowerShell/releases)
-
+1.  **Operating System**: Windows 10 (22H2+), Windows 11 (23H2 / 24H2 / 25H2 / 26H1 / 26H2 Build 26300+), or Windows Server 2025.
 2.  **Administrator Rights**: Administrative elevation is required to modify registry policies, system services, and Appx packages.
+3.  **PowerShell Engine Compatibility**:
+    *   **Modern Engine (Recommended)**: PowerShell 7.6+ LTS (built on .NET 10) provides highest throughput and parallel runspaces.
+    *   **Native Engine (Zero-Prerequisite Fallback)**: Windows PowerShell 5.1 is natively supported via `deploy\Deploy-WinDebloat.ps1`.
+    *   **Universal Smart Bootstrapper**: When using `Run.bat` or `Win-Debloat.exe`, the engine automatically detects PowerShell 7+. If absent, it **transparently falls back to native Windows PowerShell 5.1 with ZERO prerequisites**, requiring no internet connection and no manual runtime installations.
 
 ---
 
@@ -35,10 +36,10 @@ iwr -useb https://raw.githubusercontent.com/tomytate/Win-Debloat/main/setup-extr
 For downloaded ZIP archives or offline local environments:
 1. Double-click `Run.bat` in the root folder (or execute `.\Run.bat` in Terminal/CMD).
 2. **Features**:
+   - **Universal Smart Bootstrapper**: Detects PowerShell 7+; transparently routes to native Windows PowerShell 5.1 (`deploy\Deploy-WinDebloat.ps1`) if modern PowerShell is not installed.
    - **Bypasses Windows 11 Smart App Control (SAC)**: Avoids untrusted binary blocks by executing purely through native batch and PowerShell scripts.
-   - **Unblocks Mark-of-the-Web (MotW)**: Recursively removes NTFS alternate data streams (`Zone.Identifier`) from all project scripts automatically.
-   - **UAC Elevation Trampoline**: Prompts for UAC elevation if launched non-elevated.
-   - **Auto-Bootstraps PowerShell 7.6+**: Detects `pwsh.exe` and falls back to silent installation via `winget` or direct MSI if needed.
+   - **Unblocks Mark-of-the-Web (MotW)**: Recursively strips NTFS alternate data streams (`Zone.Identifier`) from all project scripts automatically.
+   - **UAC Elevation Trampoline**: Automatically requests administrative elevation via Windows Terminal (`wt.exe`) or native PowerShell.
 
 ---
 
@@ -87,7 +88,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\Win-Debloat.ps1
 
 ### Verify Integrity & AST Parity
 ```powershell
-# 1. Run complete Pester test suite (336 tests)
+# 1. Run complete Pester test suite (388 tests)
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\Run-AllTests.ps1
 
 # 2. Verify 5-Way Mathematical AST export parity

@@ -181,4 +181,20 @@ Describe "Repair Module" {
             Should -Invoke -CommandName Rename-Item -ModuleName Repair -Times 0
         }
     }
+
+    Context "Storage Health & DirectStorage BypassIO Check" {
+        It "Test-WinDebloatStorageHealth returns diagnostic object without error" {
+            $diag = Test-WinDebloatStorageHealth -Drive "C:"
+            $diag | Should -Not -BeNullOrEmpty
+            $diag.PSObject.Properties['Drive'] | Should -Not -BeNullOrEmpty
+            $diag.PSObject.Properties['BypassIoSupported'] | Should -Not -BeNullOrEmpty
+            $diag.PSObject.Properties['TrimEnabled'] | Should -Not -BeNullOrEmpty
+        }
+
+        It "Test-WinDebloat7StorageHealth alias functions identically" {
+            $diag = Test-WinDebloat7StorageHealth -Drive "C:"
+            $diag | Should -Not -BeNullOrEmpty
+            $diag.Drive | Should -Be "C:"
+        }
+    }
 }

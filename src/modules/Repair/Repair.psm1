@@ -288,7 +288,7 @@ function Optimize-WinDebloatComponentStore {
             Write-Log -Message "Executing standard DISM /StartComponentCleanup..." -Level Info
             try {
                 dism.exe /Online /Cleanup-Image /StartComponentCleanup 2> variable:dismErrors
-                if ($LASTEXITCODE -eq 0) {
+                if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq 3010) {
                     Write-Log -Message "Standard component store cleanup completed successfully." -Level Success
                 }
                 else {
@@ -440,6 +440,72 @@ function Repair-WinDebloatUpdateError {
     }
 }
 
+<#
+.SYNOPSIS
+    Evaluates storage subsystem health, TRIM state, DirectStorage BypassIO support, and physical drive telemetry.
+.OUTPUTS
+    [PSCustomObject] Storage diagnostic results including BypassIO, TRIM, and physical disk status.
+#>
+function Test-WinDebloatStorageHealth {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$Drive = "C:"
+    )
+
+    Write-Log -Message "Testing storage subsystem health and DirectStorage BypassIO readiness on $Drive..." -Level Info
+
+    $driveLetter = $Drive.TrimEnd('\')
+    if (-not $driveLetter.EndsWith(':')) { $driveLetter = "$driveLetter`:" }
+
+    $bypassIoSupported = $false
+    $bypassIoReason = "Unavailable"
+    try {
+        $bypassOut = & fsutil bypassIo state $driveLetter 2>$null
+        if ($bypassOut -match 'BypassIo is supported') {
+            $bypassIoSupported = $true
+            $bypassIoReason = "Supported"
+        }
+        elseif ($bypassOut -match 'Reason:\s*(.+)') {
+            $bypassIoReason = $Matches[1].Trim()
+        }
+    }
+    catch {
+        $bypassIoReason = $_.Exception.Message
+    }
+
+    $trimEnabled = $false
+    try {
+        $trimOut = & fsutil behavior query DisableDeleteNotify 2>$null
+        if ($trimOut -match 'DisableDeleteNotify = 0') {
+            $trimEnabled = $true
+        }
+    }
+    catch {
+        $trimEnabled = $false
+    }
+
+    $physicalDisks = @()
+    try {
+        $physicalDisks = Get-PhysicalDisk -ErrorAction SilentlyContinue | Select-Object DeviceId, FriendlyName, MediaType, HealthStatus, OperationalStatus
+    }
+    catch {
+        $physicalDisks = @()
+    }
+
+    $result = [PSCustomObject]@{
+        Drive              = $driveLetter
+        BypassIoSupported  = $bypassIoSupported
+        BypassIoStatus     = $bypassIoReason
+        TrimEnabled        = $trimEnabled
+        PhysicalDisks      = $physicalDisks
+    }
+
+    Write-Log -Message "Storage health check completed: BypassIO=$bypassIoSupported, TRIM=$trimEnabled." -Level Success
+    return $result
+}
+
 #endregion
 
 # Aliases for backward compatibility
@@ -451,6 +517,7 @@ Set-Alias -Name 'Reset-WinDebloat7WindowsUpdate' -Value 'Reset-WinDebloatUpdate'
 Set-Alias -Name 'Optimize-WinDebloat7ComponentStore' -Value 'Optimize-WinDebloatComponentStore'
 Set-Alias -Name 'Reset-WinDebloat7ShellCache' -Value 'Reset-WinDebloatShellCache'
 Set-Alias -Name 'Repair-WinDebloat7UpdateError' -Value 'Repair-WinDebloatUpdateError'
+Set-Alias -Name 'Test-WinDebloat7StorageHealth' -Value 'Test-WinDebloatStorageHealth'
 
 Export-ModuleMember -Function @(
     'Repair-WinDebloatSystem',
@@ -458,7 +525,8 @@ Export-ModuleMember -Function @(
     'Reset-WinDebloatUpdate',
     'Optimize-WinDebloatComponentStore',
     'Reset-WinDebloatShellCache',
-    'Repair-WinDebloatUpdateError'
+    'Repair-WinDebloatUpdateError',
+    'Test-WinDebloatStorageHealth'
 ) -Alias @(
     'Repair-WinDebloat7System',
     'Reset-WinDebloat7Network',
@@ -467,5 +535,6 @@ Export-ModuleMember -Function @(
     'Reset-WinDebloat7WindowsUpdate',
     'Optimize-WinDebloat7ComponentStore',
     'Reset-WinDebloat7ShellCache',
-    'Repair-WinDebloat7UpdateError'
+    'Repair-WinDebloat7UpdateError',
+    'Test-WinDebloat7StorageHealth'
 )

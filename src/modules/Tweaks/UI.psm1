@@ -179,30 +179,30 @@ function Set-WinDebloatExplorer {
     
     # Hide Gallery
     if ($HideGallery) {
-        $galleryKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace_41040327\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}"
         if ($PSCmdlet.ShouldProcess("Explorer", "Hide Gallery")) {
-            if (Test-Path $galleryKey) {
-                # We can't easily delete HKLM keys without trustedinstaller usually, but let's try or set property
-                # Legacy key handling. 
-                # Alternative: Set System.IsPinnedToNameSpaceTree to 0 in HKCR CLSID if possible.
-                # For safety/portability, we'll try to detach via CLSID user override if possible, or HKLM delete.
-                
-                # Using the HKCU CLSID method is safer if available, but for Gallery it's often HKLM.
-                # Let's try to set the property "System.IsPinnedToNameSpaceTree" to 0 in absolute CLSID path
-                $clsid = "{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}"
-                $paths = @(
-                    "HKCU:\Software\Classes\CLSID\$clsid",
-                    "HKLM:\SOFTWARE\Classes\CLSID\$clsid"
-                )
-                
-                foreach ($p in $paths) {
-                    if (-not (Test-Path $p)) {
-                        New-Item -Path $p -Force -ErrorAction SilentlyContinue | Out-Null
-                    }
-                    Set-RegistryKey -Path $p -Name "System.IsPinnedToNameSpaceTree" -Value 0 -Type DWord
+            $clsid = "{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}"
+            $paths = @(
+                "HKCU:\Software\Classes\CLSID\$clsid",
+                "HKLM:\SOFTWARE\Classes\CLSID\$clsid"
+            )
+            
+            foreach ($p in $paths) {
+                if (-not (Test-Path $p)) {
+                    New-Item -Path $p -Force -ErrorAction SilentlyContinue | Out-Null
                 }
-                Write-Log -Message "Hidden Gallery from Explorer." -Level Success
+                Set-RegistryKey -Path $p -Name "System.IsPinnedToNameSpaceTree" -Value 0 -Type DWord | Out-Null
             }
+
+            $nameSpaceKeys = @(
+                "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\$clsid",
+                "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace_41040327\$clsid"
+            )
+            foreach ($nk in $nameSpaceKeys) {
+                if (Test-Path $nk) {
+                    Remove-Item -Path $nk -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+            }
+            Write-Log -Message "Hidden Gallery from Explorer." -Level Success
         }
     }
     
@@ -788,9 +788,9 @@ function Set-WinDebloatTaskbarGrouping {
 
     if ($PSCmdlet.ShouldProcess("Taskbar", "Set grouping mode to $Grouping")) {
         $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-        if (Set-RegistryKey -Path $path -Name "TaskbarGlomLevel" -Value $glomLevel -Type DWord) {
-            Write-Log -Message "Taskbar grouping set to $Grouping." -Level Success
-        }
+        Set-RegistryKey -Path $path -Name "TaskbarGlomLevel" -Value $glomLevel -Type DWord | Out-Null
+        Set-RegistryKey -Path $path -Name "MMTaskbarGlomLevel" -Value $glomLevel -Type DWord | Out-Null
+        Write-Log -Message "Taskbar grouping set to $Grouping." -Level Success
     }
 }
 
@@ -805,11 +805,60 @@ function Optimize-WinDebloatExplorerPerformance {
 
     Write-Log -Message "Optimizing File Explorer performance..." -Level Info
 
-    if ($PSCmdlet.ShouldProcess("File Explorer", "Disable cloud files in quick access and home recommendations")) {
+    if ($PSCmdlet.ShouldProcess("File Explorer", "Disable cloud files, recommendations, folder sniffing, and graph items")) {
         $advPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
         Set-RegistryKey -Path $advPath -Name "ShowCloudFilesInQuickAccess" -Value 0 -Type DWord | Out-Null
         Set-RegistryKey -Path $advPath -Name "ShowRecommendations" -Value 0 -Type DWord | Out-Null
+
+        # Disable Graph recent items
+        Set-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "DisableGraphRecentItems" -Value 1 -Type DWord | Out-Null
+        Set-RegistryKey -Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "DisableGraphRecentItems" -Value 1 -Type DWord | Out-Null
+
+        # Disable automatic folder type sniffing (speed up navigation in large media folders)
+        $bagsPath = "HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags\AllFolders\Shell"
+        Set-RegistryKey -Path $bagsPath -Name "FolderType" -Value "NotSpecified" -Type String | Out-Null
+
+        # Prevent Disk Cleanup from clearing thumbnail cache automatically on idle
+        $thumbPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\Thumbnail Cache"
+        Set-RegistryKey -Path $thumbPath -Name "Autorun" -Value 0 -Type DWord | Out-Null
+
         Write-Log -Message "File Explorer cloud and recommendations indexing disabled." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Remaps or configures the Windows 11 dedicated Copilot keyboard key.
+.PARAMETER Action
+    Search (remaps Copilot key to Windows Search), Disabled (disables key action), or Default (restores standard behavior).
+#>
+function Set-WinDebloatCopilotKey {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("Search", "Disabled", "Default")]
+        [string]$Action = "Search"
+    )
+
+    Write-Log -Message "Configuring Copilot hardware key behavior ($Action)..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Keyboard Subsystem", "Configure Copilot key action: $Action")) {
+        $advKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        switch ($Action) {
+            "Search" {
+                Set-RegistryKey -Path $advKey -Name "CopilotKeyAction" -Value 1 -Type DWord | Out-Null
+                Write-Log -Message "Copilot key remapped to Windows Search." -Level Success
+            }
+            "Disabled" {
+                Set-RegistryKey -Path $advKey -Name "CopilotKeyAction" -Value 2 -Type DWord | Out-Null
+                Write-Log -Message "Copilot key action disabled." -Level Success
+            }
+            "Default" {
+                Remove-RegistryKey -Path $advKey -Name "CopilotKeyAction" | Out-Null
+                Write-Log -Message "Copilot key restored to default action." -Level Success
+            }
+        }
     }
 }
 
@@ -829,6 +878,7 @@ Set-Alias -Name 'Set-WinDebloat7DuplicateRemovableDrives' -Value 'Set-WinDebloat
 Set-Alias -Name 'Set-WinDebloat7DriveLetterPosition' -Value 'Set-WinDebloatDriveLetterPosition' -Description 'Backward-compatibility alias'
 Set-Alias -Name 'Set-WinDebloat7TaskbarGrouping' -Value 'Set-WinDebloatTaskbarGrouping' -Description 'Backward-compatibility alias'
 Set-Alias -Name 'Optimize-WinDebloat7ExplorerPerformance' -Value 'Optimize-WinDebloatExplorerPerformance' -Description 'Backward-compatibility alias'
+Set-Alias -Name 'Set-WinDebloat7CopilotKey' -Value 'Set-WinDebloatCopilotKey' -Description 'Backward-compatibility alias'
 
 Export-ModuleMember -Function @(
     'Set-WinDebloatTaskbarAlignment',
@@ -842,7 +892,8 @@ Export-ModuleMember -Function @(
     'Set-WinDebloatDuplicateRemovableDrives',
     'Set-WinDebloatDriveLetterPosition',
     'Set-WinDebloatTaskbarGrouping',
-    'Optimize-WinDebloatExplorerPerformance'
+    'Optimize-WinDebloatExplorerPerformance',
+    'Set-WinDebloatCopilotKey'
 ) -Alias @(
     'Set-WinDebloat7TaskbarAlignment',
     'Set-WinDebloat7ContextMenu',
@@ -856,5 +907,6 @@ Export-ModuleMember -Function @(
     'Set-WinDebloat7DuplicateRemovableDrives',
     'Set-WinDebloat7DriveLetterPosition',
     'Set-WinDebloat7TaskbarGrouping',
-    'Optimize-WinDebloat7ExplorerPerformance'
+    'Optimize-WinDebloat7ExplorerPerformance',
+    'Set-WinDebloat7CopilotKey'
 )

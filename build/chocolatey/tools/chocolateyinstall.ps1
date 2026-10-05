@@ -1,55 +1,57 @@
+$ErrorActionPreference = 'Stop'
+
 $packageName = 'win-debloat'
-$version     = '1.6.0'
-$url = "https://github.com/tomytate/Win-Debloat/releases/download/v$version/Win-Debloat.exe"
-$checksum    = "FFD2FABD772E94C85598B48B17912EBB449AC989D43FFC1F3CE16AE2E2492697" 
-$toolsDir = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
+$version     = '1.7.0'
+$toolsDir    = "$(Split-Path -Parent $MyInvocation.MyCommand.Definition)"
+
+# Architecture Detection (Native ARM64 vs AMD64)
+$isArm64 = $false
+try {
+    $isArm64 = ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64)
+} catch {
+    $isArm64 = ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_ARCHITEW6432 -eq 'ARM64')
+}
+$checksumX64   = "C1C32A78131349A39DA138591D728DA93CFCB6205C7CB8A598D03F596832FA73"
+$checksumArm64 = "5633D5B92E0AB2F9FB69669F6FA68B0201F87CAFDFB8AFA433666F24DA43E355"
+
+if ($isArm64) {
+    $binaryName = "Win-Debloat-arm64.exe"
+    $checksum   = $checksumArm64
+} else {
+    $binaryName = "Win-Debloat.exe"
+    $checksum   = $checksumX64
+}
+
+$url     = "https://github.com/tomytate/Win-Debloat/releases/download/v$version/$binaryName"
 $exePath = Join-Path $toolsDir "Win-Debloat.exe"
 
 $packageArgs = @{
     packageName  = $packageName
-    fileType     = 'exe'
+    fileFullPath = $exePath
     url          = $url
     checksum     = $checksum
     checksumType = 'sha256'
-    FileFullPath = $exePath
 }
 
 Get-ChocolateyWebFile @packageArgs
 
-# Chocolatey auto-shims EXEs in tools/; also register a lowercase alias
-Install-BinFile -Name "win-debloat" -Path $exePath
+# Auto-shim creates 'Win-Debloat.exe'.
+# Register explicit lowercase CLI alias 'win-debloat' (UseStart prevents GUI from blocking console):
+Install-BinFile -Name "win-debloat" -Path $exePath -UseStart
 
-# Create Start Menu Shortcut
-$shortcutDir = Join-Path ([Environment]::GetFolderPath("CommonPrograms")) "Win-Debloat"
-if (! (Test-Path $shortcutDir)) { New-Item $shortcutDir -ItemType Directory -Force | Out-Null }
+# Create Start Menu Shortcut (All Users)
+$startPrograms = [Environment]::GetFolderPath("CommonPrograms")
+$shortcutDir   = Join-Path $startPrograms "Win-Debloat"
+if (-not (Test-Path -LiteralPath $shortcutDir)) {
+    New-Item -Path $shortcutDir -ItemType Directory -Force | Out-Null
+}
 $shortcutPath = Join-Path $shortcutDir "Win-Debloat.lnk"
 
-Install-ChocolateyShortcut -ShortcutFilePath $shortcutPath `
-    -TargetPath "$exePath" `
-    -Description "Launch Win-Debloat" `
-    -WindowStyle Maximize
+Install-ChocolateyShortcut -shortcutFilePath $shortcutPath `
+    -targetPath $exePath `
+    -workDirectory $toolsDir `
+    -description "Launch Win-Debloat Windows Optimization Platform"
 
-Write-Host "Win-Debloat installed to $toolsDir"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Write-Host "✅ Win-Debloat $version installed successfully to $toolsDir" -ForegroundColor Green
 
 

@@ -31,7 +31,7 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 - We use **Pester 5/6** for unit, integration, and compliance testing.
 - Run the full test suite before submitting a PR:
   ```powershell
-  # 1. Complete test harness (336 tests, 100% pass required)
+  # 1. Complete test harness (388 tests, 100% pass required)
   pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\Run-AllTests.ps1
 
   # 2. Mathematical 5-Way AST Parity (0 violations required)
@@ -47,7 +47,7 @@ Please note that this project is released with a [Contributor Code of Conduct](C
   `Write-Log` (a PSScriptAnalyzer compatibility-profile false positive).
 
 ## 📦 Adding Software to the Catalog
-1. Edit `$Script:EssentialsApps` in `src/modules/Software/Software.psm1`.
+1. Edit `config/apps.yaml` to register modern declarative applications, or `$Script:EssentialsApps` in `src/modules/Software/Software.psm1`.
 2. Provide **both** IDs where available: `@{ Name = "App"; Winget = "Publisher.App"; Choco = "app" }`. Leave one empty (`""`) if the app only exists on one manager. npm-published CLIs may add `Npm = "@scope/package"` (used as last-resort provider; Node.js LTS is auto-provisioned).
 3. Validate before committing:
    ```powershell
@@ -62,24 +62,24 @@ Win-Debloat/
 │   ├── core/           # Logger, Config (YAML), Registry, State, Sysprep
 │   ├── modules/
 │   │   ├── Bloatware/  # App removal engine
-│   │   ├── Privacy/    # Telemetry, Hosts blocking, Scheduled Tasks
+│   │   ├── Privacy/    # Telemetry, Hosts blocking, Scheduled Tasks, Firewall
 │   │   ├── Performance/# Power plans, Gaming, Services, Benchmarking, Tweaks
-│   │   ├── Network/    # DNS, IPv6, Network diagnostics
-│   │   ├── Software/   # Winget/Choco package manager
+│   │   ├── Network/    # DNS, IPv6, Network diagnostics, URO, ECH
+│   │   ├── Software/   # Winget/Choco package manager, App Catalog
 │   │   ├── Drivers/    # GPU & system driver updates
-│   │   ├── Repair/     # SFC, DISM, Network reset
+│   │   ├── Repair/     # SFC, DISM, Network reset, Storage Health
 │   │   ├── Features/   # Optional Windows features
-│   │   ├── Security/   # SMBv1, PUA protection
+│   │   ├── Security/   # SMBv1, PUA protection, SMB hardening, NTLMv2
 │   │   ├── Maintenance/# Scheduled cleanup tasks
 │   │   ├── Integrations/# ShutUp10++, AdwCleaner, SDIO
 │   │   ├── Extras/     # Defender Remover, MAS (Extras edition only)
 │   │   ├── Tweaks/     # AI disablement, UI customization
-│   │   └── Windows11/  # Version detection, 25H2 compatibility
+│   │   └── Windows11/  # Version detection, 26H2 / 25H2 / 24H2 compatibility
 │   └── ui/             # TUI (Menu.psm1, Colors.psm1) + GUI (WPF)
-├── config/             # services.json, dns.json
+├── config/             # services.json, dns.json, apps.yaml, resolved-telemetry-ips.json
 ├── profiles/           # YAML configuration presets
-├── build/              # Build scripts, Chocolatey packaging
-├── tests/              # Pester test suites
+├── build/              # Build scripts, Chocolatey packaging, Winget generator
+├── tests/              # Pester test suites & AST parity assertions
 └── docs/               # Wiki documentation
 ```
 

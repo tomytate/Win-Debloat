@@ -9,6 +9,13 @@ on:
     - cron: '0 6 1 * *'   # 06:00 UTC on the 1st of every month
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     name: Validate software catalog

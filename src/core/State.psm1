@@ -35,7 +35,7 @@ class SystemSnapshot {
     [string]$Description
     [hashtable]$Registry
     [array]$Services
-    [string]$Version = "1.6.0"
+    [string]$Version = "1.7.0"
 }
 
 #region Registry target catalog
@@ -116,7 +116,10 @@ $Script:RegistrySnapshotTargets = @(
     'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management'
     'HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers'
     'HKCU:\Software\Microsoft\DirectX\UserGpuPreferences'
+    'HKCU:\Software\Microsoft\GameBar'
     'HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl'
+    'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel'
+    'HKLM:\SYSTEM\CurrentControlSet\Services\stornvme\Parameters\Device'
 
     # ── System QoL / boot / updates ─────────────────────────────────────
     'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power'
@@ -940,6 +943,491 @@ function Compare-WinDebloatSnapshot {
 
 <#
 .SYNOPSIS
+    Tests whether Windows System Restore and Volume Shadow Copy (VSS) are available.
+.OUTPUTS
+    [bool] True if System Restore is functional.
+#>
+function Test-WinDebloatSystemRestore {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+
+    try {
+        $gpoKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\SystemRestore"
+        if (Test-Path $gpoKey) {
+            $disableSR = (Get-ItemProperty -Path $gpoKey -Name "DisableSR" -ErrorAction SilentlyContinue).DisableSR
+            if ($disableSR -eq 1) { return $false }
+        }
+
+        $vss = Get-Service -Name "VSS" -ErrorAction SilentlyContinue
+        if ($vss -and $vss.StartType -eq 'Disabled') { return $false }
+
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
+<#
+.SYNOPSIS
+    Creates an atomic Windows System Restore point (VSS checkpoint).
+.DESCRIPTION
+    Checks administrator privileges and Group Policy (DisableSR). Proactively adjusts
+    the Volume Shadow Copy service (VSS) if disabled, sets SystemRestorePointCreationFrequency
+    to 0 in registry to bypass the 24-hour rate limit, and triggers restore point creation
+    via native CIM (root\default:SystemRestore) or Checkpoint-Computer fallback.
+.PARAMETER Description
+    The description of the restore point.
+.PARAMETER Drive
+    The target drive to enable and checkpoint (defaults to $env:SystemDrive\).
+.OUTPUTS
+    [hashtable] Result containing Success, Method, SequenceNumber, and Error.
+#>
+function New-WinDebloatSystemRestorePoint {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Description,
+
+        [string]$Drive = "$env:SystemDrive\"
+    )
+
+    $result = @{
+        Success        = $false
+        SequenceNumber = $null
+        Method         = "None"
+        Error          = $null
+    }
+
+    # 1. Elevation check
+    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator
+    )
+    if (-not $isAdmin) {
+        $result.Error = "Administrator privileges required for VSS restore point creation."
+        Write-Log -Message "Layer 1 (VSS): Skipped (non-elevated context). Relying on Layer 2 & 3." -Level Debug
+        return $result
+    }
+
+    # 2. Group Policy check
+    $gpoKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\SystemRestore"
+    if (Test-Path $gpoKey) {
+        $disableSR = (Get-ItemProperty -Path $gpoKey -Name "DisableSR" -ErrorAction SilentlyContinue).DisableSR
+        if ($disableSR -eq 1) {
+            $result.Error = "System Restore is disabled by Group Policy (DisableSR = 1)."
+            Write-Log -Message "Layer 1 (VSS): Skipped by Group Policy." -Level Warning
+            return $result
+        }
+    }
+
+    # 3. VSS Service state validation
+    try {
+        $vss = Get-Service -Name "VSS" -ErrorAction SilentlyContinue
+        if ($vss -and $vss.StartType -eq 'Disabled') {
+            Set-Service -Name "VSS" -StartupType Manual -ErrorAction SilentlyContinue
+            Write-Log -Message "Layer 1 (VSS): Adjusted VSS service startup from Disabled to Manual." -Level Debug
+        }
+    }
+    catch {
+        Write-Verbose "Could not inspect/adjust VSS service: $($_.Exception.Message)"
+    }
+
+    # 4. Bypass 24-Hour Rate Limiting
+    $srKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore"
+    try {
+        if (-not (Test-Path $srKey)) {
+            New-Item -Path $srKey -Force -ErrorAction SilentlyContinue | Out-Null
+        }
+        Set-ItemProperty -Path $srKey -Name "SystemRestorePointCreationFrequency" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+    }
+    catch {
+        Write-Verbose "Failed to set restore point frequency bypass: $($_.Exception.Message)"
+    }
+
+    if ($PSCmdlet.ShouldProcess($Drive, "Create System Restore Point '$Description'")) {
+        # 5. Enable protection if needed
+        try {
+            Enable-ComputerRestore -Drive $Drive -ErrorAction SilentlyContinue
+            $enableArgs = @{ Drive = $Drive; WaitTillEnabled = $true }
+            Invoke-CimMethod -Namespace "root\default" -ClassName "SystemRestore" -MethodName "Enable" -Arguments $enableArgs -ErrorAction SilentlyContinue | Out-Null
+        }
+        catch {
+            Write-Verbose "Drive protection enablement notice: $($_.Exception.Message)"
+        }
+
+        # 6. Native CIM engine (In-Process PowerShell 7 / Windows Management)
+        try {
+            $cimArgs = @{
+                Description      = $Description
+                RestorePointType = 12  # MODIFY_SETTINGS
+                EventType        = 100 # BEGIN_SYSTEM_CHANGE
+            }
+            $cimRes = Invoke-CimMethod -Namespace "root\default" -ClassName "SystemRestore" -MethodName "CreateRestorePoint" -Arguments $cimArgs -ErrorAction Stop
+            if ($null -ne $cimRes -and $cimRes.ReturnValue -eq 0) {
+                $result.Success = $true
+                $result.Method  = "CIM"
+                Write-Log -Message "Layer 1 (VSS): System Restore Point created via native CIM." -Level Success
+                return $result
+            }
+        }
+        catch {
+            Write-Verbose "Native CIM restore point attempt: $($_.Exception.Message)"
+        }
+
+        # 7. Fallback to Checkpoint-Computer
+        try {
+            Checkpoint-Computer -Description $Description -RestorePointType "MODIFY_SETTINGS" -ErrorAction Stop
+            $result.Success = $true
+            $result.Method  = "Checkpoint-Computer"
+            Write-Log -Message "Layer 1 (VSS): System Restore Point created via Checkpoint-Computer." -Level Success
+            return $result
+        }
+        catch {
+            $result.Error = $_.Exception.Message
+            Write-Log -Message "Layer 1 (VSS) Notice: Restore point creation unavailable ($($_.Exception.Message)). Layer 2 & 3 remain active." -Level Warning
+        }
+    }
+
+    return $result
+}
+
+<#
+.SYNOPSIS
+    Exports a standalone human-readable Windows Registry (.reg) rollback script from a snapshot.
+.DESCRIPTION
+    Generates a UTF-16LE Windows Registry Editor Version 5.00 file containing all original
+    registry values, deletions for created keys ([-HKEY_...]), and accompanied by a zero-dependency
+    rollback.cmd for recovery in Windows Recovery Environment (WinRE) or command prompt.
+.PARAMETER Snapshot
+    The SystemSnapshot instance to export.
+.PARAMETER OutputPath
+    The target .reg file path (or destination directory).
+.OUTPUTS
+    [string] Path to the generated .reg file.
+#>
+function Export-WinDebloatRollbackReg {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [Alias('RegistryChanges', 'Changes')]
+        [object]$Snapshot,
+
+        [Parameter(Mandatory, Position = 1)]
+        [Alias('OutFile', 'Path')]
+        [string]$OutputPath
+    )
+
+    $finalRegPath = if (Test-Path -Path $OutputPath -PathType Container) {
+        Join-Path $OutputPath "rollback.reg"
+    } else {
+        $OutputPath
+    }
+
+    $outDir = Split-Path -Path $finalRegPath -Parent
+    if (-not [string]::IsNullOrWhiteSpace($outDir) -and -not (Test-Path -LiteralPath $outDir)) {
+        New-Item -Path $outDir -ItemType Directory -Force | Out-Null
+    }
+
+    if ($PSCmdlet.ShouldProcess($finalRegPath, "Export Registry Rollback File")) {
+        $regBuilder = [System.Text.StringBuilder]::new()
+        [void]$regBuilder.AppendLine("Windows Registry Editor Version 5.00`r`n")
+        [void]$regBuilder.AppendLine("; ====================================================================")
+        [void]$regBuilder.AppendLine("; Win-Debloat Universal Emergency Rollback Registry Script")
+        $snapId = if ($Snapshot -is [SystemSnapshot]) { $Snapshot.Id } else { [guid]::NewGuid().ToString() }
+        $snapName = if ($Snapshot -is [SystemSnapshot]) { $Snapshot.Name } else { "Ad-hoc Delta" }
+        $snapTs = if ($Snapshot -is [SystemSnapshot]) { $Snapshot.Timestamp } else { Get-Date }
+        [void]$regBuilder.AppendLine("; Snapshot ID   : $snapId")
+        [void]$regBuilder.AppendLine("; Snapshot Name : $snapName")
+        [void]$regBuilder.AppendLine("; Generated     : $($snapTs.ToString('yyyy-MM-dd HH:mm:ss'))")
+        [void]$regBuilder.AppendLine("; Operable via  : Double-click in Explorer or 'reg import rollback.reg'")
+        [void]$regBuilder.AppendLine("; ====================================================================`r`n")
+
+        if ($Snapshot -is [SystemSnapshot]) {
+            # 1. Existing Keys: Revert modified/deleted values
+            foreach ($rawKey in $Snapshot.Registry.Keys) {
+            $entry = $Snapshot.Registry[$rawKey]
+            if (-not $entry -or -not $entry['Existed']) {
+                continue
+            }
+
+            $clean = $rawKey -replace '^Registry::', ''
+            $clean = $clean -replace '^HKLM:\\?', 'HKEY_LOCAL_MACHINE\'
+            $clean = $clean -replace '^HKCU:\\?', 'HKEY_CURRENT_USER\'
+            $clean = $clean -replace '^HKCR:\\?', 'HKEY_CLASSES_ROOT\'
+            $clean = $clean -replace '^HKU:\\?', 'HKEY_USERS\'
+            $clean = $clean -replace '^HKCC:\\?', 'HKEY_CURRENT_CONFIG\'
+            $regPath = $clean.TrimEnd('\')
+
+            [void]$regBuilder.AppendLine("[$regPath]")
+
+            $vals = $entry['RegValues']
+            if ($vals) {
+                foreach ($valName in $vals.Keys) {
+                    $valObj = $vals[$valName]
+                    $vData = $valObj['Value']
+                    $vKind = $valObj['Kind']
+                    $vNameEscaped = if ([string]::IsNullOrEmpty($valName)) { "@" } else { "`"$($valName -replace '\\', '\\\\' -replace '"', '\"')`"" }
+
+                    switch ($vKind) {
+                        'DWord' {
+                            $dwordHex = ([uint32]$vData).ToString("x8")
+                            [void]$regBuilder.AppendLine("$vNameEscaped=dword:$dwordHex")
+                        }
+                        'QWord' {
+                            $qBytes = [System.BitConverter]::GetBytes([uint64]$vData)
+                            $qHex = ($qBytes | ForEach-Object { $_.ToString("x2") }) -join ","
+                            [void]$regBuilder.AppendLine("$vNameEscaped=hex(b):$qHex")
+                        }
+                        'String' {
+                            $escapedStr = if ($vData) { ($vData.ToString() -replace '\\', '\\\\' -replace '"', '\"' -replace "`r", '' -replace "`n", '\n') } else { "" }
+                            [void]$regBuilder.AppendLine("$vNameEscaped=`"$escapedStr`"")
+                        }
+                        'ExpandString' {
+                            $byteList = [System.Collections.Generic.List[byte]]::new()
+                            if ($vData) {
+                                $byteList.AddRange([System.Text.Encoding]::Unicode.GetBytes($vData.ToString()))
+                            }
+                            $byteList.Add(0); $byteList.Add(0)
+                            $hexBytes = ($byteList | ForEach-Object { $_.ToString("x2") }) -join ","
+                            [void]$regBuilder.AppendLine("$vNameEscaped=hex(2):$hexBytes")
+                        }
+                        'MultiString' {
+                            $byteList = [System.Collections.Generic.List[byte]]::new()
+                            $arr = @($vData)
+                            if ($arr.Count -gt 0) {
+                                foreach ($s in $arr) {
+                                    $byteList.AddRange([System.Text.Encoding]::Unicode.GetBytes([string]$s))
+                                    $byteList.Add(0); $byteList.Add(0)
+                                }
+                            }
+                            $byteList.Add(0); $byteList.Add(0)
+                            $hexBytes = ($byteList | ForEach-Object { $_.ToString("x2") }) -join ","
+                            [void]$regBuilder.AppendLine("$vNameEscaped=hex(7):$hexBytes")
+                        }
+                        'Binary' {
+                            $hexBytes = if ($vData -is [byte[]]) { ($vData | ForEach-Object { $_.ToString("x2") }) -join "," } else { "" }
+                            [void]$regBuilder.AppendLine("$vNameEscaped=hex:$hexBytes")
+                        }
+                        default {
+                            if ($vData -is [byte[]]) {
+                                $hexBytes = ($vData | ForEach-Object { $_.ToString("x2") }) -join ","
+                                [void]$regBuilder.AppendLine("$vNameEscaped=hex:$hexBytes")
+                            } else {
+                                $escapedStr = if ($vData) { ($vData.ToString() -replace '\\', '\\\\' -replace '"', '\"') } else { "" }
+                                [void]$regBuilder.AppendLine("$vNameEscaped=`"$escapedStr`"")
+                            }
+                        }
+                    }
+                }
+            }
+            [void]$regBuilder.AppendLine("")
+        }
+
+        # 2. Framework-Created Keys: Delete on rollback using [-HKEY_...]
+        [void]$regBuilder.AppendLine("; --- Clean up keys created during debloat ---")
+        foreach ($rawKey in $Snapshot.Registry.Keys) {
+            $entry = $Snapshot.Registry[$rawKey]
+            if ($entry -and -not $entry['Existed']) {
+                $clean = $rawKey -replace '^Registry::', ''
+                $clean = $clean -replace '^HKLM:\\?', 'HKEY_LOCAL_MACHINE\'
+                $clean = $clean -replace '^HKCU:\\?', 'HKEY_CURRENT_USER\'
+                $clean = $clean -replace '^HKCR:\\?', 'HKEY_CLASSES_ROOT\'
+                $clean = $clean -replace '^HKU:\\?', 'HKEY_USERS\'
+                $clean = $clean -replace '^HKCC:\\?', 'HKEY_CURRENT_CONFIG\'
+                $regPath = $clean.TrimEnd('\')
+                [void]$regBuilder.AppendLine("[-$regPath]")
+            }
+        }
+        }
+        else {
+            # Ad-hoc array of change objects (Key, Name, OldValue, ValueKind, Action)
+            $changes = @($Snapshot)
+            $grouped = $changes | Group-Object -Property Key
+            foreach ($grp in $grouped) {
+                $clean = $grp.Name -replace '^Registry::', ''
+                $clean = $clean -replace '^HKLM:\\?', 'HKEY_LOCAL_MACHINE\'
+                $clean = $clean -replace '^HKCU:\\?', 'HKEY_CURRENT_USER\'
+                $clean = $clean -replace '^HKCR:\\?', 'HKEY_CLASSES_ROOT\'
+                $clean = $clean -replace '^HKU:\\?', 'HKEY_USERS\'
+                $clean = $clean -replace '^HKCC:\\?', 'HKEY_CURRENT_CONFIG\'
+                $regPath = $clean.TrimEnd('\')
+
+                [void]$regBuilder.AppendLine("[$regPath]")
+                foreach ($item in $grp.Group) {
+                    $vName = $item.Name
+                    $vNameEscaped = if ([string]::IsNullOrEmpty($vName)) { "@" } else { "`"$($vName -replace '\\', '\\\\' -replace '"', '\"')`"" }
+                    if ($item.Action -eq 'Created') {
+                        [void]$regBuilder.AppendLine("$vNameEscaped=-")
+                    }
+                    elseif ($item.ValueKind -eq 'DWord') {
+                        $dwordHex = ([uint32]$item.OldValue).ToString("x8")
+                        [void]$regBuilder.AppendLine("$vNameEscaped=dword:$dwordHex")
+                    }
+                    else {
+                        $escapedStr = if ($item.OldValue) { ($item.OldValue.ToString() -replace '\\', '\\\\' -replace '"', '\"') } else { "" }
+                        [void]$regBuilder.AppendLine("$vNameEscaped=`"$escapedStr`"")
+                    }
+                }
+                [void]$regBuilder.AppendLine("")
+            }
+        }
+
+        [System.IO.File]::WriteAllText($finalRegPath, $regBuilder.ToString(), [System.Text.Encoding]::Unicode)
+        Write-Log -Message "Layer 3: Standalone rollback .reg written to $finalRegPath" -Level Success
+
+        # 3. Companion Zero-Dependency rollback.cmd
+        if (-not [string]::IsNullOrWhiteSpace($outDir)) {
+            $cmdBuilder = [System.Text.StringBuilder]::new()
+            [void]$cmdBuilder.AppendLine("@echo off")
+            [void]$cmdBuilder.AppendLine("setlocal EnableDelayedExpansion")
+            [void]$cmdBuilder.AppendLine("title Win-Debloat Disaster Recovery")
+            [void]$cmdBuilder.AppendLine("net session >nul 2>&1")
+            [void]$cmdBuilder.AppendLine("if %errorLevel% neq 0 (")
+            [void]$cmdBuilder.AppendLine("    echo Requesting Administrator privileges...")
+            [void]$cmdBuilder.AppendLine('    powershell -NoProfile -Command "Start-Process cmd -ArgumentList ''/c \"\"%~f0\"\"'' -Verb RunAs"')
+            [void]$cmdBuilder.AppendLine("    exit /b")
+            [void]$cmdBuilder.AppendLine(")")
+            [void]$cmdBuilder.AppendLine("echo [1/2] Applying Windows Registry Rollback...")
+            [void]$cmdBuilder.AppendLine("reg.exe import `"%~dp0rollback.reg`"")
+            [void]$cmdBuilder.AppendLine("if %errorLevel% equ 0 (")
+            [void]$cmdBuilder.AppendLine("    echo [SUCCESS] Registry reverted to pre-debloat state.")
+            [void]$cmdBuilder.AppendLine(") else (")
+            [void]$cmdBuilder.AppendLine("    echo [WARNING] reg.exe returned error code %errorLevel%.")
+            [void]$cmdBuilder.AppendLine(")")
+            [void]$cmdBuilder.AppendLine("echo [2/2] Restoring Services Configuration...")
+            if ($Snapshot.Services) {
+                foreach ($svc in $Snapshot.Services) {
+                    $scStart = switch ($svc.StartType) {
+                        'Automatic' { 'auto' }
+                        'Manual'    { 'demand' }
+                        'Disabled'  { 'disabled' }
+                        default     { 'demand' }
+                    }
+                    [void]$cmdBuilder.AppendLine("sc.exe config `"$($svc.Name)`" start= $scStart >nul 2>&1")
+                }
+            }
+            [void]$cmdBuilder.AppendLine("echo Rollback complete. Please reboot your computer.")
+            [void]$cmdBuilder.AppendLine("pause")
+
+            $cmdFilePath = Join-Path $outDir "rollback.cmd"
+            [System.IO.File]::WriteAllText($cmdFilePath, $cmdBuilder.ToString(), [System.Text.Encoding]::ASCII)
+        }
+    }
+
+    return $finalRegPath
+}
+
+<#
+.SYNOPSIS
+    Executes a scriptblock asynchronously with a non-blocking UI message pump.
+.DESCRIPTION
+    Runs heavy tasks (Appx removal, DISM scans, Winget installs) in a dedicated background
+    runspace while keeping the caller thread / WPF window fluid and responsive.
+    Supports cancellation and real-time output streaming.
+.PARAMETER Task
+    The ScriptBlock to execute in the background.
+.PARAMETER Parameters
+    Hashtable of parameters or variables to inject into the execution scope.
+.PARAMETER TimeoutSeconds
+    Maximum execution duration in seconds (0 = unlimited).
+.PARAMETER CancellationTokenSource
+    Optional CancellationTokenSource to allow cooperative cancellation.
+.PARAMETER PumpWpfEvents
+    If specified, pumps WPF Dispatcher frames during execution to keep the UI fluid at 60 FPS.
+#>
+function Invoke-WinDebloatAsync {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [Alias('ScriptBlock', 'Command')]
+        [scriptblock]$Task,
+
+        [Parameter(Position = 1)]
+        [Alias('Arguments', 'ArgumentList')]
+        [object]$Parameters = $null,
+
+        [int]$TimeoutSeconds = 0,
+
+        [System.Threading.CancellationTokenSource]$CancellationTokenSource = $null,
+
+        [switch]$PumpWpfEvents
+    )
+
+    $runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+    $runspace.ApartmentState = [System.Threading.ApartmentState]::STA
+    $runspace.ThreadOptions = [System.Management.Automation.Runspaces.PSThreadOptions]::ReuseThread
+    $runspace.Open()
+
+    $ps = [powershell]::Create()
+    $ps.Runspace = $runspace
+    [void]$ps.AddScript($Task)
+
+    if ($Parameters -is [System.Collections.IDictionary]) {
+        foreach ($key in $Parameters.Keys) {
+            $runspace.SessionStateProxy.SetVariable([string]$key, $Parameters[$key])
+        }
+    }
+    elseif ($Parameters -is [System.Collections.IEnumerable] -and $Parameters -isnot [string]) {
+        foreach ($arg in $Parameters) {
+            [void]$ps.AddArgument($arg)
+        }
+    }
+    elseif ($null -ne $Parameters) {
+        [void]$ps.AddArgument($Parameters)
+    }
+
+    $asyncResult = $ps.BeginInvoke()
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+    try {
+        while (-not $asyncResult.IsCompleted) {
+            if ($CancellationTokenSource -and $CancellationTokenSource.IsCancellationRequested) {
+                Write-Log -Message "Asynchronous task cancellation requested. Halting..." -Level Warning
+                $ps.Stop()
+                break
+            }
+
+            if ($TimeoutSeconds -gt 0 -and $stopwatch.Elapsed.TotalSeconds -ge $TimeoutSeconds) {
+                Write-Log -Message "Asynchronous task timed out after $TimeoutSeconds seconds. Halting..." -Level Error
+                $ps.Stop()
+                break
+            }
+
+            if ($PumpWpfEvents) {
+                try {
+                    $frame = [System.Windows.Threading.DispatcherFrame]::new()
+                    $pushAction = [System.Windows.Threading.DispatcherOperationCallback]{
+                        param($f)
+                        $f.Continue = $false
+                        return $null
+                    }
+                    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.BeginInvoke(
+                        [System.Windows.Threading.DispatcherPriority]::Background,
+                        $pushAction,
+                        $frame
+                    ) | Out-Null
+                    [System.Windows.Threading.Dispatcher]::PushFrame($frame)
+                }
+                catch { }
+            }
+
+            Start-Sleep -Milliseconds 16
+        }
+
+        $output = $ps.EndInvoke($asyncResult)
+        return $output
+    }
+    finally {
+        $ps.Dispose()
+        $runspace.Dispose()
+    }
+}
+
+<#
+.SYNOPSIS
     Creates a comprehensive, restorable system snapshot.
 
 .DESCRIPTION
@@ -982,21 +1470,8 @@ function New-WinDebloatSnapshot {
     $snapshot.Name = $Name
     $snapshot.Description = $Description
 
-    # Bypass the 24-hour restore point creation limit, then create one as a
-    # second safety net alongside the framework's own registry snapshot.
-    $rpKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore"
-    try {
-        if (Test-Path $rpKey) {
-            Write-Log -Message "Bypassing Restore Point frequency limit..." -Level Debug
-            Set-ItemProperty -Path $rpKey -Name "SystemRestorePointCreationFrequency" -Value 0 -Type DWord -ErrorAction SilentlyContinue
-        }
-        Enable-ComputerRestore -Drive "$env:SystemDrive\" -ErrorAction SilentlyContinue
-        Checkpoint-Computer -Description "$Name ($Description)" -RestorePointType "MODIFY_SETTINGS" -ErrorAction Stop
-        Write-Log -Message "Restore point created successfully." -Level Success
-    }
-    catch {
-        Write-Log -Message "Restore point creation failed (non-critical): $($_.Exception.Message)" -Level Warning
-    }
+    # Layer 1: Atomic System Restore Point (VSS checkpoint)
+    [void](New-WinDebloatSystemRestorePoint -Description "$Name ($Description)")
 
     # 1. Capture services (filtered to the ones the framework may change)
     $servicesJsonPath = Join-Path $PSScriptRoot "..\..\config\services.json"
@@ -1042,7 +1517,7 @@ function New-WinDebloatSnapshot {
     }
     Write-Log -Message "Captured $capturedValues values across $capturedKeys of $($Script:RegistrySnapshotTargets.Count) registry keys" -Level Debug
 
-    # 3. Save to disk
+    # 3. Save to disk (Layer 2 & Layer 3)
     $snapshotDir = Get-WinDebloatSnapshotDirectory -Create
     $basePath = Join-Path $snapshotDir $snapshot.Id
     try {
@@ -1072,87 +1547,9 @@ function New-WinDebloatSnapshot {
                 Version     = $snapshot.Version
             } | ConvertTo-Json | Set-Content -Path "$basePath\meta.json" -Encoding UTF8
 
-            # Dual-Layer Rollback: Generate human-readable .reg file for instant notepad audit and double-click restore (Pillar 27)
+            # Layer 3: Standalone human-readable .reg file & rollback.cmd
             try {
-                $regBuilder = [System.Text.StringBuilder]::new()
-                [void]$regBuilder.AppendLine("Windows Registry Editor Version 5.00`r`n")
-                [void]$regBuilder.AppendLine("; Win-Debloat Rollback File")
-                [void]$regBuilder.AppendLine("; Snapshot: $($snapshot.Name)")
-                [void]$regBuilder.AppendLine("; Generated: $($snapshot.Timestamp.ToString('yyyy-MM-dd HH:mm:ss'))`r`n")
-
-                foreach ($keyPath in $snapshot.Registry.Keys) {
-                    $entry = $snapshot.Registry[$keyPath]
-                    if (-not $entry -or -not $entry['Existed']) {
-                        continue
-                    }
-                    $normalizedKey = $keyPath -replace '^HKCU:', 'HKEY_CURRENT_USER' -replace '^HKLM:', 'HKEY_LOCAL_MACHINE' -replace '^HKCR:', 'HKEY_CLASSES_ROOT' -replace '^HKU:', 'HKEY_USERS'
-                    [void]$regBuilder.AppendLine("[$normalizedKey]")
-
-                    $vals = $entry['RegValues']
-                    if ($vals) {
-                        foreach ($valName in $vals.Keys) {
-                            $valObj = $vals[$valName]
-                            $vData = $valObj['Value']
-                            $vKind = $valObj['Kind']
-
-                            $vNameEscaped = if ([string]::IsNullOrEmpty($valName)) { "@" } else { "`"$valName`"" }
-
-                            switch ($vKind) {
-                                'DWord' {
-                                    $dwordHex = ([uint32]$vData).ToString("x8")
-                                    [void]$regBuilder.AppendLine("$vNameEscaped=dword:$dwordHex")
-                                }
-                                'QWord' {
-                                    $qBytes = [BitConverter]::GetBytes([uint64]$vData)
-                                    $qHex = ($qBytes | ForEach-Object { $_.ToString("x2") }) -join ","
-                                    [void]$regBuilder.AppendLine("$vNameEscaped=hex(b):$qHex")
-                                }
-                                'String' {
-                                    $escapedStr = if ($vData) { ($vData.ToString() -replace '\\', '\\\\' -replace '"', '\"') } else { "" }
-                                    [void]$regBuilder.AppendLine("$vNameEscaped=`"$escapedStr`"")
-                                }
-                                'MultiString' {
-                                    $byteList = [System.Collections.Generic.List[byte]]::new()
-                                    foreach ($s in [string[]]$vData) {
-                                        $byteList.AddRange([System.Text.Encoding]::Unicode.GetBytes($s))
-                                        $byteList.Add(0); $byteList.Add(0)
-                                    }
-                                    $byteList.Add(0); $byteList.Add(0)
-                                    $hexBytes = ($byteList | ForEach-Object { $_.ToString("x2") }) -join ","
-                                    [void]$regBuilder.AppendLine("$vNameEscaped=hex(7):$hexBytes")
-                                }
-                                'ExpandString' {
-                                    $byteList = [System.Collections.Generic.List[byte]]::new()
-                                    if ($vData) {
-                                        $byteList.AddRange([System.Text.Encoding]::Unicode.GetBytes($vData.ToString()))
-                                    }
-                                    $byteList.Add(0); $byteList.Add(0)
-                                    $hexBytes = ($byteList | ForEach-Object { $_.ToString("x2") }) -join ","
-                                    [void]$regBuilder.AppendLine("$vNameEscaped=hex(2):$hexBytes")
-                                }
-                                default {
-                                    if ($vData -is [byte[]]) {
-                                        $hexBytes = ($vData | ForEach-Object { $_.ToString("x2") }) -join ","
-                                        [void]$regBuilder.AppendLine("$vNameEscaped=hex:$hexBytes")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    [void]$regBuilder.AppendLine("")
-                }
-
-                # Also record keys that did NOT exist originally so importing rollback.reg deletes created keys
-                foreach ($keyPath in $snapshot.Registry.Keys) {
-                    $entry = $snapshot.Registry[$keyPath]
-                    if ($entry -and -not $entry['Existed']) {
-                        $normalizedKey = $keyPath -replace '^HKCU:', 'HKEY_CURRENT_USER' -replace '^HKLM:', 'HKEY_LOCAL_MACHINE' -replace '^HKCR:', 'HKEY_CLASSES_ROOT' -replace '^HKU:', 'HKEY_USERS'
-                        [void]$regBuilder.AppendLine("[-$normalizedKey]")
-                    }
-                }
-
-                [System.IO.File]::WriteAllText("$basePath\rollback.reg", $regBuilder.ToString(), [System.Text.Encoding]::Unicode)
-                Write-Log -Message "Human-readable rollback .reg generated: $basePath\rollback.reg" -Level Debug
+                [void](Export-WinDebloatRollbackReg -Snapshot $snapshot -OutputPath "$basePath\rollback.reg")
             }
             catch {
                 Write-Log -Message "Notice: Failed to export rollback.reg: $($_.Exception.Message)" -Level Debug
@@ -1393,6 +1790,21 @@ Set-Alias -Name Get-WinDebloat7RegistryTargets -Value Get-WinDebloatRegistryTarg
 Set-Alias -Name Get-WinDebloat7SnapshotDirectory -Value Get-WinDebloatSnapshotDirectory
 Set-Alias -Name Get-WinDebloat7SnapshotSearchPaths -Value Get-WinDebloatSnapshotSearchPaths
 
+Set-Alias -Name New-WinDebloat7SystemRestorePoint -Value New-WinDebloatSystemRestorePoint
+Set-Alias -Name New-WD7SystemRestorePoint -Value New-WinDebloatSystemRestorePoint
+Set-Alias -Name New-WDRestorePoint -Value New-WinDebloatSystemRestorePoint
+
+Set-Alias -Name Test-WinDebloat7SystemRestore -Value Test-WinDebloatSystemRestore
+Set-Alias -Name Test-WD7SystemRestore -Value Test-WinDebloatSystemRestore
+
+Set-Alias -Name Export-WinDebloat7RollbackReg -Value Export-WinDebloatRollbackReg
+Set-Alias -Name Export-WD7RollbackReg -Value Export-WinDebloatRollbackReg
+Set-Alias -Name Export-WDRollbackReg -Value Export-WinDebloatRollbackReg
+
+Set-Alias -Name Invoke-WinDebloat7Async -Value Invoke-WinDebloatAsync
+Set-Alias -Name Invoke-WD7Async -Value Invoke-WinDebloatAsync
+Set-Alias -Name Invoke-WDAsync -Value Invoke-WinDebloatAsync
+
 Set-Alias -Name Protect-WD7Data -Value Protect-WDData
 Set-Alias -Name Protect-WinDebloatData -Value Protect-WDData
 Set-Alias -Name Protect-WinDebloat7Data -Value Protect-WDData
@@ -1422,9 +1834,14 @@ Set-Alias -Name Get-WinDebloatRawRegistryKey -Value Get-WDRawRegistryKey
 Export-ModuleMember -Function New-WinDebloatSnapshot, Restore-WinDebloatSnapshot, Get-WinDebloatSnapshot, Compare-WinDebloatSnapshot, `
                               Get-WinDebloatRegistryTargets, Protect-WDData, Unprotect-WDData, Test-WDRegistryValueEqual, `
                               Restore-WDRegistryKey, Get-WDRegistryKeyState, ConvertTo-WDRegistryType, Get-WDRawRegistryKey, `
-                              Get-WinDebloatSnapshotDirectory, Get-WinDebloatSnapshotSearchPaths `
+                              Get-WinDebloatSnapshotDirectory, Get-WinDebloatSnapshotSearchPaths, `
+                              New-WinDebloatSystemRestorePoint, Test-WinDebloatSystemRestore, Export-WinDebloatRollbackReg, Invoke-WinDebloatAsync `
                     -Alias New-WinDebloat7Snapshot, Restore-WinDebloat7Snapshot, Get-WinDebloat7Snapshot, Compare-WinDebloat7Snapshot, `
                            Get-WinDebloat7RegistryTargets, Get-WinDebloat7SnapshotDirectory, Get-WinDebloat7SnapshotSearchPaths, `
+                           New-WinDebloat7SystemRestorePoint, New-WD7SystemRestorePoint, New-WDRestorePoint, `
+                           Test-WinDebloat7SystemRestore, Test-WD7SystemRestore, `
+                           Export-WinDebloat7RollbackReg, Export-WD7RollbackReg, Export-WDRollbackReg, `
+                           Invoke-WinDebloat7Async, Invoke-WD7Async, Invoke-WDAsync, `
                            Protect-WD7Data, Protect-WinDebloatData, Protect-WinDebloat7Data, `
                            Unprotect-WD7Data, Unprotect-WinDebloatData, Unprotect-WinDebloat7Data, Test-WD7RegistryValueEqual, `
                            Test-WinDebloatRegistryValueEqual, Test-WinDebloat7RegistryValueEqual, Get-WD7RegistryKeyState, `

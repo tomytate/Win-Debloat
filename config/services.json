@@ -403,13 +403,21 @@
             "RiskLevel": "Low",
             "Description": "Inventories software/hardware telemetry for Microsoft diagnostic servers"
         },
-        "WSAIFabricSvc": {
-            "DisplayName": "Windows System AI Fabric Service",
+        "ModelCatalogUserSvc": {
+            "DisplayName": "Windows Model Catalog User Service",
             "StartupType": "Disabled",
             "Category": "AI",
             "StorageType": "Any",
             "RiskLevel": "Low",
-            "Description": "Background daemon hosting on-device Phi-Silica SLM workloads"
+            "Description": "Manages local machine learning model catalogs and background provisioning"
+        },
+        "SemanticSearchUserSvc": {
+            "DisplayName": "Semantic Search User Service",
+            "StartupType": "Disabled",
+            "Category": "AI",
+            "StorageType": "Any",
+            "RiskLevel": "Low",
+            "Description": "Recall semantic indexing and vector embeddings background service"
         }
     },
     "presets": {
@@ -419,7 +427,10 @@
             "lfsvc",
             "WerSvc",
             "wisvc",
+            "WSAIFabricSvc",
             "AIFabricUserSvc",
+            "ModelCatalogUserSvc",
+            "SemanticSearchUserSvc",
             "NarrativeFlows",
             "diagnosticshub.standardcollector.service",
             "DiagSvc",

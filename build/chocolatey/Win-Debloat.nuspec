@@ -2,14 +2,14 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>win-debloat</id>
-    <version>1.6.0</version>
+    <version>1.7.0</version>
     <packageSourceUrl>https://github.com/tomytate/Win-Debloat</packageSourceUrl>
     <owners>tomytate</owners>
     <title>Win-Debloat (Premium)</title>
-    <authors>Tomy Tolledo</authors>
+    <authors>Tomy Tate</authors>
     <projectUrl>https://github.com/tomytate/Win-Debloat</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/tomytate/Win-Debloat/main/assets/logo.png</iconUrl>
-    <copyright>2026 Tomy Tolledo</copyright>
+    <copyright>2026 Tomy Tate</copyright>
     <licenseUrl>https://github.com/tomytate/Win-Debloat/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <projectSourceUrl>https://github.com/tomytate/Win-Debloat</projectSourceUrl>

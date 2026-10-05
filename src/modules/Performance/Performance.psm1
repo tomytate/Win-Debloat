@@ -389,18 +389,21 @@ function Optimize-WinDebloatThreadDirector {
 
     if ($PSCmdlet.ShouldProcess("Processor Power Policy", "Optimize Thread Director and EPP for maximum responsiveness")) {
         try {
-            # Prefer performant cores (P-cores) for thread scheduling (SCHEDPOLICY 1 = Performant processors)
-            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SCHEDPOLICY 1 2>$null
-            # Prefer performant cores for short burst threads (SHORTSCHEDPOLICY 1 = Performant processors)
-            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SHORTSCHEDPOLICY 1 2>$null
+            # Prefer performant cores (P-cores) for thread scheduling (SCHEDPOLICY 2 = Prefer performant processors)
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SCHEDPOLICY 2 2>$null
+            # Prefer performant cores for short burst threads (SHORTSCHEDPOLICY 2 = Prefer performant processors)
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SHORTSCHEDPOLICY 2 2>$null
             # Heterogeneous thread scheduling policy (1 = All processors, prioritize performance)
             & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR HETEROPOLICY 1 2>$null
-            # Autonomous mode performance bias (EPP 0% = Max Performance)
+            # Autonomous mode performance bias (EPP 0% = Max Performance across P/E/LP-E cores)
             & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFEPP 0 2>$null
             & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFEPP1 0 2>$null
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR 36687f9e-e3a5-4dbf-b1dc-15eb381c6865 0 2>$null
+            # Heterogeneous containment policy (0 = Unconstrained, avoid thread trapping on LP E-cores)
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR 60fbe21b-efd9-49f2-b066-8674d8e9f423 0 2>$null
             # Apply changes
             & powercfg /setactive SCHEME_CURRENT 2>$null
-            Write-Log -Message "CPU scheduling (P-core preference) and EPP optimization applied." -Level Success
+            Write-Log -Message "CPU scheduling (P-core preference, EPP 0, unconstrained containment) applied." -Level Success
         }
         catch {
             Write-Log -Message "Could not apply powercfg scheduling: $($_.Exception.Message)" -Level Warning
@@ -428,6 +431,8 @@ function Reset-WinDebloatThreadDirector {
             # Reset EPP to 50% (Balanced default)
             & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFEPP 50 2>$null
             & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFEPP1 50 2>$null
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR 36687f9e-e3a5-4dbf-b1dc-15eb381c6865 50 2>$null
+            & powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR 60fbe21b-efd9-49f2-b066-8674d8e9f423 0 2>$null
             # Apply changes
             & powercfg /setactive SCHEME_CURRENT 2>$null
             Write-Log -Message "CPU scheduling and EPP restored to default." -Level Success
@@ -452,6 +457,9 @@ function Disable-WinDebloatEnergySaverAcThrottling {
     if ($PSCmdlet.ShouldProcess("Energy Saver Subsystem", "Disable AC power throttling")) {
         $pwrPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
         Set-RegistryKey -Path $pwrPath -Name "EcoModeState" -Value 2 -Type DWord | Out-Null
+        Set-RegistryKey -Path $pwrPath -Name "EnergySaverState" -Value 2 -Type DWord | Out-Null
+        Set-RegistryKey -Path "$pwrPath\PowerThrottling" -Name "PowerThrottlingOff" -Value 1 -Type DWord | Out-Null
+        Set-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Power\PowerThrottling" -Name "PowerThrottlingOff" -Value 1 -Type DWord | Out-Null
         Write-Log -Message "Energy Saver AC Throttling disabled." -Level Success
     }
 }
@@ -468,6 +476,9 @@ function Enable-WinDebloatEnergySaverAcThrottling {
     if ($PSCmdlet.ShouldProcess("Energy Saver Subsystem", "Restore default AC power throttling")) {
         $pwrPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
         Set-RegistryKey -Path $pwrPath -Name "EcoModeState" -Value 0 -Type DWord | Out-Null
+        Set-RegistryKey -Path $pwrPath -Name "EnergySaverState" -Value 0 -Type DWord | Out-Null
+        Remove-RegistryKey -Path "$pwrPath\PowerThrottling" -Name "PowerThrottlingOff" | Out-Null
+        Remove-RegistryKey -Path "HKLM:\SOFTWARE\Policies\Microsoft\Power\PowerThrottling" -Name "PowerThrottlingOff" | Out-Null
         Write-Log -Message "Energy Saver AC Throttling restored to default." -Level Success
     }
 }
@@ -486,6 +497,7 @@ function Optimize-WinDebloatDevDrive {
     if ($PSCmdlet.ShouldProcess("Dev Drive ReFS", "Disable last access update overhead for Dev Drives")) {
         $fsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
         Set-RegistryKey -Path $fsPath -Name "RefsDisableLastAccessUpdate" -Value 1 -Type DWord | Out-Null
+        Set-RegistryKey -Path $fsPath -Name "RefsEnableLargeWorkingSetTrim" -Value 1 -Type DWord | Out-Null
         Write-Log -Message "Dev Drive ReFS performance tuning applied." -Level Success
     }
 }
@@ -502,6 +514,7 @@ function Reset-WinDebloatDevDrive {
     if ($PSCmdlet.ShouldProcess("Dev Drive ReFS", "Restore default ReFS settings")) {
         $fsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
         Remove-RegistryKey -Path $fsPath -Name "RefsDisableLastAccessUpdate" | Out-Null
+        Remove-RegistryKey -Path $fsPath -Name "RefsEnableLargeWorkingSetTrim" | Out-Null
         Write-Log -Message "Dev Drive ReFS settings restored to defaults." -Level Success
     }
 }
@@ -540,6 +553,42 @@ function Disable-WinDebloatServerNativeNVMe {
     }
 }
 
+<#
+.SYNOPSIS
+    Enables low-latency global timer resolution and distributed DPC timer handling.
+#>
+function Enable-WinDebloatLowLatencyTimers {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    Write-Log -Message "Configuring low-latency timer resolution and distributed DPC dispatching..." -Level Info
+
+    if ($PSCmdlet.ShouldProcess("Kernel Timers", "Enable global timer resolution requests and distribute timers")) {
+        $kernelPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel"
+        Set-RegistryKey -Path $kernelPath -Name "GlobalTimerResolutionRequests" -Value 1 -Type DWord | Out-Null
+        Set-RegistryKey -Path $kernelPath -Name "DistributeTimers" -Value 1 -Type DWord | Out-Null
+        Write-Log -Message "Low-latency kernel timer policies configured." -Level Success
+    }
+}
+
+<#
+.SYNOPSIS
+    Restores kernel timer resolution and timer dispatching to Windows defaults.
+#>
+function Reset-WinDebloatLowLatencyTimers {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([void])]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("Kernel Timers", "Restore default kernel timer settings")) {
+        $kernelPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel"
+        Remove-RegistryKey -Path $kernelPath -Name "GlobalTimerResolutionRequests" | Out-Null
+        Remove-RegistryKey -Path $kernelPath -Name "DistributeTimers" | Out-Null
+        Write-Log -Message "Kernel timer settings restored to default." -Level Success
+    }
+}
+
 # Aliases for backward compatibility
 Set-Alias -Name 'Set-WinDebloatPerformance' -Value 'Optimize-WinDebloatPerformance'
 Set-Alias -Name 'Set-WinDebloat7Performance' -Value 'Optimize-WinDebloatPerformance'
@@ -554,6 +603,8 @@ Set-Alias -Name 'Optimize-WinDebloat7DevDrive' -Value 'Optimize-WinDebloatDevDri
 Set-Alias -Name 'Reset-WinDebloat7DevDrive' -Value 'Reset-WinDebloatDevDrive'
 Set-Alias -Name 'Enable-WinDebloat7ServerNativeNVMe' -Value 'Enable-WinDebloatServerNativeNVMe'
 Set-Alias -Name 'Disable-WinDebloat7ServerNativeNVMe' -Value 'Disable-WinDebloatServerNativeNVMe'
+Set-Alias -Name 'Enable-WinDebloat7LowLatencyTimers' -Value 'Enable-WinDebloatLowLatencyTimers'
+Set-Alias -Name 'Reset-WinDebloat7LowLatencyTimers' -Value 'Reset-WinDebloatLowLatencyTimers'
 
 Export-ModuleMember -Function @(
     'Optimize-WinDebloatPerformance',
@@ -566,7 +617,9 @@ Export-ModuleMember -Function @(
     'Optimize-WinDebloatDevDrive',
     'Reset-WinDebloatDevDrive',
     'Enable-WinDebloatServerNativeNVMe',
-    'Disable-WinDebloatServerNativeNVMe'
+    'Disable-WinDebloatServerNativeNVMe',
+    'Enable-WinDebloatLowLatencyTimers',
+    'Reset-WinDebloatLowLatencyTimers'
 ) -Alias @(
     'Set-WinDebloatPerformance',
     'Set-WinDebloat7Performance',
@@ -580,5 +633,7 @@ Export-ModuleMember -Function @(
     'Optimize-WinDebloat7DevDrive',
     'Reset-WinDebloat7DevDrive',
     'Enable-WinDebloat7ServerNativeNVMe',
-    'Disable-WinDebloat7ServerNativeNVMe'
+    'Disable-WinDebloat7ServerNativeNVMe',
+    'Enable-WinDebloat7LowLatencyTimers',
+    'Reset-WinDebloat7LowLatencyTimers'
 )

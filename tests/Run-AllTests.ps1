@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Universal Test Runner for Win-Debloat Test Suite (v1.6.0).
+    Universal Test Runner for Win-Debloat Test Suite (v1.7.0).
 .DESCRIPTION
     Runs unit, integration, and AST parity test suites across PowerShell 5.1 and 7.6+.
     Supports Pester 5.5+/6.x configurations, code coverage metrics, NUnit XML export,
@@ -117,7 +117,7 @@ To run tests under Windows PowerShell 5.1, install Pester 5.5+ via:
 }
 
 Write-Host "=======================================================" -ForegroundColor Cyan
-Write-Host "     Win-Debloat v1.6.0 Enterprise Test Harness        " -ForegroundColor Cyan
+Write-Host "     Win-Debloat v1.7.0 Enterprise Test Harness        " -ForegroundColor Cyan
 Write-Host "=======================================================" -ForegroundColor Cyan
 Write-Host "Suite: $Suite | Output: $Output | CI: $CI | PS: $($PSVersionTable.PSVersion)" -ForegroundColor Gray
 
@@ -218,10 +218,13 @@ if ($CI) {
 # CodeCoverage options
 if ($CodeCoverage) {
     $pesterConfig.CodeCoverage.Enabled = $true
-    $pesterConfig.CodeCoverage.Path = @(
-        Join-Path $PSScriptRoot "..\src\core\*.psm1",
-        Join-Path $PSScriptRoot "..\src\modules\**\*.psm1"
+    $coverageFiles = @(
+        Get-ChildItem -Path (Join-Path $PSScriptRoot "..\src\core") -Filter "*.psm1" -File -Recurse | Select-Object -ExpandProperty FullName
+        Get-ChildItem -Path (Join-Path $PSScriptRoot "..\src\modules") -Filter "*.psm1" -File -Recurse | Where-Object { $_.FullName -notmatch '[\\/]Vendor[\\/]' } | Select-Object -ExpandProperty FullName
+        Get-ChildItem -Path (Join-Path $PSScriptRoot "..\src\ui") -Filter "*.psm1" -File -Recurse | Select-Object -ExpandProperty FullName
     )
+    $pesterConfig.CodeCoverage.Path = $coverageFiles
+    $pesterConfig.CodeCoverage.UseBreakpoints = $false
     $pesterConfig.CodeCoverage.OutputPath = Join-Path $PSScriptRoot "Coverage.xml"
     $pesterConfig.CodeCoverage.OutputFormat = 'Cobertura'
 }
@@ -244,7 +247,8 @@ Write-Host "SKIPPED:     $skippedCount" -ForegroundColor Yellow
 # GitHub Actions Step Summary
 if ($CI -and $env:GITHUB_STEP_SUMMARY) {
     $summaryMd = @"
-## 🧪 Win-Debloat Test Suite Results (v1.6.0)
+
+## 🧪 Win-Debloat Test Suite Results (v1.7.0)
 
 | Metric | Count | Status |
 | :--- | :--- | :--- |
@@ -255,11 +259,11 @@ if ($CI -and $env:GITHUB_STEP_SUMMARY) {
 
 *PowerShell Version: `$($PSVersionTable.PSVersion)` on `$($env:OS)`*
 "@
-    Set-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summaryMd -Encoding UTF8
+    Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summaryMd -Encoding UTF8
 }
 
-if ($failedCount -gt 0) {
-    Write-Host "`nFAILURE: $failedCount test(s) failed." -ForegroundColor Red
+if ($failedCount -gt 0 -or $totalCount -eq 0 -or ($result.Result -and $result.Result -ne 'Passed')) {
+    Write-Host "`nFAILURE: $failedCount test(s) failed or tests were not discovered." -ForegroundColor Red
     exit 1
 }
 

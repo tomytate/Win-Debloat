@@ -15,14 +15,20 @@ Default profiles are stored in the `profiles/` directory:
 
 A profile consists of several sections. Here is the full breakdown.
 
-### 1. Metadata
-Information about the profile itself.
+### 1. Metadata & Inheritance
+Information about the profile, parent inheritance (`extends:`), and conditional gates (`when:`).
 ```yaml
 metadata:
-  name: "My Custom Profile"
-  author: "TomyTate"
-  description: "Optimization for high-end gaming PC"
-  version: "1.0"
+  name: "My Custom Gaming Profile"
+  version: "1.7.0"
+  author: "Tomy Tate"
+  description: "Optimized for high-end gaming and streaming"
+  extends: "moderate"              # Deep inheritance: inherits baseline and overrides specific keys
+  target_os: [ "Windows 10", "Windows 11" ]
+  min_build: 19045
+  when:                            # Conditional execution gate
+    min_ram_gb: 16
+    chassis_types: [ "Desktop" ]
 ```
 
 ### 2. Bloatware
@@ -40,8 +46,8 @@ bloatware:
     - "*Xbox*"
 ```
 
-### 3. Privacy
-Controls telemetry and data collection settings.
+### 3. Privacy & AI Fabric
+Controls telemetry, AI features, and background process containment.
 
 ```yaml
 privacy:
@@ -50,21 +56,27 @@ privacy:
   
   disable_copilot: true           # Windows 11 AI assistant
   disable_recall: true            # Windows 11 Recall feature
+  disable_click_to_do: true       # Windows 11 26H2 Click-to-Do
+  disable_ai_fabric: true         # Deactivates background SLM/AI daemons
   disable_advertising_id: true
   disable_activity_history: true
   disable_location_tracking: false # Set true to block location services
 ```
 
-### 4. Performance
-System tuning parameters.
+### 4. Performance & Silicon Optimization
+CPU scheduling, DirectStorage, low-latency timers, and GPU optimizations.
 
 ```yaml
 performance:
   # Power Plan: 'Balanced', 'HighPerformance', 'Ultimate'
-  power_plan: "HighPerformance"
+  power_plan: "Ultimate"
   visual_effects: "Performance"   # 'Appearance', 'Performance', 'Custom'
-  disable_game_bar: true          # Xbox Game Bar recording
-  disable_background_apps: true  # Prevents apps running in background
+  disable_game_bar: false         # Keep false to preserve Game Bar / AMD X3D core parking
+  disable_background_apps: true   # Prevents non-essential apps in background
+  enable_directstorage_tuning: true # DirectStorage 1.2+ NTFS lookaside & BypassIO
+  enable_amd_x3d_safeguards: true   # Preserves 3D V-Cache CPMINCORES core parking
+  enable_thread_director: true      # Intel Lion Cove P-core / Skymont LP E-core tuning
+  disable_energy_saver_ac_throttling: true # Eliminates CPU AC power throttling
 ```
 
 ### 5. System & QoL
@@ -128,9 +140,9 @@ software:
     # Sysprep / Golden Master image generation:
     pwsh .\Win-Debloat.ps1 -Profile "profiles\my-profile.yaml" -Sysprep -Silent
 
-    # Enterprise deployment via standalone script (Intune / OOBE Shift+F10):
-    pwsh .\deploy\Deploy-WinDebloat.ps1 -Profile moderate -Silent
+    # Enterprise deployment via standalone script (Intune / OOBE Shift+F10 / Native PS 5.1 or PS 7+):
+    powershell -ExecutionPolicy Bypass -File .\deploy\Deploy-WinDebloat.ps1 -Profile moderate -Silent
 
-    # Zero-Binary launcher:
+    # Universal Zero-Friction root launcher (autodetects PS7+, falls back to PS 5.1):
     .\Run.bat
     ```
