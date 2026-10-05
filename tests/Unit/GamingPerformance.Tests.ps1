@@ -8,6 +8,25 @@ Describe "Gaming & Performance Subsystem" {
         Import-Module "$root\src\modules\Network\Network.psm1" -Force
         Import-Module "$root\src\modules\Performance\Benchmark.psm1" -Force
         Import-Module "$root\src\modules\Performance\Services.psm1" -Force
+
+        # Ensure NetAdapter and Service cmdlets exist as stubs for Pester 5 mocking on Windows Server
+        $stubCommands = @('Disable-NetAdapterUro', 'Enable-NetAdapterUro', 'Disable-NetAdapterLso', 'Enable-NetAdapterLso', 'Get-NetAdapter', 'Set-Service', 'Stop-Service')
+        foreach ($cmd in $stubCommands) {
+            if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) {
+                Set-Item -Path "function:global:$cmd" -Value { }
+            }
+            foreach ($modName in @('Network', 'Services', 'Gaming')) {
+                $mod = Get-Module $modName
+                if ($mod) {
+                    & $mod {
+                        param($name)
+                        if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
+                            Set-Item -Path "function:$name" -Value { }
+                        }
+                    } $cmd
+                }
+            }
+        }
     }
 
     Context "DirectStorage 1.2+ Tuning" {

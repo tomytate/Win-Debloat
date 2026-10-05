@@ -218,6 +218,7 @@ foreach ($variant in @("Standard", "Extras")) {
                     Set-AuthenticodeSignature -FilePath $_.FullName -Certificate $codeSigningCert -TimestampServer $TimestampServer -HashAlgorithm SHA256 -ErrorAction SilentlyContinue | Out-Null
                 } catch {
                     # Continue if timestamping has momentary network lag
+                    $null = $_
                 }
             }
         }

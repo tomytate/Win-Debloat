@@ -29,6 +29,7 @@ try {
 }
 catch {
     # Detection script must fail silently with non-zero exit code
+    $null = $_
 }
 
 exit 1

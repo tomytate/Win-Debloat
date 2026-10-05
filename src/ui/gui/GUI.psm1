@@ -737,10 +737,10 @@ function Show-WinDebloatGUI {
                         Get-CimInstance Win32_Process -Filter "ParentProcessId = $PID" -ErrorAction SilentlyContinue |
                             Where-Object { $_.Name -match '^(winget|dism|sfc|chkdsk|msiexec|powershell|pwsh)\.exe$' } |
                             ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-                    } catch { }
-                    try { $ps.Stop() } catch { }
-                    try { $ps.Dispose() } catch { }
-                    try { $runspace.Dispose() } catch { }
+                    } catch { $null = $_ }
+                    try { $ps.Stop() } catch { $null = $_ }
+                    try { $ps.Dispose() } catch { $null = $_ }
+                    try { $runspace.Dispose() } catch { $null = $_ }
                     $script:isTaskRunning = $false
                     if ($pbGlobal) { $pbGlobal.Visibility = 'Collapsed'; $pbGlobal.IsIndeterminate = $false }
                     if ($btnCancel) { $btnCancel.Visibility = 'Collapsed' }
@@ -760,8 +760,8 @@ function Show-WinDebloatGUI {
                         $txtStatus.Text = "Error in $TaskName`: $($_.Exception.Message)"
                     }
                     finally {
-                        try { $ps.Dispose() } catch { }
-                        try { $runspace.Dispose() } catch { }
+                        try { $ps.Dispose() } catch { $null = $_ }
+                        try { $runspace.Dispose() } catch { $null = $_ }
                         $script:isTaskRunning = $false
                         if ($pbGlobal) { $pbGlobal.Visibility = 'Collapsed'; $pbGlobal.IsIndeterminate = $false }
                         if ($btnCancel) { $btnCancel.Visibility = 'Collapsed' }

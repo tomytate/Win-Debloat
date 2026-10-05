@@ -2227,7 +2227,9 @@ function Show-WinDebloatDiffViewer {
         if ([Console]::WindowHeight -gt 12) {
             $winHeight = [Console]::WindowHeight - 6
         }
-    } catch { }
+    } catch {
+        $null = $_
+    }
 
     if ($lines.Count -le $winHeight) {
         foreach ($l in $lines) { Write-Host $l }

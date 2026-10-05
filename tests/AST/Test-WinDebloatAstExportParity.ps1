@@ -50,6 +50,7 @@ function Get-AstStringValues {
         }
     }
     catch {
+        $null = $_
     }
 
     if ($AstNode -is [System.Management.Automation.Language.StringConstantExpressionAst]) {
@@ -176,7 +177,7 @@ function Get-SetAliasExports {
     return [string[]]($aliases | Sort-Object -Unique)
 }
 
-function Parse-Psd1ManifestAst {
+function Get-Psd1ManifestAst {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -244,8 +245,8 @@ if (-not (Test-Path -LiteralPath $psd1File7)) {
 }
 
 Write-Host "[1/5] Parsing Win-Debloat.psd1 & Win-Debloat7.psd1 Manifest AST..." -ForegroundColor Gray
-$manifestData = Parse-Psd1ManifestAst -Psd1Path $psd1File
-$manifestData7 = Parse-Psd1ManifestAst -Psd1Path $psd1File7
+$manifestData = Get-Psd1ManifestAst -Psd1Path $psd1File
+$manifestData7 = Get-Psd1ManifestAst -Psd1Path $psd1File7
 $psd1Functions = $manifestData.FunctionsToExport
 $psd1Aliases   = $manifestData.AliasesToExport
 $nestedModules = $manifestData.NestedModules

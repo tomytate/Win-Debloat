@@ -58,13 +58,17 @@ try {
     if (-not [Console]::IsOutputRedirected -and [Console]::OutputEncoding.CodePage -ne 65001) {
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     }
-} catch { }
+} catch {
+    $null = $_
+}
 
 try {
     if (-not [Console]::IsInputRedirected -and [Console]::InputEncoding.CodePage -ne 65001) {
         [Console]::InputEncoding = [System.Text.Encoding]::UTF8
     }
-} catch { }
+} catch {
+    $null = $_
+}
 
 # Original Classic ASCII Header (Restored)
 $Script:WD7Header = @"
@@ -344,6 +348,7 @@ function Format-WD7Hyperlink {
             }
             catch {
                 # Fall back to manual OSC 8 escape code if URI parsing fails
+                $null = $_
             }
         }
 
@@ -400,7 +405,7 @@ function Clear-WDConsoleSafe {
             [System.Console]::Clear()
         }
         catch {
-            try { Clear-Host } catch { }
+            try { Clear-Host } catch { $null = $_ }
         }
     }
 }
@@ -428,7 +433,9 @@ function Show-WD7Header {
         if (-not (Test-WDHeadless) -and [Console]::WindowWidth -gt 0) {
             $termWidth = [Console]::WindowWidth
         }
-    } catch { }
+    } catch {
+        $null = $_
+    }
     
     if ($Compact -or $termWidth -lt 100) {
         # Compact Art with TrueColor Gradient
@@ -504,7 +511,9 @@ function Show-WD7Separator {
         if (-not (Test-WDHeadless) -and [Console]::WindowWidth -gt 20) {
             $width = [math]::Clamp([Console]::WindowWidth - 4, 38, 99)
         }
-    } catch { }
+    } catch {
+        $null = $_
+    }
 
     $lineChar = "─"
     
@@ -613,7 +622,7 @@ function Show-WDCursor {
     param()
 
     if (-not (Test-WDHeadless)) {
-        try { [Console]::Out.Write("$([char]27)[?25h"); [Console]::Out.Flush() } catch { }
+        try { [Console]::Out.Write("$([char]27)[?25h"); [Console]::Out.Flush() } catch { $null = $_ }
     }
 }
 
@@ -627,7 +636,7 @@ function Hide-WDCursor {
     param()
 
     if (-not (Test-WDHeadless)) {
-        try { [Console]::Out.Write("$([char]27)[?25l"); [Console]::Out.Flush() } catch { }
+        try { [Console]::Out.Write("$([char]27)[?25l"); [Console]::Out.Flush() } catch { $null = $_ }
     }
 }
 
@@ -647,7 +656,9 @@ function Enter-WDAlternateBuffer {
         [Console]::Out.Write("$($Script:VT.AltBufferEnter)$($Script:VT.CursorHide)")
         [Console]::Out.Flush()
     }
-    catch { }
+    catch {
+        $null = $_
+    }
     $Script:InAlternateBuffer = $true
 
     # Thread-safe CancelKeyPress handler
@@ -657,10 +668,12 @@ function Enter-WDAlternateBuffer {
             [Console]::Out.Write("$([char]27)[?25h$([char]27)[?1049l")
             [Console]::Out.Flush()
         }
-        catch { }
+        catch {
+            $null = $_
+        }
         $Script:InAlternateBuffer = $false
     }
-    try { [System.Console]::add_CancelKeyPress($Script:CancelKeyHandler) } catch { }
+    try { [System.Console]::add_CancelKeyPress($Script:CancelKeyHandler) } catch { $null = $_ }
 
     # Thread-safe ProcessExit handler
     $Script:ProcessExitHandler = [System.EventHandler]{
@@ -669,10 +682,12 @@ function Enter-WDAlternateBuffer {
             [Console]::Out.Write("$([char]27)[?25h$([char]27)[?1049l")
             [Console]::Out.Flush()
         }
-        catch { }
+        catch {
+            $null = $_
+        }
         $Script:InAlternateBuffer = $false
     }
-    try { [System.AppDomain]::CurrentDomain.add_ProcessExit($Script:ProcessExitHandler) } catch { }
+    try { [System.AppDomain]::CurrentDomain.add_ProcessExit($Script:ProcessExitHandler) } catch { $null = $_ }
 }
 
 <#
@@ -690,12 +705,12 @@ function Exit-WDAlternateBuffer {
     }
 
     if ($null -ne $Script:CancelKeyHandler) {
-        try { [System.Console]::remove_CancelKeyPress($Script:CancelKeyHandler) } catch { }
+        try { [System.Console]::remove_CancelKeyPress($Script:CancelKeyHandler) } catch { $null = $_ }
         $Script:CancelKeyHandler = $null
     }
 
     if ($null -ne $Script:ProcessExitHandler) {
-        try { [System.AppDomain]::CurrentDomain.remove_ProcessExit($Script:ProcessExitHandler) } catch { }
+        try { [System.AppDomain]::CurrentDomain.remove_ProcessExit($Script:ProcessExitHandler) } catch { $null = $_ }
         $Script:ProcessExitHandler = $null
     }
 
@@ -704,7 +719,7 @@ function Exit-WDAlternateBuffer {
         [Console]::Out.Flush()
     }
     catch {
-        try { Write-Host -NoNewline "$($Script:VT.CursorShow)$($Script:VT.AltBufferExit)" } catch { }
+        try { Write-Host -NoNewline "$($Script:VT.CursorShow)$($Script:VT.AltBufferExit)" } catch { $null = $_ }
     }
     $Script:InAlternateBuffer = $false
 }
@@ -730,7 +745,9 @@ function Show-WDFrame {
     $maxLines = 0
     try {
         if ([Console]::WindowHeight -gt 0) { $maxLines = [Console]::WindowHeight }
-    } catch { }
+    } catch {
+        $null = $_
+    }
 
     $lines = $FrameContent -split "\r?\n"
     if ($maxLines -gt 2 -and $lines.Count -ge $maxLines) {

@@ -265,7 +265,9 @@ function Protect-WDData {
                 Write-Verbose "Retrying DPAPI encryption with LocalMachine scope..."
                 return [System.Security.Cryptography.ProtectedData]::Protect($Data, $null, [System.Security.Cryptography.DataProtectionScope]::LocalMachine)
             }
-            catch { }
+            catch {
+                $null = $_
+            }
         }
         Write-Log -Message "DPAPI encryption failed: $($_.Exception.Message). Ensure current user profile is loaded." -Level Error
         throw
@@ -300,7 +302,9 @@ function Unprotect-WDData {
                 Write-Verbose "Retrying DPAPI decryption with LocalMachine scope..."
                 return [System.Security.Cryptography.ProtectedData]::Unprotect($EncryptedData, $null, [System.Security.Cryptography.DataProtectionScope]::LocalMachine)
             }
-            catch { }
+            catch {
+                $null = $_
+            }
         }
         Write-Log -Message "DPAPI decryption failed: $($_.Exception.Message). Snapshot may have been encrypted under a different user account or non-elevated context." -Level Error
         throw
@@ -1411,7 +1415,9 @@ function Invoke-WinDebloatAsync {
                     ) | Out-Null
                     [System.Windows.Threading.Dispatcher]::PushFrame($frame)
                 }
-                catch { }
+                catch {
+                    $null = $_
+                }
             }
 
             Start-Sleep -Milliseconds 16

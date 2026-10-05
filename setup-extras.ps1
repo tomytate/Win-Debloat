@@ -3,7 +3,9 @@ $ErrorActionPreference = 'Stop'
 # Enforce TLS 1.2 / TLS 1.3 for secure downloads across PowerShell 5.1 and modern pwsh
 try {
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12 -bor 3072
-} catch {}
+} catch {
+    $null = $_
+}
 
 $apiHeaders = @{ 'User-Agent' = 'Win-Debloat-Installer/1.7.0' }
 

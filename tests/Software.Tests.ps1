@@ -3,6 +3,20 @@ Describe "Modules.Software" {
         $src = Join-Path $PSScriptRoot "..\src"
         Import-Module "$src\core\Logger.psm1" -ErrorAction SilentlyContinue
         Import-Module "$src\modules\Software\Software.psm1" -Force -ErrorAction Stop
+
+        # Ensure external CLI/OS commands exist as stubs for Pester 5 mocking on Windows Server
+        $stubCommands = @('winget', 'choco', 'Add-AppxPackage', 'Install-PSResource', 'Update-PSResource')
+        foreach ($cmd in $stubCommands) {
+            if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) {
+                Set-Item -Path "function:global:$cmd" -Value { }
+            }
+            & (Get-Module Software) {
+                param($name)
+                if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
+                    Set-Item -Path "function:$name" -Value { }
+                }
+            } $cmd
+        }
     }
 
     Context "Command and Alias Exports" {

@@ -29,6 +29,20 @@ Describe "Bloatware Module Optimization & Functional Tests" {
         Import-Module "$src\core\Logger.psm1" -Force -ErrorAction SilentlyContinue
         Import-Module "$src\core\Registry.psm1" -Force -ErrorAction SilentlyContinue
         Import-Module "$src\modules\Bloatware\Bloatware.psm1" -Force -ErrorAction Stop
+
+        # Ensure external Appx and service cmdlets exist as stubs for Pester 5 mocking on Windows Server
+        $stubCommands = @('Get-AppxPackage', 'Remove-AppxPackage', 'Get-AppxProvisionedPackage', 'Remove-AppxProvisionedPackage', 'Stop-Service', 'Set-Service')
+        foreach ($cmd in $stubCommands) {
+            if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) {
+                Set-Item -Path "function:global:$cmd" -Value { }
+            }
+            & (Get-Module Bloatware) {
+                param($name)
+                if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
+                    Set-Item -Path "function:$name" -Value { }
+                }
+            } $cmd
+        }
     }
 
     Context "Uninstall-WinDebloatXbox Batch Querying" {

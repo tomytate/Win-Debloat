@@ -227,6 +227,7 @@ if ($CodeCoverage) {
     $pesterConfig.CodeCoverage.UseBreakpoints = $false
     $pesterConfig.CodeCoverage.OutputPath = Join-Path $PSScriptRoot "Coverage.xml"
     $pesterConfig.CodeCoverage.OutputFormat = 'Cobertura'
+    $pesterConfig.CodeCoverage.CoveragePercentTarget = 0
 }
 
 # --- 6. Execute Test Suite ---

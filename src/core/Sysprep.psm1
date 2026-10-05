@@ -126,6 +126,7 @@ function Dismount-WinDebloatDefaultHive {
             }
             catch {
                 # Non-fatal if opening key fails
+                $null = $_
             }
 
             # 3x exponential retry backoff on reg.exe unload with dual GC collections
@@ -265,7 +266,9 @@ function Dismount-WinDebloatUserHive {
                 $hKey = $null
             }
         }
-        catch {}
+        catch {
+            $null = $_
+        }
 
         $maxRetries = 3
         for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {

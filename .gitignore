@@ -12,6 +12,7 @@ build/winget-manifests/
 *.log
 Benchmark_Report.md
 *.prof*
+tests/*.xml
 
 # Editors
 .vscode/
