@@ -20,7 +20,7 @@ jobs:
     runs-on: windows-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -33,7 +33,7 @@ jobs:
           & ./build/Build-DualRelease.ps1 -Version $version -OutputDir dist -Platform all
 
       - name: Attest Build Provenance (SLSA Level 3)
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             dist/Win-Debloat.exe
@@ -44,7 +44,7 @@ jobs:
             dist/Win-Debloat-Extras-v*.zip
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |

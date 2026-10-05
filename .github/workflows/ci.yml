@@ -23,7 +23,7 @@ jobs:
         os: [windows-2025, windows-2022]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         persist-credentials: false
 
@@ -72,7 +72,7 @@ jobs:
 
     - name: Upload Test & Coverage Artifacts
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: test-artifacts-${{ matrix.os }}
         path: |
@@ -90,7 +90,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         persist-credentials: false
 

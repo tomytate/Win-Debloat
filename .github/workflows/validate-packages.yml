@@ -22,7 +22,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The validation script requires PowerShell 7.6+
       - name: Install PowerShell 7.6+ (dotnet tool)
