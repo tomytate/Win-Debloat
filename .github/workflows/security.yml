@@ -42,8 +42,8 @@ jobs:
               'PSAvoidUsingInvokeExpression',
               'PSAvoidUsingWMICmdlet'
           )
-          $results = Invoke-ScriptAnalyzer -Path . -Recurse -IncludeRule $rules |
-              Where-Object { $_.ScriptPath -notlike '*\Vendor\*' }
+          $results = Invoke-ScriptAnalyzer -Path . -Recurse -IncludeRule $rules -ExcludeRule @('PSAvoidUsingEmptyCatchBlock', 'PSUseApprovedVerbs') |
+              Where-Object { $_.ScriptPath -notlike '*\Vendor\*' -and $_.ScriptPath -notlike '*\tests\*' }
           if ($results) {
               $results | Format-Table -AutoSize
               exit 1

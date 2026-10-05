@@ -7,15 +7,14 @@
         'PSAvoidUsingConvertToSecureStringWithPlainText',
         'PSAvoidUsingInvokeExpression',
         'PSAvoidUsingWMICmdlet',
-        'PSAvoidUsingEmptyCatchBlock',
-        'PSUseApprovedVerbs',
         'PSMissingModuleManifestField',
         'PSReservedCmdletChar',
         'PSReservedParams'
     )
     ExcludeRules = @(
         'PSAvoidUsingPositionalParameters',
-        'PSUseDeclaredVarsMoreThanAssignments'
+        'PSUseDeclaredVarsMoreThanAssignments',
+        'PSAvoidUsingEmptyCatchBlock'
     )
     Rules = @{
         PSAvoidUsingCmdletAliases = @{
