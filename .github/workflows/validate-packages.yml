@@ -16,13 +16,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   validate:
     name: Validate software catalog
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The validation script requires PowerShell 7.6+
       - name: Install PowerShell 7.6+ (dotnet tool)
@@ -31,7 +34,9 @@ jobs:
 
       # Ensure winget is available on runner for complete catalog validation
       - name: Setup winget
-        uses: cyberdemon531/setup-winget@v1
+        uses: Cyberboss/install-winget@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Validate package IDs
         shell: pwsh

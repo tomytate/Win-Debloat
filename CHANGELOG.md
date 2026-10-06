@@ -24,6 +24,10 @@ A hardening and maintenance release delivering 100% clean static analysis, enhan
   - Guaranteed 100% green test matrix across `windows-2022` and `windows-2025` runners on GitHub Actions.
 - **Coverage Target Calibration**:
   - Calibrated Pester code coverage target threshold in `tests/Run-AllTests.ps1` to prevent false test suite failures while maintaining full Cobertura XML and GitHub Actions matrix reporting.
+- **GitHub Actions Modernization & Node 24 Migration**:
+  - Eliminated all Node 20 deprecation warnings across GitHub Actions runners by declaring `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` across all workflows (`ci.yml`, `release.yml`, `security.yml`, `validate-packages.yml`).
+  - Upgraded core action dependencies to their latest Node 24 native versions: `actions/checkout@v7`, `actions/upload-artifact@v7`, `actions/attest-build-provenance@v4`, `softprops/action-gh-release@v3`, and `gitleaks/gitleaks-action@v3`.
+  - Replaced stale winget setup with `Cyberboss/install-winget@v1` for resilient package validation across Windows Server runners.
 
 ### 📦 Dual Release Executables & SBOM
 - Built signed standalone native single-file binaries (`Win-Debloat.exe`, `Win-Debloat-arm64.exe`, `Win-Debloat-Extras.exe`, `Win-Debloat-Extras-arm64.exe`).
