@@ -724,7 +724,7 @@
             HelpInfoURI              = 'https://github.com/tomytate/Win-Debloat/blob/main/docs/'
             RequireLicenseAcceptance = $false
             CompatiblePSEditions     = @('Core')
-            ReleaseNotes             = 'Win-Debloat v1.7.1 enterprise resilience release: zero-violation static analysis, 100% PSScriptAnalyzer compliance, dynamic Windows Server Pester mock isolation, and calibrated CI matrix.'
+            ReleaseNotes             = 'Win-Debloat v1.7.1 enterprise resilience release: SPDX 3.0.1 JSON-LD SBOM, Pester 6.2.0 test engine, zero-violation static analysis, 100% PSScriptAnalyzer compliance, and Windows Server CI matrix.'
         }
     }
 }

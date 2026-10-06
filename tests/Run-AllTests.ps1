@@ -3,7 +3,7 @@
     Universal Test Runner for Win-Debloat Test Suite (v1.7.1).
 .DESCRIPTION
     Runs unit, integration, and AST parity test suites across PowerShell 5.1 and 7.6+.
-    Supports Pester 5.5+/6.x configurations, code coverage metrics, NUnit XML export,
+    Supports Pester 6.2.0 (and 5.5+) configurations, code coverage metrics, NUnit XML export,
     Cobertura code coverage XML, and GitHub Actions step summaries.
 .PARAMETER Suite
     Test suite to run: Unit, AST, Integration, or All (default).
@@ -182,13 +182,20 @@ Please install the latest Pester module by running:
     exit 1
 }
 
-# --- 5. Clean Pester 5 Configuration Container Construction ---
+Write-Host "Pester Engine: v$($loadedPester.Version) ($($loadedPester.Path))`n" -ForegroundColor Gray
+
+# --- 5. Clean Pester 6 / Pester 5 Configuration Container Construction ---
 $pesterConfig = New-PesterConfiguration
 
 # Run options
 $pesterConfig.Run.Path = $testPaths
 $pesterConfig.Run.PassThru = $true
 $pesterConfig.Run.Exit = $false
+
+# Pester 6.2.0 cascaded folder-scoped container setup support
+if ($pesterConfig.Run.PSObject.Properties.Name -contains 'RepoRoot') {
+    $pesterConfig.Run.RepoRoot = (Resolve-Path "$PSScriptRoot\..").Path
+}
 
 # Filter options
 if ($Tag) {

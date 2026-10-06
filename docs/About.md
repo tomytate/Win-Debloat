@@ -28,7 +28,7 @@ We built Win-Debloat to be the **"Gold Standard"**:
 - **Enterprise Deployment**: Standalone headless Intune / OOBE Shift+F10 deployment (`deploy/Deploy-WinDebloat.ps1`), custom Intune detection (`deploy/Detect-WinDebloat.ps1`), and zero-binary `Run.bat` launcher
 - **Enterprise Security**: SMB Client Hardening, NTLMv2 Enforcement, SMB NTLM Relay Blocking, Windows Protected Print (RFC 8011), Sudo Isolation, BitLocker XTS-256
 - **Next-Gen Hardware Tuning**: AMD Dual-CCD X3D Core Parking, Intel Thread Director Heterogeneous Scheduling, Low-Latency Kernel Timers, Server Native NVMe Stack, ReFS Dev Drive, DirectStorage 1.2+ BypassIO, TCP CUBIC/BBR
-- **Test Integrity**: Full Pester compliance suite enforced in CI (**100% pass rate, 392/392 tests passed**, 0 failures, 0 skipped)
+- **Test Integrity**: Full Pester 6.2.0 compliance suite enforced in CI (**100% pass rate, 392/392 tests passed**, 0 failures, 0 skipped)
 - **0** PSScriptAnalyzer errors and **100% 5-way AST parity** across all layers
 - **11** DNS providers with native Windows 11 DoH encryption
 - **139** bloatware apps (tiered removal)
@@ -47,7 +47,7 @@ You are free to use, modify, and distribute it, provided you give credit to the 
 *   **GUI**: Windows Presentation Foundation (WPF) / XAML
 *   **TUI**: TrueColor terminal rendering (24-bit ANSI)
 *   **Config**: YAML profiles with deep inheritance (`extends:`) and conditional `when:` gates
-*   **Testing**: Pester 5/6 + PSScriptAnalyzer + 5-Way AST Parity
+*   **Testing**: Pester 6.2.0 + PSScriptAnalyzer + 5-Way AST Parity
 *   **Build**: Dual-Layer Roslyn-compiled launcher executables (x64 / ARM64) + Zero-Binary `Run.bat`
 *   **Supply Chain**: SPDX 3.0.1 JSON-LD SBOM (`win-debloat-sbom.spdx.json`) with legacy SPDX 2.3 fallback
 *   **Distribution**: GitHub Releases, WinGet (TomyTate.WinDebloat), Chocolatey, PowerShell Gallery

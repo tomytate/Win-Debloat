@@ -13,7 +13,12 @@ A hardening and maintenance release delivering 100% clean static analysis, enhan
 - **Approved Verb Compliance (`PSUseApprovedVerbs`)**:
   - Renamed `Parse-Psd1ManifestAst` to approved PowerShell cmdlet verb `Get-Psd1ManifestAst` in `tests/AST/Test-WinDebloatAstExportParity.ps1`.
 
-### 🧪 Windows Server CI & Pester 5 Mock Isolation
+### 🧪 Pester 6.2.0 Test Engine & Windows Server Mock Isolation
+- **Pester 6.2.0 Modernization**:
+  - Upgraded test harness and CI pipeline to official **Pester 6.2.0** ([Pester Releases](https://github.com/pester/Pester/releases/tag/6.2.0)).
+  - Implemented folder-scoped `tests/Pester.BeforeContainer.ps1` utilizing Pester 6.2.0 cascaded container initialization and `Run.RepoRoot` discovery.
+  - Enforced `Install-Module Pester -MinimumVersion 6.2.0` in `.github/workflows/ci.yml` across Windows Server 2022 and 2025 CI runners.
+  - Added real-time Pester engine version and path reporting in `tests/Run-AllTests.ps1`.
 - **Dynamic Command Stubs for Headless / Server Runners**:
   - Resolved `CommandNotFoundException` on Windows Server 2022 and 2025 runners by introducing dynamic function stubs in `BeforeAll` test blocks for client-only cmdlets (`winget`, `choco`, `Add-AppxPackage`, `Get-AppxPackage`, `Remove-AppxPackage`, `Get-AppxProvisionedPackage`, `Remove-AppxProvisionedPackage`, `Disable-NetAdapterUro`, `Enable-NetAdapterUro`, `Disable-NetAdapterLso`, `Enable-NetAdapterLso`).
   - Guaranteed 100% green test matrix across `windows-2022` and `windows-2025` runners on GitHub Actions.

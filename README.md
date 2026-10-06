@@ -27,7 +27,7 @@
 [![CI Status](https://img.shields.io/github/actions/workflow/status/tomytate/Win-Debloat/ci.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
 
 <!-- Badges: Row 3 - Verification & Supply Chain Quality -->
-[![Test Suite](https://img.shields.io/badge/Pester%20Tests-392%20%2F%20392%20Pass%20(100%25)-22C55E?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
+[![Test Suite](https://img.shields.io/badge/Pester%206.2.0-392%20%2F%20392%20Pass%20(100%25)-22C55E?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
 [![AST Parity](https://img.shields.io/badge/AST%20Parity-5--Way%20100%25-00D9FF?style=for-the-badge&logo=powershell&logoColor=white)](https://github.com/tomytate/Win-Debloat)
 [![SPDX SBOM](https://img.shields.io/badge/Supply%20Chain-SPDX%203.0.1%20SBOM-8B5CF6?style=for-the-badge&logo=spdx&logoColor=white)](dist/win-debloat-sbom.spdx.json)
 
@@ -92,7 +92,7 @@ Unlike legacy debloat scripts that blindly delete registry keys, Win-Debloat tre
 | ⚡ **Performance & Engine** | **Execution Benchmark** | **`< 3.8 ms`** cold dispatch & direct .NET BCL telemetry engine |
 | 📦 **Architecture** | **Module Ecosystem** | **30 modular sub-systems** (100% cohesive domain separation) |
 | 🛠️ **API Surface** | **Functions & Aliases** | **297 canonical functions** + **337 backward-compatible aliases** |
-| 🧪 **Verification** | **Test Suite** | **392 / 392 Pester tests (100% pass)** with 0 PSScriptAnalyzer errors |
+| 🧪 **Verification** | **Test Suite** | **392 / 392 Pester 6.2.0 tests (100% pass)** with 0 PSScriptAnalyzer errors |
 | 🔄 **Compatibility** | **5-Way AST Parity** | **100% AST integrity** across PowerShell 5.1, 7.4, 7.5, 7.6.6 & .NET 10 |
 | 🖥️ **Cockpit GUI** | **Asynchronous 60 FPS WPF** | **STA Runspace Pipeline**, **16ms (60 FPS) Dispatcher Pump**, **Live Cancellation**, **5-Card Telemetry Dashboard** (DirectStorage BypassIO) |
 | ⌨️ **Modern TUI** | **Spectre/VT100 Engine** | **Alternate Screen Buffer (DECSET 1049)**, **Double-Buffered Atomic Frames (DECSET 2026)**, **Visual Diff Viewer** |

@@ -35,8 +35,8 @@ jobs:
     - name: Run Complete Test Suite (PowerShell 7.6+)
       shell: pwsh
       run: |
-        if (-not (Get-Module -ListAvailable Pester | Where-Object { $_.Version -ge [version]"5.5" })) {
-            Install-Module Pester -Force -SkipPublisherCheck -Scope CurrentUser
+        if (-not (Get-Module -ListAvailable Pester | Where-Object { $_.Version -ge [version]"6.2.0" })) {
+            Install-Module Pester -MinimumVersion 6.2.0 -Force -SkipPublisherCheck -Scope CurrentUser
         }
         & ./tests/Run-AllTests.ps1 -Suite All -Output Detailed -CI -CodeCoverage
 
