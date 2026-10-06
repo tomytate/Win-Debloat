@@ -18,21 +18,28 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  security-check:
-    name: Security & Secret Scan
-    runs-on: windows-latest
+  gitleaks:
+    name: Gitleaks Secret Detection
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          persist-credentials: false
 
       - name: Run Gitleaks Secret Detection
         uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_SUMMARY: true
-        continue-on-error: true
+
+  psscriptanalyzer-security:
+    name: PSScriptAnalyzer Security Rules
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Run PSScriptAnalyzer Security Rules
         shell: pwsh
