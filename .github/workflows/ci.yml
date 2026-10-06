@@ -60,6 +60,7 @@ jobs:
             "dist/Win-Debloat-v0.0.0-CI.zip",
             "dist/Win-Debloat-Extras-v0.0.0-CI.zip",
             "dist/win-debloat-sbom.spdx.json",
+            "dist/win-debloat-sbom-v2.3.spdx.json",
             "dist/SHA256SUMS.txt",
             "dist/RELEASE_NOTES.md"
         )

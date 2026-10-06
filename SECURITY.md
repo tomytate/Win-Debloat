@@ -35,7 +35,7 @@ We take the security of **Win-Debloat** seriously. If you discover a security vu
 
 *   **Dual-Layer Authenticode Signing**: Release executables are signed with Authenticode at two levels: inner PowerShell payload scripts are hashed and signed before embedding, and the outer Win32 PE binary is signed with RFC 3161 timestamps.
 *   **SLSA Level 3 Build Provenance**: GitHub Actions generates cryptographic artifact attestations (`actions/attest-build-provenance`) directly in the build pipeline.
-*   **SPDX 2.3 Software Bill of Materials (SBOM)**: Every release bundles a machine-readable `win-debloat-sbom.spdx.json` containing SHA256 hashes and component metadata.
+*   **SPDX 3.0.1 Software Bill of Materials (SBOM)**: Every release bundles a machine-readable `win-debloat-sbom.spdx.json` (SPDX 3.0.1 JSON-LD) and `win-debloat-sbom-v2.3.spdx.json` (legacy fallback) containing SHA256 hashes, dependency graphs, and component metadata.
 *   **Cryptographic Verification**: `SHA256SUMS.txt` is published with every release. The smart bootstrapper enforces a fail-closed cryptographic check before executing.
 *   **Zero-Defect AST & Static Analysis**: All PowerShell code passes **PSScriptAnalyzer** and 5-way AST parity assertions with zero errors.
 

@@ -22,7 +22,7 @@ A hardening and maintenance release delivering 100% clean static analysis, enhan
 
 ### 📦 Dual Release Executables & SBOM
 - Built signed standalone native single-file binaries (`Win-Debloat.exe`, `Win-Debloat-arm64.exe`, `Win-Debloat-Extras.exe`, `Win-Debloat-Extras-arm64.exe`).
-- Updated SPDX 2.3 JSON Software Bill of Materials (SBOM) and SHA256 checksums.
+- **SPDX 3.0.1 JSON-LD Software Bill of Materials (SBOM)**: Upgraded primary SBOM generation to official Linux Foundation SPDX 3.0.1 JSON-LD specification (`@context: https://spdx.org/rdf/3.0.1/spdx-context.jsonld`), featuring complete `@graph` mapping of root application packages, standalone distribution binaries, vendored dependencies (`powershell-yaml`, `YamlDotNet.dll`), agent provenance, license expressions, and cryptographic hashes. Retained companion `win-debloat-sbom-v2.3.spdx.json` legacy fallback.
 - Updated WinGet v1.28.0 manifests and Chocolatey packaging for v1.7.1.
 
 ## [1.7.0] - 2026-10-06 — "Silicon Mastery & 26H2 Apex"

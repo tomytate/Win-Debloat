@@ -11,8 +11,8 @@ try {
 } catch {
     $isArm64 = ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_ARCHITEW6432 -eq 'ARM64')
 }
-$checksumX64   = "245C8DB9EF305C2C3C8D6D216877464B6F64E8AF581832C063CDFF2C0E4A7A94"
-$checksumArm64 = "2E5DEE9415A66F642E6649D3AEBE063B0E86BDCB6665F349D1FE1E2B427FFF25"
+$checksumX64   = "E202F104C095B45B352A7A53F83D0CCF1B11A082E3EA7D706A8840911DFCD863"
+$checksumArm64 = "3C4092891950CAC0356F517A8CEEB6C7B24A09C2277EB8C4EC68C2F49B2CE645"
 
 if ($isArm64) {
     $binaryName = "Win-Debloat-arm64.exe"
@@ -53,6 +53,7 @@ Install-ChocolateyShortcut -shortcutFilePath $shortcutPath `
     -description "Launch Win-Debloat Windows Optimization Platform"
 
 Write-Host "✅ Win-Debloat $version installed successfully to $toolsDir" -ForegroundColor Green
+
 
 
 

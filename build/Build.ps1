@@ -4,7 +4,7 @@
     Standard Entrypoint for Win-Debloat Release Packaging.
 .DESCRIPTION
     Delegates to Build-DualRelease.ps1 to build standalone executables,
-    SPDX 2.3 SBOMs, checksums, and package manifests.
+    SPDX 3.0.1 JSON-LD and SPDX 2.3 SBOMs, checksums, and package manifests.
 #>
 [CmdletBinding()]
 param(

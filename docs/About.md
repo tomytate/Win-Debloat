@@ -33,7 +33,7 @@ We built Win-Debloat to be the **"Gold Standard"**:
 - **11** DNS providers with native Windows 11 DoH encryption
 - **139** bloatware apps (tiered removal)
 - **5** service optimization presets with WSL2 / Windows Hello runtime protection
-- **Supply Chain Security**: SPDX 2.3 JSON SBOM + SLSA Level 3 Build Provenance + Dual-Layer Authenticode Signing
+- **Supply Chain Security**: SPDX 3.0.1 JSON-LD SBOM + SLSA Level 3 Build Provenance + Dual-Layer Authenticode Signing
 
 ## 👥 The Team
 **Lead Maintainer:** [Tomy Tate](https://github.com/tomytate) (Sole Author & Architect)
@@ -49,5 +49,5 @@ You are free to use, modify, and distribute it, provided you give credit to the 
 *   **Config**: YAML profiles with deep inheritance (`extends:`) and conditional `when:` gates
 *   **Testing**: Pester 5/6 + PSScriptAnalyzer + 5-Way AST Parity
 *   **Build**: Dual-Layer Roslyn-compiled launcher executables (x64 / ARM64) + Zero-Binary `Run.bat`
-*   **Supply Chain**: SPDX 2.3 JSON SBOM (`win-debloat-sbom.spdx.json`)
+*   **Supply Chain**: SPDX 3.0.1 JSON-LD SBOM (`win-debloat-sbom.spdx.json`) with legacy SPDX 2.3 fallback
 *   **Distribution**: GitHub Releases, WinGet (TomyTate.WinDebloat), Chocolatey, PowerShell Gallery

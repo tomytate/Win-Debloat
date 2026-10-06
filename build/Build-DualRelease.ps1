@@ -2,12 +2,12 @@
 
 <#
 .SYNOPSIS
-    Builds Single-File Executable releases of Win-Debloat with Dual-Layer Signing and SPDX SBOM.
+    Builds Single-File Executable releases of Win-Debloat with Dual-Layer Signing and SPDX 3.0.1 SBOM.
     
 .DESCRIPTION
     Creates standalone single-file executables (Standard/Extras) with embedded compressed payloads,
     high-DPI manifest, optimization (/o+), icon embedding, and multi-architecture platform targeting (x64 / ARM64).
-    Generates SHA256 checksums, release notes, SPDX 2.3 JSON Software Bill of Materials (SBOM),
+    Generates SHA256 checksums, release notes, SPDX 3.0.1 JSON-LD & SPDX 2.3 Software Bill of Materials (SBOM),
     optional Authenticode Dual-Signing (inner script layer + outer PE binary) with RFC 3161 timestamps,
     and updates distribution manifests.
 
@@ -93,7 +93,7 @@ $DistPath = [System.IO.Path]::GetFullPath($OutputDir)
 
 Write-Host "╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
 Write-Host "║      Win-Debloat Single-File Builder v2.2 (v1.7.1)           ║" -ForegroundColor Cyan
-Write-Host "║      High-DPI • Multi-Arch • Dual-Signing • SPDX 2.3 SBOM    ║" -ForegroundColor Cyan
+Write-Host "║      High-DPI • Multi-Arch • Dual-Signing • SPDX 3.0.1 SBOM  ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host "   Version:     $Version" -ForegroundColor Gray
 Write-Host "   Output Dir:  $DistPath" -ForegroundColor Gray
@@ -360,16 +360,266 @@ foreach ($art in $allArtifacts) {
 Write-Host "   ✅ SHA256SUMS.txt written." -ForegroundColor Green
 
 # ═══════════════════════════════════════════════════════════════
-# GENERATE SPDX 2.3 JSON SBOM
+# GENERATE SPDX 3.0.1 JSON-LD & SPDX 2.3 SBOM
 # ═══════════════════════════════════════════════════════════════
 
-Write-Host "`n📋 Generating SPDX 2.3 JSON Software Bill of Materials (SBOM)..." -ForegroundColor Cyan
-$sbomPackages = [System.Collections.Generic.List[psobject]]::new()
+Write-Host "`n📋 Generating SPDX 3.0.1 JSON-LD & SPDX 2.3 Software Bill of Materials (SBOM)..." -ForegroundColor Cyan
+
+$creationInfoId = "_:creationInfo_0"
+$nowUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+$docSpdxId = "urn:spdx:doc:win-debloat-v$Version"
+$rootPkgId = "urn:spdx:pkg:Win-Debloat"
+$licenseMitId = "urn:spdx:license:MIT"
+$licenseCc0Id = "urn:spdx:license:CC0-1.0"
+$personId = "urn:spdx:agent:person:TomyTate"
+$toolId = "urn:spdx:agent:tool:WinDebloat-Builder-2.2"
+
+$graph = [System.Collections.Generic.List[psobject]]::new()
+
+# 1. CreationInfo
+$graph.Add([ordered]@{
+    "@id"        = $creationInfoId
+    type         = "CreationInfo"
+    specVersion  = "3.0.1"
+    created      = $nowUtc
+    createdBy    = @($personId, $toolId)
+})
+
+# 2. Agents
+$graph.Add([ordered]@{
+    spdxId       = $personId
+    type         = "Person"
+    name         = "Tomy Tate"
+    creationInfo = $creationInfoId
+})
+
+$graph.Add([ordered]@{
+    spdxId       = $toolId
+    type         = "Tool"
+    name         = "WinDebloat-Builder-2.2"
+    creationInfo = $creationInfoId
+})
+
+# 3. Licenses
+$graph.Add([ordered]@{
+    spdxId                             = $licenseCc0Id
+    type                               = "simplelicensing_LicenseExpression"
+    simplelicensing_licenseExpression = "CC0-1.0"
+    creationInfo                       = $creationInfoId
+})
+
+$graph.Add([ordered]@{
+    spdxId                             = $licenseMitId
+    type                               = "simplelicensing_LicenseExpression"
+    simplelicensing_licenseExpression = "MIT"
+    creationInfo                       = $creationInfoId
+})
+
+# 4. SpdxDocument
+$graph.Add([ordered]@{
+    spdxId       = $docSpdxId
+    type         = "SpdxDocument"
+    name         = "Win-Debloat-v$Version-SBOM"
+    dataLicense  = $licenseCc0Id
+    rootElement  = @($rootPkgId)
+    creationInfo = $creationInfoId
+})
+
+# 5. Root Package (Win-Debloat)
+$graph.Add([ordered]@{
+    spdxId                    = $rootPkgId
+    type                      = "software_Package"
+    name                      = "Win-Debloat"
+    software_packageVersion   = $Version
+    software_downloadLocation = "https://github.com/tomytate/Win-Debloat/releases/tag/v$Version"
+    software_copyrightText    = "Copyright (c) 2026 Tomy Tate"
+    software_primaryPurpose   = "application"
+    creationInfo              = $creationInfoId
+})
+
+$graph.Add([ordered]@{
+    spdxId           = "urn:spdx:rel:doc-describes-root"
+    type             = "Relationship"
+    relationshipType = "describes"
+    from             = $docSpdxId
+    to               = @($rootPkgId)
+    completeness     = "complete"
+    creationInfo     = $creationInfoId
+})
+
+# 6. Vendored dependencies (powershell-yaml and YamlDotNet)
+$yamlPkgId = "urn:spdx:pkg:powershell-yaml-0.4.12"
+$graph.Add([ordered]@{
+    spdxId                    = $yamlPkgId
+    type                      = "software_Package"
+    name                      = "powershell-yaml"
+    software_packageVersion   = "0.4.12"
+    software_downloadLocation = "https://github.com/cloudbase/powershell-yaml"
+    software_copyrightText    = "Copyright (c) 2018 Cloudbase Solutions Srl"
+    software_primaryPurpose   = "library"
+    creationInfo              = $creationInfoId
+})
+
+$graph.Add([ordered]@{
+    spdxId           = "urn:spdx:rel:root-contains-powershell-yaml"
+    type             = "Relationship"
+    relationshipType = "contains"
+    from             = $rootPkgId
+    to               = @($yamlPkgId)
+    completeness     = "complete"
+    creationInfo     = $creationInfoId
+})
+
+$graph.Add([ordered]@{
+    spdxId           = "urn:spdx:rel:powershell-yaml-hasConcludedLicense"
+    type             = "Relationship"
+    relationshipType = "hasConcludedLicense"
+    from             = $yamlPkgId
+    to               = @($licenseMitId)
+    creationInfo     = $creationInfoId
+})
+
+$yamlDotNetPkgId = "urn:spdx:pkg:yamldotnet-13.7.1"
+$graph.Add([ordered]@{
+    spdxId                    = $yamlDotNetPkgId
+    type                      = "software_Package"
+    name                      = "YamlDotNet"
+    software_packageVersion   = "13.7.1"
+    software_downloadLocation = "https://github.com/aaubry/YamlDotNet"
+    software_copyrightText    = "Copyright (c) 2008-2024 Antoine Aubry and contributors"
+    software_primaryPurpose   = "library"
+    creationInfo              = $creationInfoId
+})
+
+$graph.Add([ordered]@{
+    spdxId           = "urn:spdx:rel:powershell-yaml-dependsOn-yamldotnet"
+    type             = "Relationship"
+    relationshipType = "dependsOn"
+    from             = $yamlPkgId
+    to               = @($yamlDotNetPkgId)
+    completeness     = "complete"
+    creationInfo     = $creationInfoId
+})
+
+$graph.Add([ordered]@{
+    spdxId           = "urn:spdx:rel:yamldotnet-hasConcludedLicense"
+    type             = "Relationship"
+    relationshipType = "hasConcludedLicense"
+    from             = $yamlDotNetPkgId
+    to               = @($licenseMitId)
+    creationInfo     = $creationInfoId
+})
+
+# 7. Artifact Packages & Relationships
+$legacyPackages = [System.Collections.Generic.List[psobject]]::new()
+$legacyRelationships = [System.Collections.Generic.List[psobject]]::new()
+
+# Legacy vendored packages
+$legacyPackages.Add([ordered]@{
+    SPDXID           = "SPDXRef-Package-powershell-yaml"
+    name             = "powershell-yaml"
+    versionInfo      = "0.4.12"
+    downloadLocation = "https://github.com/cloudbase/powershell-yaml"
+    filesAnalyzed    = $false
+    licenseConcluded = "MIT"
+    licenseDeclared  = "MIT"
+    copyrightText    = "Copyright (c) 2018 Cloudbase Solutions Srl"
+    description      = "Vendored YAML parser and serializer module for PowerShell"
+})
+
+$legacyPackages.Add([ordered]@{
+    SPDXID           = "SPDXRef-Package-YamlDotNet"
+    name             = "YamlDotNet"
+    versionInfo      = "13.7.1"
+    downloadLocation = "https://github.com/aaubry/YamlDotNet"
+    filesAnalyzed    = $false
+    licenseConcluded = "MIT"
+    licenseDeclared  = "MIT"
+    copyrightText    = "Copyright (c) 2008-2024 Antoine Aubry and contributors"
+    description      = "Vendored .NET library for YAML"
+})
+
+$legacyRelationships.Add([ordered]@{
+    spdxElementId      = "SPDXRef-DOCUMENT"
+    relationshipType   = "DESCRIBES"
+    relatedSpdxElement = "SPDXRef-Package-powershell-yaml"
+})
+$legacyRelationships.Add([ordered]@{
+    spdxElementId      = "SPDXRef-DOCUMENT"
+    relationshipType   = "DESCRIBES"
+    relatedSpdxElement = "SPDXRef-Package-YamlDotNet"
+})
+$legacyRelationships.Add([ordered]@{
+    spdxElementId      = "SPDXRef-Package-powershell-yaml"
+    relationshipType   = "DEPENDS_ON"
+    relatedSpdxElement = "SPDXRef-Package-YamlDotNet"
+})
 
 foreach ($art in $allArtifacts) {
     $hash = (Get-FileHash -Path $art.Path -Algorithm SHA256).Hash
-    $sbomPackages.Add([ordered]@{
-        SPDXID           = "SPDXRef-Package-$($art.Name -replace '[^a-zA-Z0-9]', '-')"
+    $cleanId = $art.Name -replace '[^a-zA-Z0-9]', '-'
+    $pkgId = "urn:spdx:pkg:$cleanId"
+
+    # SPDX 3.0.1 JSON-LD Graph Node
+    $graph.Add([ordered]@{
+        spdxId                    = $pkgId
+        type                      = "software_Package"
+        name                      = $art.Name
+        software_packageVersion   = $Version
+        software_downloadLocation = "https://github.com/tomytate/Win-Debloat/releases/download/v$Version/$($art.Name)"
+        software_copyrightText    = "Copyright (c) 2026 Tomy Tate"
+        software_primaryPurpose   = "application"
+        verifiedUsing             = @(
+            [ordered]@{
+                type      = "Hash"
+                algorithm = "sha256"
+                hashValue = $hash
+            }
+        )
+        creationInfo              = $creationInfoId
+    })
+
+    $graph.Add([ordered]@{
+        spdxId           = "urn:spdx:rel:root-contains-$cleanId"
+        type             = "Relationship"
+        relationshipType = "contains"
+        from             = $rootPkgId
+        to               = @($pkgId)
+        completeness     = "complete"
+        creationInfo     = $creationInfoId
+    })
+
+    $graph.Add([ordered]@{
+        spdxId           = "urn:spdx:rel:doc-describes-$cleanId"
+        type             = "Relationship"
+        relationshipType = "describes"
+        from             = $docSpdxId
+        to               = @($pkgId)
+        completeness     = "complete"
+        creationInfo     = $creationInfoId
+    })
+
+    $graph.Add([ordered]@{
+        spdxId           = "urn:spdx:rel:$cleanId-hasConcludedLicense"
+        type             = "Relationship"
+        relationshipType = "hasConcludedLicense"
+        from             = $pkgId
+        to               = @($licenseMitId)
+        creationInfo     = $creationInfoId
+    })
+
+    $graph.Add([ordered]@{
+        spdxId           = "urn:spdx:rel:$cleanId-hasDeclaredLicense"
+        type             = "Relationship"
+        relationshipType = "hasDeclaredLicense"
+        from             = $pkgId
+        to               = @($licenseMitId)
+        creationInfo     = $creationInfoId
+    })
+
+    # Legacy SPDX 2.3 Package Node
+    $legacyPackages.Add([ordered]@{
+        SPDXID           = "SPDXRef-Package-$cleanId"
         name             = $art.Name
         versionInfo      = $Version
         downloadLocation = "https://github.com/tomytate/Win-Debloat/releases/download/v$Version/$($art.Name)"
@@ -385,36 +635,42 @@ foreach ($art in $allArtifacts) {
         copyrightText    = "Copyright (c) 2026 Tomy Tate"
         description      = "$($art.Variant) Edition release artifact ($($art.Name))"
     })
-}
 
-$relationships = [System.Collections.Generic.List[psobject]]::new()
-foreach ($pkg in $sbomPackages) {
-    $relationships.Add([ordered]@{
+    $legacyRelationships.Add([ordered]@{
         spdxElementId      = "SPDXRef-DOCUMENT"
         relationshipType   = "DESCRIBES"
-        relatedSpdxElement = $pkg.SPDXID
+        relatedSpdxElement = "SPDXRef-Package-$cleanId"
     })
 }
 
-$sbom = [ordered]@{
+# 8. Write Primary SPDX 3.0.1 JSON-LD SBOM
+$sbom3 = [ordered]@{
+    "@context" = "https://spdx.org/rdf/3.0.1/spdx-context.jsonld"
+    "@graph"   = $graph
+}
+$sbom3Path = Join-Path $DistPath "win-debloat-sbom.spdx.json"
+$sbom3 | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $sbom3Path -Encoding UTF8
+Write-Host "   ✅ win-debloat-sbom.spdx.json written (SPDX 3.0.1 JSON-LD)." -ForegroundColor Green
+
+# 9. Write Legacy Fallback SPDX 2.3 JSON SBOM
+$sbomLegacy = [ordered]@{
     '$schema'          = "https://spdx.org/schema/2.3/spdx-json-schema.json"
     spdxVersion        = "SPDX-2.3"
     dataLicense        = "CC0-1.0"
     SPDXID             = "SPDXRef-DOCUMENT"
     name               = "Win-Debloat-v$Version-SBOM"
-    documentNamespace  = "https://github.com/tomytate/Win-Debloat/releases/tag/v$Version/win-debloat-sbom.spdx.json"
+    documentNamespace  = "https://github.com/tomytate/Win-Debloat/releases/tag/v$Version/win-debloat-sbom-v2.3.spdx.json"
     creationInfo       = [ordered]@{
-        created            = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+        created            = $nowUtc
         creators           = @("Tool: WinDebloat-Builder-2.2", "Organization: Win-Debloat Project", "Person: Tomy Tate")
         licenseListVersion = "3.22"
     }
-    packages           = $sbomPackages
-    relationships      = $relationships
+    packages           = $legacyPackages
+    relationships      = $legacyRelationships
 }
-
-$sbomPath = Join-Path $DistPath "win-debloat-sbom.spdx.json"
-$sbom | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $sbomPath -Encoding UTF8
-Write-Host "   ✅ win-debloat-sbom.spdx.json written." -ForegroundColor Green
+$sbomLegacyPath = Join-Path $DistPath "win-debloat-sbom-v2.3.spdx.json"
+$sbomLegacy | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $sbomLegacyPath -Encoding UTF8
+Write-Host "   ✅ win-debloat-sbom-v2.3.spdx.json written (SPDX 2.3 Legacy Fallback)." -ForegroundColor Green
 
 # ═══════════════════════════════════════════════════════════════
 # CREATE RELEASE NOTES
@@ -440,7 +696,7 @@ Includes advanced tools such as Defender Remover and MAS.
 - **High-DPI Aware**: Native PerMonitorV2 scaling support for 4K / Multi-Monitor setups
 - **UTF-8 & Long Paths**: Full modern Windows path and UTF-8 encoding support
 - **Architecture**: Native x64 / ARM64 targeting
-- **Supply Chain Security**: Dual-Layer Authenticode Signing & SPDX 2.3 JSON SBOM
+- **Supply Chain Security**: Dual-Layer Authenticode Signing & SPDX 3.0.1 JSON-LD SBOM (with SPDX 2.3 fallback)
 
 ## 📋 Requirements
 - Windows 10 (Build 19041+), Windows 11 (23H2 / 24H2 / 25H2 / 26H1 / 26H2), or Windows Server 2025

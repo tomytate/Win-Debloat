@@ -29,7 +29,7 @@
 <!-- Badges: Row 3 - Verification & Supply Chain Quality -->
 [![Test Suite](https://img.shields.io/badge/Pester%20Tests-392%20%2F%20392%20Pass%20(100%25)-22C55E?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/tomytate/Win-Debloat/actions)
 [![AST Parity](https://img.shields.io/badge/AST%20Parity-5--Way%20100%25-00D9FF?style=for-the-badge&logo=powershell&logoColor=white)](https://github.com/tomytate/Win-Debloat)
-[![SPDX SBOM](https://img.shields.io/badge/Supply%20Chain-SPDX%202.3%20SBOM-8B5CF6?style=for-the-badge&logo=spdx&logoColor=white)](dist/win-debloat-sbom.spdx.json)
+[![SPDX SBOM](https://img.shields.io/badge/Supply%20Chain-SPDX%203.0.1%20SBOM-8B5CF6?style=for-the-badge&logo=spdx&logoColor=white)](dist/win-debloat-sbom.spdx.json)
 
 <br>
 
@@ -102,7 +102,7 @@ Unlike legacy debloat scripts that blindly delete registry keys, Win-Debloat tre
 | 🚀 **Hardware Acceleration** | **Next-Gen CPU/GPU** | **AMD Dual-CCD 3D V-Cache**, **Intel Thread Director**, **DirectStorage 1.2+ BypassIO**, **ReFS Dev Drive**, **Wi-Fi 7 (802.11be MLO)** |
 | 🏢 **Enterprise Ready** | **Hardening Standards** | **SMB NTLM Blocking**, **Intune Win32 App Detection**, **Windows Protected Print (RFC 8011)**, **BitLocker XTS-256** |
 | 📦 **Software Catalog** | **Declarative apps.yaml** | **175 curated packages** across 8+ categories with multi-manager fallback (Winget/Choco/Store) |
-| 🔐 **Supply Chain** | **Provenance & Integrity** | **SPDX 2.3 JSON SBOM** + **SLSA Level 3 Build Provenance** + **Dual-Layer Authenticode Code Signing** |
+| 🔐 **Supply Chain** | **Provenance & Integrity** | **SPDX 3.0.1 JSON-LD SBOM** + **SLSA Level 3 Build Provenance** + **Dual-Layer Authenticode Code Signing** |
 | 🪟 **Target Environments** | **Operating Systems** | **Windows 11 (24H2/25H2/26H1/26H2 Build 26300+)**, **Windows 10 (22H2)**, **Windows Server 2025** |
 
 ---
@@ -269,7 +269,7 @@ Both editions share the exact same core PowerShell 7.6.6 LTS engine, DPAPI snaps
 | **Enterprise Automation** (Sysprep image prep, headless execution, CI/CD ready) | ✅ | ✅ |
 | **Safety & Reversibility** (DPAPI-encrypted snapshots, value-level registry rollback) | ✅ | ✅ |
 | **Dual Interface** (Dark-theme WPF GUI dashboard + interactive CLI/TUI menu) | ✅ | ✅ |
-| **Supply Chain Assurance** (Dual-layer Authenticode signature, SPDX 2.3 JSON SBOM) | ✅ | ✅ |
+| **Supply Chain Assurance** (Dual-layer Authenticode signature, SPDX 3.0.1 JSON-LD SBOM) | ✅ | ✅ |
 | 🚫 **Defender Remover** (Aggressively purge Windows Defender, SecHealthUI, SmartScreen) | ❌ *Excluded* | ✅ **Included** |
 | 🔑 **Microsoft Activation Scripts (MAS)** (HWID, KMS38 & Ohook activation for Windows & Office) | ❌ *Excluded* | ✅ **Included** |
 | **Antivirus Scan Status** | **100% Clean (0 Flags)** 🛡️ | **AV Flags Expected** ⚠️ |
@@ -586,7 +586,7 @@ Win-Debloat treats Windows configuration **as code**, guaranteeing 100% determin
    - High-fidelity visual diff visualizer in both TUI and GUI ("Visual Diff Preview"), color-coding Added Keys (`[+]`), Removed Keys (`[-]`), Modified Values (`[~]`), and Service Changes (`[*]`).
 5. **Supply Chain Assurance**
    - Dual-layer Authenticode code signing with RFC 3161 timestamps.
-   - **SPDX 2.3 JSON SBOM** (`dist/win-debloat-sbom.spdx.json`) documenting full dependency provenance.
+   - **SPDX 3.0.1 JSON-LD SBOM** (`dist/win-debloat-sbom.spdx.json`, with companion `dist/win-debloat-sbom-v2.3.spdx.json` legacy fallback) documenting full dependency provenance.
    - **100% 5-Way AST Parity (297 functions, 337 aliases, 30 modules)** and **392 / 392 Passing Pester Tests (100% Pass Rate)** with 0 PSScriptAnalyzer errors in CI.
 
 ---
@@ -601,7 +601,7 @@ Win-Debloat treats Windows configuration **as code**, guaranteeing 100% determin
 | **Rollback Safety** | Destructive / irreversible | **Triple-Layer: VSS Restore Point + DPAPI snapshot + .reg undo** |
 | **Hardware Awareness** | Breaks AMD X3D core parking | **AMD Dual-CCD X3D, Intel Thread Director, DirectStorage 1.2** |
 | **Interface** | Raw terminal only | **WPF Cyber-OLED Cockpit (60 FPS STA) + 24-bit TrueColor TUI** |
-| **Supply Chain** | Unsigned scripts | **SPDX 2.3 SBOM + Dual Authenticode Signing** |
+| **Supply Chain** | Unsigned scripts | **SPDX 3.0.1 SBOM + Dual Authenticode Signing** |
 | **Code Quality** | Unverified / tech debt | **100% 5-Way AST Parity, 392/392 Tests Passed** |
 
 ---
