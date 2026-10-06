@@ -3,7 +3,7 @@
 
 metadata:
   name: "Essentials"
-  version: "1.7.0"
+  version: "1.7.1"
   author: "Tomy Tate"
   description: "Post-debloat essentials installer. Installs recommended browsers, runtimes, utilities, and drivers."
   target_os: [ "Windows 10", "Windows 11" ]

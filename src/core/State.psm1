@@ -16,7 +16,7 @@
 
 .NOTES
     Module: Win-Debloat.Core.State
-    Version: 1.7.0
+    Version: 1.7.1
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>
@@ -35,7 +35,7 @@ class SystemSnapshot {
     [string]$Description
     [hashtable]$Registry
     [array]$Services
-    [string]$Version = "1.7.0"
+    [string]$Version = "1.7.1"
 }
 
 #region Registry target catalog

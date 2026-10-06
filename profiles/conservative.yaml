@@ -6,7 +6,7 @@ metadata:
   name: "Conservative"
   author: "Tomy Tate"
   description: "Minimal changes for maximum stability."
-  version: "1.7.0"
+  version: "1.7.1"
   target_os: [ "Windows 10", "Windows 11" ]
   min_build: 19041
 

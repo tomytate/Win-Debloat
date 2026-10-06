@@ -12,7 +12,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Version = "1.7.0",
+    [string]$Version = "1.7.1",
     [string]$PackageIdentifier = "TomyTate.WinDebloat",
     [string]$Publisher = "Tomy Tate",
     [string]$PackageName = "Win-Debloat",

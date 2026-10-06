@@ -7,7 +7,7 @@ try {
     $null = $_
 }
 
-$apiHeaders = @{ 'User-Agent' = 'Win-Debloat-Installer/1.7.0' }
+$apiHeaders = @{ 'User-Agent' = 'Win-Debloat-Installer/1.7.1' }
 
 Write-Host "== Win-Debloat7 Installer (Standard Edition) ==" -ForegroundColor Cyan
 Write-Host "===============================================" -ForegroundColor Cyan

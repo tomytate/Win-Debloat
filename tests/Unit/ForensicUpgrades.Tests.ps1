@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Unit tests for Win-Debloat v1.7.0 Forensic Upgrades:
+    Unit tests for Win-Debloat v1.7.1 Forensic Upgrades:
     - Test-IsSafeExternalIp (RFC 1122/6890/1918 loopback & private guardrails)
     - New-WinDebloatSystemRestorePoint & Test-WinDebloatSystemRestore (VSS snapshot engine)
     - Export-WinDebloatRollbackReg (UTF-16LE Windows Registry Editor 5.00 rollback engine)
@@ -9,7 +9,7 @@
     - Show-WinDebloatDiffViewer (Visual diff preview component)
 #>
 
-Describe "Forensic Upgrades Module Tests (v1.7.0)" {
+Describe "Forensic Upgrades Module Tests (v1.7.1)" {
     BeforeAll {
         $src = Join-Path $PSScriptRoot "..\..\src"
         Import-Module "$src\core\Logger.psm1" -Force -ErrorAction SilentlyContinue

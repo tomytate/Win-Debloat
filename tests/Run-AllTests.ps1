@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Universal Test Runner for Win-Debloat Test Suite (v1.7.0).
+    Universal Test Runner for Win-Debloat Test Suite (v1.7.1).
 .DESCRIPTION
     Runs unit, integration, and AST parity test suites across PowerShell 5.1 and 7.6+.
     Supports Pester 5.5+/6.x configurations, code coverage metrics, NUnit XML export,
@@ -117,7 +117,7 @@ To run tests under Windows PowerShell 5.1, install Pester 5.5+ via:
 }
 
 Write-Host "=======================================================" -ForegroundColor Cyan
-Write-Host "     Win-Debloat v1.7.0 Enterprise Test Harness        " -ForegroundColor Cyan
+Write-Host "     Win-Debloat v1.7.1 Enterprise Test Harness        " -ForegroundColor Cyan
 Write-Host "=======================================================" -ForegroundColor Cyan
 Write-Host "Suite: $Suite | Output: $Output | CI: $CI | PS: $($PSVersionTable.PSVersion)" -ForegroundColor Gray
 
@@ -249,7 +249,7 @@ Write-Host "SKIPPED:     $skippedCount" -ForegroundColor Yellow
 if ($CI -and $env:GITHUB_STEP_SUMMARY) {
     $summaryMd = @"
 
-## 🧪 Win-Debloat Test Suite Results (v1.7.0)
+## 🧪 Win-Debloat Test Suite Results (v1.7.1)
 
 | Metric | Count | Status |
 | :--- | :--- | :--- |

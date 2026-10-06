@@ -20,7 +20,7 @@ Information about the profile, parent inheritance (`extends:`), and conditional 
 ```yaml
 metadata:
   name: "My Custom Gaming Profile"
-  version: "1.7.0"
+  version: "1.7.1"
   author: "Tomy Tate"
   description: "Optimized for high-end gaming and streaming"
   extends: "moderate"              # Deep inheritance: inherits baseline and overrides specific keys

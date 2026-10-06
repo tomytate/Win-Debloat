@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Software
-    Version: 1.7.0
+    Version: 1.7.1
 .LINK
     https://learn.microsoft.com/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>

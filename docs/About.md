@@ -12,7 +12,7 @@ We built Win-Debloat to be the **"Gold Standard"**:
 3.  **Modernity**: Built strictly for **PowerShell 7.6+**, leveraging `clean` blocks, parallel loops, and improved security.
 4.  **Performance**: O(N) regex-based processing, O(1) batch service queries, and modern collection handling.
 
-## 📊 v1.7.0 at a Glance
+## 📊 v1.7.1 at a Glance
 - **30** registered modules
 - **297** exported functions (plus 337 backward-compatible aliases)
 - **11-Vector 100-Point Privacy Scoring Engine** with dynamic A–F grading

@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Repair
-    Version: 1.7.0
+    Version: 1.7.1
 #>
 
 using namespace System.Management.Automation

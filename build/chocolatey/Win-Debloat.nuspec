@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>win-debloat</id>
-    <version>1.7.0</version>
+    <version>1.7.1</version>
     <packageSourceUrl>https://github.com/tomytate/Win-Debloat</packageSourceUrl>
     <owners>tomytate</owners>
     <title>Win-Debloat (Premium)</title>

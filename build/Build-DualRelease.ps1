@@ -92,7 +92,7 @@ $Root = (Resolve-Path "$PSScriptRoot\..").Path
 $DistPath = [System.IO.Path]::GetFullPath($OutputDir)
 
 Write-Host "╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║      Win-Debloat Single-File Builder v2.2 (v1.7.0)           ║" -ForegroundColor Cyan
+Write-Host "║      Win-Debloat Single-File Builder v2.2 (v1.7.1)           ║" -ForegroundColor Cyan
 Write-Host "║      High-DPI • Multi-Arch • Dual-Signing • SPDX 2.3 SBOM    ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host "   Version:     $Version" -ForegroundColor Gray

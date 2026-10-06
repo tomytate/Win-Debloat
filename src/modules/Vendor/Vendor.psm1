@@ -11,7 +11,7 @@
 
 .NOTES
     Module: Win-Debloat.Modules.Vendor
-    Version: 1.7.0
+    Version: 1.7.1
 #>
 
 using namespace System.Management.Automation

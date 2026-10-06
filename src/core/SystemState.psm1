@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Core.SystemState
-    Version: 1.7.0
+    Version: 1.7.1
 #>
 
 using namespace System.Management.Automation

@@ -3,7 +3,7 @@
     # RootModule        = ''
 
     # Version number of this module.
-    ModuleVersion     = '1.7.0'
+    ModuleVersion     = '1.7.1'
 
     # ID used to uniquely identify this module
     GUID              = 'a272c231-f85d-416c-af92-9ae26c4d72dc'
@@ -724,7 +724,7 @@
             HelpInfoURI              = 'https://github.com/tomytate/Win-Debloat/blob/main/docs/'
             RequireLicenseAcceptance = $false
             CompatiblePSEditions     = @('Core')
-            ReleaseNotes             = 'Win-Debloat v1.7.0 with deep profile inheritance, 11-vector privacy score, Windows Protected Print, BitLocker XTS-256, DirectStorage 1.2, AMD X3D core parking safeguards, Intel Thread Director, MMCSS latency tuning, and Energy Saver AC throttling fix.'
+            ReleaseNotes             = 'Win-Debloat v1.7.1 enterprise resilience release: zero-violation static analysis, 100% PSScriptAnalyzer compliance, dynamic Windows Server Pester mock isolation, and calibrated CI matrix.'
         }
     }
 }

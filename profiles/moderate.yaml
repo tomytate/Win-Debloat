@@ -1,6 +1,6 @@
 metadata:
   name: "Moderate"
-  version: "1.7.0"
+  version: "1.7.1"
   author: "Tomy Tate"
   description: "Recommended balance of performance and functionality. Removes obvious bloat but keeps useful apps."
   target_os: [ "Windows 10", "Windows 11" ]

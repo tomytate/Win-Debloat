@@ -8,7 +8,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "1.7.0",
+    [string]$Version = "1.7.1",
     [string]$OutputDir = "$PSScriptRoot\..\dist",
     [ValidateSet("x64", "arm64", "anycpu", "all")]
     [string]$Platform = "all",

@@ -6,7 +6,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Performance.Benchmark
-    Version: 1.7.0
+    Version: 1.7.1
 #>
 
 Import-Module "$PSScriptRoot\..\..\core\Logger.psm1" -Force -ErrorAction SilentlyContinue

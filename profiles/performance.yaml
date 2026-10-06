@@ -6,7 +6,7 @@ metadata:
   name: "Performance"
   author: "Tomy Tate"
   description: "Optimized for low-RAM systems, VMs, and maximum responsiveness."
-  version: "1.7.0"
+  version: "1.7.1"
   target_os:
     - "Windows 10"
     - "Windows 11"

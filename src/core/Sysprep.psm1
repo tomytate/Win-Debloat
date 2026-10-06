@@ -12,7 +12,7 @@
     
 .NOTES
     Module: Win-Debloat.Core.Sysprep
-    Version: 1.7.0
+    Version: 1.7.1
 #>
 
 Import-Module "$PSScriptRoot\Logger.psm1" -Force

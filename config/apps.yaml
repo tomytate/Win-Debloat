@@ -1,9 +1,9 @@
 # Win-Debloat Declarative Software & Essentials Catalog
 # Author: Tomy Tate
-# Version: 1.7.0
+# Version: 1.7.1
 # Target OS: Windows 11 (26H2 / 24H2) & Windows 10
 
-version: "1.7.0"
+version: "1.7.1"
 default_provider: "Winget"
 
 categories:

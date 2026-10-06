@@ -9,7 +9,7 @@
     
 .NOTES
     Module: Win-Debloat.UI.Colors
-    Version: 1.7.0
+    Version: 1.7.1
 #>
 
 # Premium Color Scheme - Neon Cyber Palette
@@ -80,7 +80,7 @@ $Script:WD7Header = @"
 ║     ██║███╗██║██║██║╚██╗██║╚════╝██║  ██║██╔══╝  ██╔══██╗██║     ██║   ██║██╔══██║   ██║        ║
 ║     ╚███╔███╔╝██║██║ ╚████║      ██████╔╝███████╗██████╔╝███████╗╚██████╔╝██║  ██║   ██║        ║
 ║      ╚══╝╚══╝ ╚═╝╚═╝  ╚═══╝      ╚═════╝ ╚══════╝╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝        ║
-║                        Ultimate System Optimizer & Toolbox v1.7.0 "Apex"                         ║
+║                        Ultimate System Optimizer & Toolbox v1.7.1 "Apex"                         ║
 ║                             PowerShell 7.6+ | Windows 11 26H2 Ready                             ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
 "@
@@ -88,7 +88,7 @@ $Script:WD7Header = @"
 $Script:WD7HeaderCompact = @"
 ╔══════════════════════════════════════════════════════════════╗
 ║                  ▄▀▀▀▀▄ Win-Debloat ▄▀▀▀▀▄                   ║
-║             Ultimate System Optimizer v1.7.0 "Apex"          ║
+║             Ultimate System Optimizer v1.7.1 "Apex"          ║
 ╚══════════════════════════════════════════════════════════════╝
 "@
 

@@ -10,7 +10,7 @@
     
 .NOTES
     Module: Win-Debloat.Modules.Privacy
-    Version: 1.7.0
+    Version: 1.7.1
 .LINK
     https://learn.microsoft.com/en-us/powershell/scripting/whats-new/what-s-new-in-powershell-76
 #>

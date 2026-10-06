@@ -11,7 +11,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$MinimumVersion = "1.7.0"
+    [string]$MinimumVersion = "1.7.1"
 )
 
 $stampKey = "HKLM:\SOFTWARE\Win-Debloat"

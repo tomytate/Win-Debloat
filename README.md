@@ -4,7 +4,7 @@
   <img src="assets/logo.png" alt="Win-Debloat Logo — High Performance Windows Optimizer and Debloater" width="140" height="140" />
 </a>
 
-# Win-Debloat `v1.7.0` — *Apex*
+# Win-Debloat `v1.7.1` — *Apex*
 
 ### ⚡ Declarative Windows 11, 10 & Server 2025 Optimization & Hardening Engine
 
@@ -46,7 +46,7 @@
 <p align="center">
   <img src="assets/gui-dashboard.png" alt="Win-Debloat WPF Dashboard — Dark theme GUI showing Windows version, 11-Vector privacy score, and real-time RAM usage" width="880">
   <br>
-  <sub><i>Win-Debloat v1.7.0 'Apex' unified cockpit: live kernel telemetry, 11-vector privacy scoring, and hardware-aware profile presets.</i></sub>
+  <sub><i>Win-Debloat v1.7.1 'Apex' unified cockpit: live kernel telemetry, 11-vector privacy scoring, and hardware-aware profile presets.</i></sub>
 </p>
 
 ---
@@ -85,7 +85,7 @@ Unlike legacy debloat scripts that blindly delete registry keys, Win-Debloat tre
 
 > **"It's like `terraform apply` for your Windows PC."**
 
-### 📊 v1.7.0 *Apex* Key Metrics
+### 📊 v1.7.1 *Apex* Key Metrics
 
 | Dimension | Metric / Feature | Specification / Verification |
 | :--- | :--- | :--- |
@@ -328,7 +328,7 @@ graph TD
 
 ## 🔒 100-Point 11-Vector Privacy Scoring Engine
 
-Win-Debloat v1.7.0 features a deterministic, real-time **11-Vector Privacy Scoring Engine** implemented in [`SystemState.psm1`](src/core/SystemState.psm1) and hardened via [`Privacy.psm1`](src/modules/Privacy/Privacy.psm1). The engine calculates a live system privacy score ($S \in [0, 100]$) by inspecting low-level registry policies, service run-states, and UWP sensor capabilities:
+Win-Debloat v1.7.1 features a deterministic, real-time **11-Vector Privacy Scoring Engine** implemented in [`SystemState.psm1`](src/core/SystemState.psm1) and hardened via [`Privacy.psm1`](src/modules/Privacy/Privacy.psm1). The engine calculates a live system privacy score ($S \in [0, 100]$) by inspecting low-level registry policies, service run-states, and UWP sensor capabilities:
 
 $$\text{Privacy Score} = 100 - \sum_{i=1}^{11} \left( \text{Weight}_i \times \mathbb{I}(\text{Vector}_i \text{ is Active/Exposed}) \right)$$
 
@@ -375,7 +375,7 @@ Win-Debloat ships with **293 canonical functions** (and 330 backward-compatible 
 
 ## 🚀 Silicon & Next-Gen Hardware Optimization
 
-Win-Debloat v1.7.0 introduces low-level kernel, storage, and graphics pipeline tuning specifically engineered for modern silicon architectures:
+Win-Debloat v1.7.1 introduces low-level kernel, storage, and graphics pipeline tuning specifically engineered for modern silicon architectures:
 
 ```mermaid
 graph TD
@@ -426,7 +426,7 @@ DirectStorage 1.2+ streams compressed game assets directly from NVMe drives to V
 
 ## 🛡️ Enterprise Security Hardening & Sysprep Deployment
 
-Win-Debloat v1.7.0 bridges consumer debloating with **zero-trust enterprise baseline hardening** and **OEM golden image provisioning**:
+Win-Debloat v1.7.1 bridges consumer debloating with **zero-trust enterprise baseline hardening** and **OEM golden image provisioning**:
 
 ### 🖨️ 1. Windows Protected Print (WPP) & RFC 8011 IPP Probe
 - Migrates print spooling to driverless **Mopria / IPP standard** (`ProtectedPrintMode = 1`), eliminating **PrintNightmare** (CVE-2021-34527) attack vectors in `spoolsv.exe`.
@@ -500,12 +500,12 @@ Win-Debloat replaces slow WMI/CIM queries with direct **.NET Base Class Library 
 │ Legacy WMI / CIM Engine [Get-CimInstance + Get-Process]                  │
 │ ██████████████████████████████████████████████████ 520.0 ms             │
 │                                                                          │
-│ Win-Debloat v1.7.0 Microsecond Engine [.NET BCL Direct]                  │
+│ Win-Debloat v1.7.1 Microsecond Engine [.NET BCL Direct]                  │
 │ █ 3.8 ms  [136.8x Faster]                                               │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-| Performance Metric | Stock Windows 11 (24H2) | Win-Debloat v1.7.0 (Optimized) | Delta / Improvement |
+| Performance Metric | Stock Windows 11 (24H2) | Win-Debloat v1.7.1 (Optimized) | Delta / Improvement |
 |:---|:---:|:---:|:---:|
 | 🧠 **Idle RAM Consumption** | 4,350 MB (~4.35 GB) | **1,820 MB (~1.82 GB)** | **-2,530 MB (-58.2%)** 🟢 |
 | ⚙️ **Active Background Processes** | 198 processes | **58 processes** | **-140 processes (-70.7%)** 🟢 |
@@ -587,13 +587,13 @@ Win-Debloat treats Windows configuration **as code**, guaranteeing 100% determin
 5. **Supply Chain Assurance**
    - Dual-layer Authenticode code signing with RFC 3161 timestamps.
    - **SPDX 2.3 JSON SBOM** (`dist/win-debloat-sbom.spdx.json`) documenting full dependency provenance.
-   - **100% 5-Way AST Parity (293 functions, 330 aliases, 30 modules)** and **388 / 388 Passing Pester Tests (100% Pass Rate)** with 0 PSScriptAnalyzer errors in CI.
+   - **100% 5-Way AST Parity (297 functions, 337 aliases, 30 modules)** and **392 / 392 Passing Pester Tests (100% Pass Rate)** with 0 PSScriptAnalyzer errors in CI.
 
 ---
 
 ## 💎 Why Win-Debloat?
 
-| Feature | Legacy Scripts / Batch Hacks | Win-Debloat v1.7.0 |
+| Feature | Legacy Scripts / Batch Hacks | Win-Debloat v1.7.1 |
 | :--- | :--- | :--- |
 | **Engine** | Fragile `.bat` / nested WMI loops | **PowerShell 7.6.6 LTS (.NET 10) + Direct BCL** |
 | **Telemetry Latency** | ~520 ms (WMI COM marshaling) | **< 3.8 ms (Direct .NET memory/process APIs)** |
@@ -602,7 +602,7 @@ Win-Debloat treats Windows configuration **as code**, guaranteeing 100% determin
 | **Hardware Awareness** | Breaks AMD X3D core parking | **AMD Dual-CCD X3D, Intel Thread Director, DirectStorage 1.2** |
 | **Interface** | Raw terminal only | **WPF Cyber-OLED Cockpit (60 FPS STA) + 24-bit TrueColor TUI** |
 | **Supply Chain** | Unsigned scripts | **SPDX 2.3 SBOM + Dual Authenticode Signing** |
-| **Code Quality** | Unverified / tech debt | **100% 5-Way AST Parity, 388/388 Tests Passed** |
+| **Code Quality** | Unverified / tech debt | **100% 5-Way AST Parity, 392/392 Tests Passed** |
 
 ---
 

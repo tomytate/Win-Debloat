@@ -10,12 +10,12 @@
 
 .NOTES
     Module: Win-Debloat.UI.GUI
-    Version: 1.7.0
+    Version: 1.7.1
 #>
 
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '', Justification = 'Event parameters required by signature')]
 
-$Script:Version = '1.7.0'
+$Script:Version = '1.7.1'
 
 # Import Backend Modules
 $scriptRoot = $PSScriptRoot
@@ -224,7 +224,7 @@ function Show-WinDebloatGUI {
         # Initialize lower-left sidebar version badge
         $txtSidebarVersion = & $getCtrl "txtSidebarVersion"
         if ($txtSidebarVersion) {
-            $verString = if ($Script:Version) { if ($Script:Version -like "v*") { $Script:Version } else { "v$Script:Version" } } else { "v1.7.0" }
+            $verString = if ($Script:Version) { if ($Script:Version -like "v*") { $Script:Version } else { "v$Script:Version" } } else { "v1.7.1" }
             $txtSidebarVersion.Text = "$verString `"Apex`" • PowerShell 7.6+"
         }
 
