@@ -65,6 +65,7 @@
 - [Bloatware Removal Engine](#-bloatware-removal-engine)
 - [Software Catalog & Multi-Provider Engine](#-curated-software-catalog--multi-provider-engine)
 - [Performance Benchmarks (<4ms Engine)](#-performance-benchmarks--microsecond-engine)
+- [Windows Servicing & Component Repair Engine](#-windows-servicing-safety--component-repair-engine)
 - [Network & DNS Configuration](#-network--dns-configuration)
 - [Windows 11 UI & System Customization](#-windows-11-ui--system-customization)
 - [Safety & Encrypted Rollback](#-safety-dpapi-encrypted-rollback--supply-chain-trust)
@@ -99,8 +100,10 @@ Unlike legacy debloat scripts that blindly delete registry keys, Win-Debloat tre
 | 🛡️ **Safety & Rollback** | **Triple-Layer Recovery** | **Native CIM VSS Restore Point (24-hr bypass)** + **DPAPI AES-256 Snapshot** + **UTF-16LE .reg & rollback.cmd** |
 | 🔍 **Privacy Engine** | **11-Vector Scorer** | **100-point closed algorithm** evaluating Recall, Copilot, Telemetry, and Diagnostics |
 | 🌐 **Network Defense** | **Firewall Loopback Guard** | **Test-IsSafeExternalIp** RFC 1122/6890/1918 filter + **82 verified offline telemetry endpoints** |
-| 🚀 **Hardware Acceleration** | **Next-Gen CPU/GPU** | **AMD Dual-CCD 3D V-Cache**, **Intel Thread Director**, **DirectStorage 1.2+ BypassIO**, **ReFS Dev Drive**, **Wi-Fi 7 (802.11be MLO)** |
-| 🏢 **Enterprise Ready** | **Hardening Standards** | **SMB NTLM Blocking**, **Intune Win32 App Detection**, **Windows Protected Print (RFC 8011)**, **BitLocker XTS-256** |
+| 🚀 **Hardware Acceleration** | **Next-Gen CPU/GPU** | **AMD Dual-CCD 3D V-Cache**, **Intel Thread Director**, **DirectStorage 1.2+ BypassIO**, **ReFS Dev Drive**, **Wi-Fi 7 (802.11be MLO)**, **NVMe APST low-latency** |
+| 🏢 **Enterprise Ready** | **Hardening Standards** | **SMB NTLM Blocking**, **Intune Win32 App Detection**, **Windows Protected Print (RFC 8011)**, **BitLocker XTS-256 (ADV180028)**, **Sudo UIPI Isolation** |
+| 🛡️ **Servicing Safety** | **24H2 Checkpoint Guard** | **6-Point Safety Gate blocking DISM /ResetBase on Build 26100+ (prevents fatal error 0x800f081f)** |
+| 🔒 **Kernel Driver Defense** | **UCPD.sys Neutralization** | **Disables User Choice Protection Driver task (UcpdVelocity) to restore automated browser & protocol control** |
 | 📦 **Software Catalog** | **Declarative apps.yaml** | **175 curated packages** across 8+ categories with multi-manager fallback (Winget/Choco/Store) |
 | 🔐 **Supply Chain** | **Provenance & Integrity** | **SPDX 3.0.1 JSON-LD SBOM** + **SLSA Level 3 Build Provenance** + **Dual-Layer Authenticode Code Signing** |
 | 🪟 **Target Environments** | **Operating Systems** | **Windows 11 (24H2/25H2/26H1/26H2 Build 26300+)**, **Windows 10 (22H2)**, **Windows Server 2025** |
@@ -357,19 +360,19 @@ Win-Debloat ships with **293 canonical functions** (and 330 backward-compatible 
 
 | Feature | Description | Key Functions |
 |---------|-------------|---------------|
-| 🧹 **Bloatware Removal** | Remove 139 tiered apps with single-pass O(N) regex | `Remove-WinDebloatBloatware` |
-| 🔒 **Privacy Hardening** | Disable telemetry, block 45 tracking domains | `Set-WinDebloatPrivacy` |
-| 🤖 **AI Fabric & RAM Reclaim** | Neutralize Copilot, Recall v2, Phi-Silica SLM | `Disable-WinDebloatAIFabric`, `Disable-WinDebloatRecall` |
-| 🛡️ **Enterprise Security** | Protected Print (WPP), Sudo Isolation, BitLocker XTS-256 | `Set-WinDebloatSecurity`, `Enable-WinDebloatWPP` |
-| ⚡ **Performance & CPU** | Ultimate power plan, Intel Thread Director, DirectStorage 1.2 | `Optimize-WinDebloatPerformance`, `Optimize-WinDebloatThreadDirector` |
-| 🌐 **Network & DNS** | 11 DNS providers, TCP Congestion (CUBIC/BBR2), NetAdapter RSC | `Set-WinDebloatDNS`, `Set-WinDebloatTcpCongestionProvider` |
-| 🎮 **Gaming & Graphics** | AMD X3D Core Parking, DirectSR, HAGS 2.0 & TDR tuning | `Protect-WinDebloatAMDX3D`, `Set-WinDebloatGaming` |
-| 📦 **Software Installer** | 175 curated apps (winget/choco/Store) incl. AI CLIs | `Install-WinDebloatEssentials`, `Optimize-WinDebloatWinGetSettings` |
-| 🖥️ **UI Customization** | Taskbar, context menu, Explorer, search, suggestions | `Set-WinDebloatTaskbarTweaks` |
-| 🧰 **System QoL** | Fast Startup, auto-BitLocker, Widgets, Storage Sense | `Disable-WinDebloatWindowsSuggestions` |
-| 🔧 **System Repair** | 4-step industrial repair sequence & CBS fix | `Repair-WinDebloatSystem` |
-| 🩺 **Live Dashboard** | Windows version, 11-vector graded privacy score, live RAM | `Get-WinDebloatPrivacyScore` |
-| 🏢 **Enterprise (Sysprep)** | OEM image deployment, headless mode, clean default hive | `Invoke-WinDebloatSysprepDefaults` |
+| 🧹 **Bloatware Removal** | Remove 139 tiered apps with single-pass O(N) regex, clean OneDrive & Edge | `Remove-WinDebloatBloatware`, `Uninstall-WinDebloatOneDrive` |
+| 🔒 **Privacy Hardening** | Disable telemetry, WFP outbound firewall drops, neutralize `UCPD.sys` (`UcpdVelocity`) | `Set-WinDebloatPrivacy`, `Disable-WinDebloatTelemetryTasks` |
+| 🤖 **AI Fabric & RAM Reclaim** | Neutralize Copilot, Recall v2, terminate Phi-Silica SLM (reclaim 2.0–4.5 GB RAM) | `Disable-WinDebloatAIFabric`, `Disable-WinDebloatRecall` |
+| 🛡️ **Enterprise Security** | Protected Print (WPP RFC 8011), Sudo UIPI Isolation (Modes 1/2), BitLocker XTS-256 (ADV180028) | `Set-WinDebloatSecurity`, `Enable-WinDebloatWPP`, `Set-WinDebloatSudoMode` |
+| ⚡ **Performance & CPU** | Ultimate power plan (laptop safe), Intel Thread Director, DirectStorage 1.2 | `Optimize-WinDebloatPerformance`, `Optimize-WinDebloatThreadDirector` |
+| 🌐 **Network & DNS** | 11 DNS providers with DoH auto-upgrade, TCP CUBIC/BBR2, NetAdapter RSC disablement | `Set-WinDebloatDNS`, `Set-WinDebloatTcpCongestionProvider` |
+| 🎮 **Gaming & Graphics** | AMD Dual-CCD X3D core parking safeguards, NVMe APST low-latency, DirectSR, Game Bar popup suppress | `Protect-WinDebloatAMDX3D`, `Set-WinDebloatGaming`, `Disable-WinDebloatNVMeAPST` |
+| 📦 **Software Installer** | 175 curated apps (winget/choco/Store) incl. AI CLIs, WiX MSI forced installer | `Install-WinDebloatEssentials`, `Optimize-WinDebloatWinGetSettings` |
+| 🖥️ **UI Customization** | Classic context menu (COM CLSID override), Taskbar, Explorer, search, suggestions | `Set-WinDebloatTaskbarTweaks`, `Set-WinDebloatContextMenu` |
+| 🧰 **System QoL** | Fast Startup hybrid boot disablement, auto-BitLocker prevention (24H2+), Widgets | `Disable-WinDebloatFastStartup`, `Disable-WinDebloatAutoBitLocker` |
+| 🔧 **System Repair & Servicing** | 4-step sequence + 6-point safety gate blocking `DISM /ResetBase` on 24H2+ (Build 26100+) | `Repair-WinDebloatSystem`, `Optimize-WinDebloatComponentStore` |
+| 🩺 **Live Dashboard** | Windows version, 11-vector graded privacy score, live RAM, DWM dark mode | `Get-WinDebloatPrivacyScore`, `Show-WinDebloatGUI` |
+| 🏢 **Enterprise & Autopilot** | Standalone Intune Win32 App engine (`Deploy-WinDebloat.ps1`), detection stamp, Sysprep dual-GC | `Invoke-WinDebloatSysprepDefaults`, `Mount-WinDebloatDefaultHive` |
 
 ---
 
@@ -403,8 +406,9 @@ graph TD
 ```
 
 ### 1. 🔴 AMD Ryzen 3D V-Cache (X3D) Dual-CCD Core Parking Safeguards
-Asymmetrical dual-CCD AMD processors (**Ryzen 9 7900X3D, 7950X3D, 9900X3D, 9950X3D**) feature 3D V-Cache exclusively on **CCD0** (96MB L3 cache), while **CCD1** operates as a standard high-frequency CCD (32MB L3 cache).
-* **The Debloater Trap Avoided:** Traditional debloaters terminate Game Bar components, permanently breaking the **AMD 3D V-Cache Performance Optimizer Service (`amd3dvcache`)**. Win-Debloat protects `AllowAutoGameMode = 1` and guarantees that game threads remain locked to CCD0's massive 96MB L3 cache.
+Asymmetrical dual-CCD AMD processors (**Ryzen 9 7900X3D, 7950X3D, 9900X3D, 9950X3D, 7945HX3D, 9945HX3D**) feature 3D V-Cache exclusively on **CCD0** (96MB L3 cache), while **CCD1** operates as a standard high-frequency CCD (32MB L3 cache).
+* **The Debloater Trap Avoided:** Naive debloating scripts apply "High Performance" or "Ultimate Performance" power plans and delete Xbox/Game Bar components. This is disastrous on dual-CCD X3D chips: it forcibly disables Windows Core Parking and terminates the **AMD 3D V-Cache Performance Optimizer Service (`amd3dvcache`)**. Without core parking, the scheduler distributes game threads across both CCDs. Crossing the AMD Infinity Fabric introduces severe inter-CCD latency penalties (80ns+ hops) and frametime micro-stutter.
+* **Win-Debloat's Silicon Guard:** Detects dual-CCD X3D chips (`Test-WinDebloatDualCcdX3D`), enforces the **Balanced** power plan, sets `CPMINCORES = 0` and `CPMINCORES1 = 0` to provide full core parking headroom, guarantees `AllowAutoGameMode = 1`, and ensures the `amd3dvcache` service remains running so games are pinned strictly to CCD0's 96MB V-Cache.
 
 ### 2. 🔵 Intel Thread Director Heterogeneous Scheduling Optimization
 Modern Intel hybrid architectures (**Alder Lake, Raptor Lake, Arrow Lake, Lunar Lake**) combine P-Cores with E-Cores.
@@ -422,6 +426,16 @@ DirectStorage 1.2+ streams compressed game assets directly from NVMe drives to V
 * **Windowed Variable Refresh Rate (`VRROptimizeEnable = 1`)**: Unlocks G-SYNC/FreeSync in borderless multi-monitor configurations.
 * **Extended TDR Driver Timeout (`TdrDelay = 8`, `TdrDdiDelay = 10`)**: Grants GPU driver recovery headroom during heavy shader compiling, eliminating false-positive crash resets.
 
+### 5. ⚡ NVMe APST Latency Spikes Elimination (`DisableAPST = 1`)
+NVMe Autonomous Power State Transitions (APST) allow controllers to drop into deep non-operational low-power states (PS3/PS4).
+* **The Problem:** Waking the controller back to PS0 operational mode introduces 10ms to 50ms latency hiccups, manifesting as unexplained asset-streaming micro-stutter in open-world games.
+* **The Solution:** Win-Debloat configures `DisableAPST = 1` under `HKLM:\SYSTEM\CurrentControlSet\Services\stornvme\Parameters\Device`, forcing PCIe NVMe controllers to remain in persistent, instantaneous operational readiness.
+
+### 6. 🎮 Xbox Game Bar Protocol Prompt Neutralization
+Uninstalling Xbox Game Bar packages on Windows 11 leaves orphan protocol registrations for `ms-gamebar` and `ms-gamebarservices`.
+* **The Problem:** Pressing the Xbox Guide button on a wireless controller or inadvertently hitting `Win+G` spawns a modal system error: *"You will need a new app to open this ms-gamebar link"*.
+* **The Solution:** Win-Debloat remaps `HKCR:\ms-gamebar\shell\open\command` to `%SystemRoot%\System32\systray.exe` with `NoOpenWith` and disables Nexus triggers, permanently silencing the prompt while keeping controller input operational.
+
 ---
 
 ## 🛡️ Enterprise Security Hardening & Sysprep Deployment
@@ -429,26 +443,31 @@ DirectStorage 1.2+ streams compressed game assets directly from NVMe drives to V
 Win-Debloat v1.7.1 bridges consumer debloating with **zero-trust enterprise baseline hardening** and **OEM golden image provisioning**:
 
 ### 🖨️ 1. Windows Protected Print (WPP) & RFC 8011 IPP Probe
-- Migrates print spooling to driverless **Mopria / IPP standard** (`ProtectedPrintMode = 1`), eliminating **PrintNightmare** (CVE-2021-34527) attack vectors in `spoolsv.exe`.
-- Probes network printers on IPP port **631** (`Test-WinDebloatPrinterIPPCompliance`) before policy application.
+- Migrates print spooling to driverless **Mopria / IPP standard** (`ProtectedPrintMode = 1`), permanently closing legacy v3/v4 printer driver execution in `spoolsv.exe` and eliminating **PrintNightmare** (CVE-2021-34527) attack vectors.
+- Actively probes network printers on RFC 8011 IPP port **631** (`Test-WinDebloatPrinterIPPCompliance`) prior to policy enforcement to verify device compatibility.
 
 ### 🛡️ 2. Sudo for Windows Isolation (Modes 0–3)
-- Mode 0 (Disabled), Mode 1 (ForceNewWindow UIPI isolation), Mode 2 (DisableInput stdin protection), Mode 3 (Normal with interactive security advisory).
-- Enforces strict UIPI console boundaries (`Protect-WinDebloatSudoPolicy`) to prevent low-integrity process injection into elevated `sudo` runs.
+- Mode 0 (Disabled), Mode 1 (ForceNewWindow UIPI isolation), Mode 2 (DisableInput stdin protection), Mode 3 (Normal inline).
+- **Security Advisory:** Mode 3 shares console input buffers across integrity levels, allowing unelevated processes to inject keystrokes via `SendInput` into privileged runs. Win-Debloat enforces strict UIPI console boundaries (`Protect-WinDebloatSudoPolicy`) via `ForceNewWindow` or `DisableInput`.
 
 ### 🔐 3. BitLocker XTS-AES 256 Cipher & SSD Hardware Bypass Block (ADV180028)
-- Enforces 256-bit XTS-AES (`EncryptionMethodWithXtsOs = 7`) across all OS and data volumes.
-- Blocks vulnerable SSD hardware encryption (`OSHardwareEncryption = 0` per Microsoft ADV180028), forcing FIPS-validated software encryption.
+- Enforces 256-bit XTS-AES (`EncryptionMethodWithXtsOs = 7`) across all OS and fixed data volumes.
+- Addresses Microsoft Security Advisory **ADV180028** by setting `OSHardwareEncryption = 0`, blocking flawed SSD hardware self-encryption (SED) and enforcing CPU-backed software cryptography.
 
 ### 🏰 4. Baseline Attack Surface Hardening
 - **RPC Interface Hardening**: Restricts remote unauthenticated RPC calls (`RestrictRemoteClients = 1`, `EnableAuthEpResolution = 1`).
-- **SMB Signing & Rate Limiting**: Enforces SMB signing and imposes a **2,000 ms authentication delay** (`InvalidAuthenticationDelayMs = 2000`) against brute-force attacks.
-- **LSA Protection (`RunAsPPL`) with UEFI Boot Lock**: Runs `lsass.exe` as Protected Process Light (`RunAsPPL = 1`) and locks the policy in UEFI firmware variables (`RunAsPPLBoot = 2`).
+- **SMB Signing & Rate Limiting**: Enforces SMB signing and imposes a **2,000 ms authentication delay** (`InvalidAuthenticationDelayMs = 2000`) against brute-force NTLM attacks.
+- **LSA Protection (`RunAsPPL`) with UEFI Boot Lock**: Runs `lsass.exe` as Protected Process Light (`RunAsPPL = 1`) and locks the policy in UEFI firmware variables (`RunAsPPLBoot = 2`), blocking memory-scraping tools like Mimikatz.
 - **Kernel DMA Protection**: Blocks untrusted PCIe/Thunderbolt DMA devices prior to logon (`DeviceEnumerationPolicy = 1`).
 - **PowerShell ScriptBlock Logging**: Enforces EID 4104 script block auditing for SIEM ingestion.
 
-### 🏢 5. Sysprep Golden Image Engineering
-- Implements `clean { Dismount-WinDebloatDefaultHive }`, explicit `.Dispose()`, dual GC passes, and 3x exponential backoff retry to guarantee `C:\Users\Default\NTUSER.DAT` is never locked during image generalization.
+### 🏢 5. Sysprep Golden Image Engineering (Dual-GC & Exponential Backoff)
+- During golden master image creation, Win-Debloat mounts the offline Default User template (`C:\Users\Default\NTUSER.DAT`) into `HKLM\WinDebloat_Default` to stage tweaks for all future user accounts.
+- **Handle Leak Prevention:** Calling `reg.exe unload` often fails with `ERROR_SHARING_VIOLATION` (error 32) due to lingering CLR `RegistryKey` finalizer handles. Win-Debloat executes explicit `.Dispose()`, dual garbage collection passes (`[GC]::Collect(); [GC]::WaitForPendingFinalizers()`), and a 3-attempt exponential backoff loop to guarantee the hive unloads cleanly before image generalization.
+
+### 🚀 6. Microsoft Intune Win32 App & OOBE Autopilot Deployment Engine
+- **Standalone Zero-Dependency Engine:** Provides [`deploy/Deploy-WinDebloat.ps1`](deploy/Deploy-WinDebloat.ps1), a self-contained PowerShell 5.1 script tailored for Microsoft Intune `.intunewin` packages and Windows Setup OOBE (Shift+F10 console).
+- **Deterministic Detection Rule:** Writes an immutable registry detection stamp to `HKLM:\SOFTWARE\Win-Debloat` (`Applied = 1`, `Version`, `Mode`, `Timestamp`), perfectly matching the requirements of [`deploy/Detect-WinDebloat.ps1`](deploy/Detect-WinDebloat.ps1) for Intune compliance evaluation.
 
 ---
 
@@ -518,6 +537,36 @@ Win-Debloat replaces slow WMI/CIM queries with direct **.NET Base Class Library 
 
 ---
 
+## 🔧 Windows Servicing Safety & Component Repair Engine
+
+Win-Debloat implements an industrial-grade Windows component repair and servicing pipeline ([`src/modules/Repair/Repair.psm1`](src/modules/Repair/Repair.psm1)) designed to restore operating system health while actively protecting Windows 11's servicing stack from catastrophic failure modes.
+
+### 🛡️ 1. Industrial 4-Step System Repair Sequence (`Repair-WinDebloatSystem`)
+Standard repair guides often execute random or improperly sequenced repair commands. Win-Debloat enforces an atomic, high-performance 4-step sequence:
+1. **ChkDsk (Performance Scan Mode):** Executes `chkdsk.exe C: /scan /perf` — non-invasive online NTFS/ReFS master file table (MFT) structures and metadata verification without dismounting volumes or requiring system reboots.
+2. **SFC First Pass:** Executes `sfc.exe /scannow` against the current component store cache.
+3. **DISM RestoreHealth:** Executes `dism.exe /Online /Cleanup-Image /RestoreHealth` to download and repair damaged packages directly from Microsoft Update servers.
+4. **SFC Second Pass:** Re-scans system binaries against the freshly repaired component store to replace any corrupted system binaries that the initial pass could not resolve.
+
+### 🧱 2. Windows 11 24H2+ Checkpoint Cumulative Update Guard (`Optimize-WinDebloatComponentStore`)
+Starting with Windows 11 Version 24H2 (Build 26100+), Microsoft transitioned to **Checkpoint Cumulative Updates**. Updates are delivered as differential deltas relative to specific checkpoint baselines rather than standalone monolithic packages.
+
+* **The Servicing Catastrophe Avoided:** Running `DISM.exe /Online /Cleanup-Image /StartComponentCleanup /ResetBase` marks all existing packages as permanent and purges historical baseline manifests. When future cumulative updates arrive, the Windows Servicing Stack cannot locate the checkpoint baseline files. The update process crashes with fatal error **`0x800f081f` (`CBS_E_SOURCE_NOT_FOUND`)**, permanently breaking Windows Update and requiring an OS reinstall.
+* **Win-Debloat's 6-Point Safety Gate:**
+  * **Gate 0 (24H2+ Checkpoint Guard):** Evaluates `[Environment]::OSVersion.Version.Build -ge 26100`. Automatically aborts `/ResetBase` and falls back to standard component cleanup (`/StartComponentCleanup`) unless explicitly bypassed with `-Force`.
+  * **Gate 1 (Pending Reboot Verification):** Queries `HKLM:\...\Component Based Servicing\RebootPending` and `WindowsUpdate\Auto Update\RebootRequired`. Prevents component cleanup while servicing transactions remain uncommitted.
+  * **Gate 2 (Component Store Health Scan):** Runs `dism.exe /Cleanup-Image /CheckHealth`. Aborts if uncorrected corruption exists.
+  * **Gate 3 (Free Disk Space Check):** Enforces a mandatory **5.0 GB free disk space** threshold on the system drive (`DriveInfo.AvailableFreeSpace`).
+  * **Gate 4 (LCU Grace Period Warning):** Emits an explicit audit warning that superseded cumulative updates will be permanently non-uninstallable.
+  * **Gate 5 (ShouldProcess Confirmation):** Integrates with PowerShell `-WhatIf` / `-Confirm` lifecycle controls.
+
+### 🛑 3. User Choice Protection Driver (`UCPD.sys`) & Task Neutralization
+In Windows 11 23H2 / 24H2, Microsoft introduced `UCPD.sys` (User Choice Protection Driver) and scheduled task `\Microsoft\Windows\AppxDeploymentClient\UcpdVelocity`.
+* **The Problem:** `UCPD.sys` locks registry keys under `HKCU\Software\Microsoft\Windows\Shell\Associations\UrlAssociations` (e.g. `http`, `https`) and `FileExts`, blocking programmatic default browser selection and third-party protocol configuration.
+* **Win-Debloat's Countermeasure:** `Disable-WinDebloatTelemetryTasks` in [`src/modules/Privacy/Tasks.psm1`](src/modules/Privacy/Tasks.psm1) neutralizes `\Microsoft\Windows\AppxDeploymentClient\UcpdVelocity` and disables the `UCPD` driver service (`Start = 4`), restoring full user autonomy over default browsers and file associations without system lockouts.
+
+---
+
 ## 🌐 Network & DNS Configuration
 
 Set your DNS provider in one command with automatic IPv4/IPv6 pairing (`config/dns.json`):
@@ -538,7 +587,19 @@ Set-WinDebloatDNS -Provider Cloudflare
 
 # Enable TCP CUBIC or BBR2 Congestion Provider
 Set-WinDebloatTcpCongestionProvider -Provider CUBIC
+
+# Deploy kernel-level WFP outbound firewall blocks for 82 telemetry endpoints
+Add-WinDebloatFirewallBlock
 ```
+
+### 🛡️ Windows Filtering Platform (WFP) Firewall Drops vs Obsolete Hosts File Blocking
+Many legacy debloating tools attempt to suppress telemetry by appending hundreds of domains to `C:\Windows\System32\drivers\etc\hosts`. Win-Debloat completely abandons this obsolete mechanism in favor of kernel-level Windows Filtering Platform (WFP) firewall rules ([`src/modules/Privacy/Firewall.psm1`](src/modules/Privacy/Firewall.psm1)):
+
+* **DNSCache Hardcoded Bypass:** The Windows DNS Client service (`dnscache.dll`) contains hardcoded internal exemptions for core Microsoft telemetry endpoints (`v10.events.data.microsoft.com`, `watson.telemetry.microsoft.com`, `vortex.data.microsoft.com`). Telemetry queries originating from `DiagTrack` bypass `hosts` mapping entirely and resolve normally.
+* **Windows Defender Flagging:** Windows Defender actively monitors the `hosts` file and flags debloat modifications as `SettingsModifier:Win32/HostsFileHijack`, automatically wiping custom blocks and generating security warnings.
+* **Automated Legacy Cleanup (`Remove-LegacyWinDebloatHostsBlock`):** Automatically detects and strips obsolete hosts blocks left behind by legacy debloaters, restoring clean DNS caching (`Clear-DnsClientCache`).
+* **Kernel-Level WFP Outbound Drops (`Add-WinDebloatFirewallBlock`):** Resolves **82 curated telemetry domains** to active public IP addresses (with offline fallback caching) and installs outbound Windows Defender Firewall rules (`New-NetFirewallRule -Direction Outbound -Action Block`). Traffic is discarded directly within the kernel NDIS/WFP packet filter before TCP SYN or TLS negotiation can occur.
+* **RFC 1122/6890/1918 Loopback Safety Guard (`Test-IsSafeExternalIp`):** Rigorously filters candidate IPs before rule generation, rejecting loopback (`127.0.0.0/8`, `::1`), unspecified (`0.0.0.0`), broadcast (`255.255.255.255`), multicast (`224.0.0.0/4`), link-local (`169.254.0.0/16`), CGNAT (`100.64.0.0/10`), and private RFC 1918 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`). This ensures local services, WSL instances, and LAN gateway routers are never inadvertently blocked.
 
 ---
 
@@ -692,6 +753,38 @@ To bake optimizations into OEM / Sysprep gold images, apply settings across all 
 ```powershell
 Invoke-WinDebloatSysprepDefaults
 ```
+</details>
+
+<details>
+<summary><b>Why does Win-Debloat block <code>DISM /ResetBase</code> on Windows 11 24H2+ (Build 26100+)?</b></summary>
+<br>
+
+**Because <code>/ResetBase</code> permanently breaks Windows 11 24H2 Checkpoint Cumulative Updates, resulting in fatal error <code>0x800f081f</code> (<code>CBS_E_SOURCE_NOT_FOUND</code>).**
+- **How Checkpoint Updates Work:** Starting with Windows 11 24H2, Microsoft introduced differential checkpoint servicing. Monthly cumulative updates are no longer full monolithic payloads; they are compact differential deltas layered on top of immutable baseline checkpoints.
+- **The Issue with <code>/ResetBase</code>:** The legacy switch `dism.exe /Online /Cleanup-Image /StartComponentCleanup /ResetBase` marks all superseded component versions as permanent and deletes earlier baseline manifests to reclaim disk space.
+- **The Fatal Crash:** When the next monthly cumulative update arrives, the servicing stack attempts to differential-patch against the stripped checkpoint baseline. Because those baseline files were deleted by `/ResetBase`, update installation fails with `0x800f081f (CBS_E_SOURCE_NOT_FOUND)` and cannot be repaired without reinstalling Windows.
+- **Win-Debloat's Protection:** [`Optimize-WinDebloatComponentStore`](src/modules/Repair/Repair.psm1) automatically inspects the kernel build number (`[Environment]::OSVersion.Version.Build -ge 26100`). On Build 26100+, it safely intercepts and blocks `/ResetBase`, executing standard non-destructive component cleanup (`/StartComponentCleanup`) while preserving your servicing baseline.
+</details>
+
+<details>
+<summary><b>Why do AMD Ryzen 7900X3D / 7950X3D / 9950X3D CPUs require the "Balanced" power plan instead of "High Performance"?</b></summary>
+<br>
+
+**Because dual-CCD AMD Ryzen 3D V-Cache processors rely on Windows Core Parking and the AMD 3D V-Cache Performance Optimizer driver to keep gaming workloads on the 3D V-Cache CCD.**
+- **Asymmetric CCD Topology:** Chips like the Ryzen 9 7900X3D, 7950X3D, 9900X3D, and 9950X3D feature two physical core complexes: **CCD0** has 96MB of stacked 3D V-Cache (ideal for games), while **CCD1** is a standard high-frequency CCD (32MB cache, ideal for multi-threaded productivity).
+- **The Core Parking Trap:** Applying a generic "High Performance" or "Ultimate Performance" power plan forcibly disables Windows Core Parking (`CPMINCORES = 100`). When core parking is disabled, the Windows scheduler distributes game threads across all cores on both CCDs.
+- **Infinity Fabric Latency Penalty:** When gaming threads jump between CCD0 and CCD1 across AMD's Infinity Fabric interconnect, they incur severe cross-CCD memory latency penalties (80ns+ hops), resulting in frame drops and micro-stuttering.
+- **Win-Debloat's Safeguard:** [`Protect-WinDebloatAMDX3D`](src/modules/Performance/AMDX3D.psm1) detects dual-CCD X3D silicon, keeps or resets the power plan to **Balanced**, sets `CPMINCORES = 0` and `CPMINCORES1 = 0` to enable full core-parking headroom, ensures `AllowAutoGameMode = 1`, and keeps the `amd3dvcache` driver running so CCD1 frequency cores park during gaming and threads remain pinned to CCD0's 96MB V-Cache.
+</details>
+
+<details>
+<summary><b>Why does the launcher force <code>--installer-type wix</code> when installing PowerShell via Winget?</b></summary>
+<br>
+
+**To prevent Windows Package Manager (winget) from installing the sandboxed MSIX package, which breaks administrative scripting.**
+- **The MSIX Container Sandbox:** Starting with PowerShell 7.6+, winget defaults to the MSIX packaged distribution if no installer type is specified. MSIX packages execute inside an isolated Windows AppContainer.
+- **Broken Administrative Cmdlets:** Inside an AppContainer, PowerShell cannot modify global execution policies (`Set-ExecutionPolicy -Scope LocalMachine` throws access denied), cannot interact cleanly with certain Win32 BCL registry APIs, and cannot register system-level COM providers.
+- **The WiX MSI Guarantee:** Both [`Win-Debloat.exe`](src/core/LauncherEmbed.cs) and [`Win-Debloat.ps1`](Win-Debloat.ps1) explicitly append `--installer-type wix` to winget commands. This forces the installation of the traditional native WiX-compiled Windows Installer MSI into `C:\Program Files\PowerShell\7`, granting PowerShell full, unconfined Win32 administrative capabilities and flawless execution policy management.
 </details>
 
 ---
